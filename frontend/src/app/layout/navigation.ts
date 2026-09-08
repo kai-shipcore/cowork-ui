@@ -22,7 +22,6 @@ import {
   SquareActivity,
   UserRoundCog,
   Users,
-  Wrench,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
@@ -96,11 +95,6 @@ export const MENU_SIDEBAR_MAIN: MenuConfig = [
         title: 'Hunt Board',
         path: ROUTES.huntBoard,
         icon: CalendarDays,
-      },
-      {
-        title: 'Rework / Complaints',
-        path: ROUTES.reworkComplaints,
-        icon: Wrench,
       },
       {
         title: 'Samples',
