@@ -20,35 +20,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@coverland-engineering/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@coverland-engineering/ui/table';
-import {
-  CalendarPlus,
-  ChevronDown,
-  ChevronRight,
-  MapPin,
-  Phone,
-  Plus,
-  Search,
-  X,
-} from 'lucide-react';
+import { CalendarPlus, MapPin, Phone, Plus, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { userName } from '@/shared/domain/app-user';
 import { PageHeader } from '@/shared/components/page-header';
 import { StatusBadge } from '@/shared/components/status-badge';
-import type {
-  Dealer,
-  VehicleProjectGroup,
-  Visit,
-} from '@/shared/types/workbench';
+import type { Dealer, Visit } from '@/shared/types/workbench';
 import { useWorkbenchStore } from '@/app/workbench-store';
+import { HuntWorkList } from '../components/hunt-work-list';
+import { huntRow } from '../hunt-rows';
 
 const WORKBENCH_TIME_ZONE = 'America/Los_Angeles';
 
@@ -69,9 +50,6 @@ function workbenchToday() {
 }
 
 const TODAY = workbenchToday();
-
-/** Rows shown before the operator asks for the full scan-completed history. */
-const SCAN_COMPLETED_PREVIEW_COUNT = 5;
 
 type DealerTypeFilter = 'ALL' | Dealer['type'];
 
@@ -108,8 +86,11 @@ export function HuntBoardPage() {
     () => new Date(TODAY.year, TODAY.month - 1, 1),
   );
   const [selectedDay, setSelectedDay] = useState<number>();
+  const [selectedVisitId, setSelectedVisitId] = useState<string>();
   const [filterQuery, setFilterQuery] = useState('');
   const [filterDate, setFilterDate] = useState('');
+  const [calendarDealer, setCalendarDealer] = useState('');
+  const [calendarAssignee, setCalendarAssignee] = useState('');
   const [dealerQuery, setDealerQuery] = useState('');
   const [dealerType, setDealerType] = useState<DealerTypeFilter>('ALL');
   const [selectedDealerId, setSelectedDealerId] = useState<string>();
@@ -120,8 +101,6 @@ export function HuntBoardPage() {
   const [dealerAddress, setDealerAddress] = useState('');
   const [dealerContact, setDealerContact] = useState('');
   const [dealerNote, setDealerNote] = useState('');
-  const [scanCompletedOpen, setScanCompletedOpen] = useState(false);
-  const [scanCompletedShowAll, setScanCompletedShowAll] = useState(false);
 
   const calendarYear = calendarMonth.getFullYear();
   const calendarMonthIndex = calendarMonth.getMonth();
@@ -142,120 +121,40 @@ export function HuntBoardPage() {
       `${visit.vehicle} ${visit.projectGroupId} ${visit.dealer} ${visitAssigneeNames(visit)}`
         .toLowerCase()
         .includes(normalizedQuery)) &&
-    (!filterDate || visit.date === filterDate);
+    (!filterDate || visit.date === filterDate) &&
+    (!calendarDealer || visit.dealer === calendarDealer) &&
+    (!calendarAssignee ||
+      tasksOfGroup(visit.projectGroupId).some(
+        (task) =>
+          visit.taskIds.includes(task.id) &&
+          task.assignedTo === calendarAssignee,
+      ));
   const visibleVisits = visits.filter(matchesVisitFilters);
-  const matchesProjectFilters = (projectId: string) => {
-    const project = projects.find((item) => item.id === projectId);
-    if (!project) return false;
-    const matchesText =
-      !normalizedQuery ||
-      `${project.vehicle} ${project.id} ${project.product}`
-        .toLowerCase()
-        .includes(normalizedQuery) ||
-      visits.some(
-        (visit) =>
-          visit.projectGroupId === projectId && matchesVisitFilters(visit),
-      );
-    const matchesDate =
-      !filterDate ||
-      visits.some(
-        (visit) =>
-          visit.projectGroupId === projectId && visit.date === filterDate,
-      );
-    return matchesText && matchesDate;
-  };
-
-  const scannedZones = (projectId: string) => {
-    const project = projects.find((item) => item.id === projectId);
-    return new Set([
-      ...(project?.zoneProjects
-        .filter((zoneProject) =>
-          ['Design', 'Sample', 'Fitting', 'Approved'].includes(
-            zoneProject.currentStage,
-          ),
-        )
-        .map((zoneProject) => zoneProject.id) ?? []),
-      ...(projectDetails[projectId]?.zones
-        .filter((zone) => zone.scanned)
-        .map((zone) => zone.id) ?? []),
-      ...visits
-        .filter(
-          (visit) =>
-            visit.projectGroupId === projectId &&
-            visit.kind === 'SCAN' &&
-            visit.status === 'COMPLETED',
-        )
-        .flatMap((visit) => visit.vehicleProjectIds),
-    ]);
-  };
-  const pendingScanZones = (projectId: string) => {
-    const project = projects.find((item) => item.id === projectId);
-    const completedZones = scannedZones(projectId);
-    return (
-      project?.zoneProjects
-        .filter((zoneProject) => !completedZones.has(zoneProject.id))
-        .map((zoneProject) => zoneProject.code) ?? []
-    );
-  };
+  const scanRows = projects
+    .map((project) =>
+      huntRow(project, projectDetails[project.id], visits, 'SCAN'),
+    )
+    .filter((row) => row.eligible);
+  const fittingRows = projects
+    .map((project) =>
+      huntRow(project, projectDetails[project.id], visits, 'FITTING'),
+    )
+    .filter((row) => row.eligible);
+  const scanWaitingProjects = scanRows
+    .filter((row) => !row.done)
+    .map((row) => row.project);
+  const fittingProjects = fittingRows
+    .filter((row) => !row.done)
+    .map((row) => row.project);
   const visitsOnDay = (day: number) =>
     visibleVisits.filter(
       (visit) =>
         visit.date.startsWith(`${calendarMonthKey}-`) &&
         Number(visit.date.slice(-2)) === day,
     );
-  const scanWaitingProjects = projects.filter(
-    (project) =>
-      project.zoneProjects.some((zoneProject) =>
-        ['Scan', 'Vehicle Hunt'].includes(zoneProject.currentStage),
-      ) &&
-      pendingScanZones(project.id).length > 0 &&
-      matchesProjectFilters(project.id),
-  );
-  const scanCompletedProjects = projects.filter(
-    (project) =>
-      project.product !== 'Car Cover' &&
-      project.zoneProjects.length > 0 &&
-      pendingScanZones(project.id).length === 0 &&
-      matchesProjectFilters(project.id),
-  );
-  // No project carries a "scan completed" timestamp, so fall back to the last
-  // completed SCAN visit and, failing that, to when the project was created.
-  const scanCompletedAt = (project: VehicleProjectGroup) => {
-    const scanDates = visits
-      .filter(
-        (visit) =>
-          visit.projectGroupId === project.id &&
-          visit.kind === 'SCAN' &&
-          visit.status === 'COMPLETED',
-      )
-      .map((visit) => visit.date);
-    return scanDates.length
-      ? scanDates.reduce((latest, date) => (date > latest ? date : latest))
-      : project.created;
-  };
-  const sortedScanCompleted = [...scanCompletedProjects].sort((a, b) =>
-    scanCompletedAt(b).localeCompare(scanCompletedAt(a)),
-  );
-  const visibleScanCompleted = scanCompletedShowAll
-    ? sortedScanCompleted
-    : sortedScanCompleted.slice(0, SCAN_COMPLETED_PREVIEW_COUNT);
-  const fittingProjects = projects.filter(
-    (project) =>
-      project.zoneProjects.some(
-        (zoneProject) => zoneProject.currentStage === 'Fitting',
-      ) && matchesProjectFilters(project.id),
-  );
   const normalizedDealerQuery = dealerQuery.trim().toLowerCase();
   const visibleDealers = dealers.filter(
     (dealer) =>
-      (!normalizedQuery ||
-        `${dealer.name} ${dealer.brand} ${dealer.address}`
-          .toLowerCase()
-          .includes(normalizedQuery)) &&
-      (!filterDate ||
-        visits.some(
-          (visit) => visit.dealer === dealer.name && visit.date === filterDate,
-        )) &&
       (!normalizedDealerQuery ||
         `${dealer.name} ${dealer.brand} ${dealer.address} ${dealer.contact} ${dealer.note}`
           .toLowerCase()
@@ -263,14 +162,15 @@ export function HuntBoardPage() {
       (dealerType === 'ALL' || dealer.type === dealerType),
   );
   // A visit has no assignee: the people going are its tasks' assignees.
-  const tasksOfGroup = (projectGroupId: string) =>
-    projectDetails[projectGroupId]?.tasks ?? [];
+  function tasksOfGroup(projectGroupId: string) {
+    return projectDetails[projectGroupId]?.tasks ?? [];
+  }
   const openVisitTasks = tasksOfGroup(visitProjectId).filter(
     (task) =>
       task.type === visitKind &&
       !['DONE', 'FAILED', 'CANCELLED'].includes(task.status),
   );
-  const visitAssigneeNames = (visit: Visit) => {
+  function visitAssigneeNames(visit: Visit) {
     const names = [
       ...new Set(
         visit.taskIds.flatMap((taskId) => {
@@ -282,10 +182,13 @@ export function HuntBoardPage() {
       ),
     ];
     return names.length ? names.join(', ') : '담당자 미지정';
-  };
+  }
 
-  const selectedDayVisits =
-    selectedDay === undefined ? [] : visitsOnDay(selectedDay);
+  const selectedDayVisits = selectedVisitId
+    ? visits.filter((visit) => visit.id === selectedVisitId)
+    : selectedDay === undefined
+      ? []
+      : visitsOnDay(selectedDay);
   const selectedDealer = dealers.find(
     (dealer) => dealer.id === selectedDealerId,
   );
@@ -300,6 +203,7 @@ export function HuntBoardPage() {
   }
 
   function openVisitDialog(projectId?: string): void {
+    setVisitTaskIds([]);
     setVisitProjectId(
       projectId ?? scanWaitingProjects[0]?.id ?? fittingProjects[0]?.id ?? '',
     );
@@ -319,9 +223,20 @@ export function HuntBoardPage() {
       vehicle: project.vehicle,
       projectGroupId: project.id,
       product: project.product,
-      vehicleProjectIds: project.zoneProjects.map(
-        (zoneProject) => zoneProject.id,
-      ),
+      vehicleProjectIds: visitTaskIds.length
+        ? [
+            ...new Set(
+              openVisitTasks
+                .filter((task) => visitTaskIds.includes(task.id))
+                .map((task) => task.vehicleProjectId),
+            ),
+          ]
+        : huntRow(
+            project,
+            projectDetails[project.id],
+            visits,
+            visitKind,
+          ).remaining.map((zone) => zone.id),
       dealer: visitDealer,
       date: visitDate,
       time: visitTime,
@@ -385,48 +300,13 @@ export function HuntBoardPage() {
         }
       />
 
-      <div className="workbench-filters hunt-board-filters">
-        <div className="search-field">
-          <Search aria-hidden="true" />
-          <Input
-            aria-label="차량명 또는 Project ID 검색"
-            placeholder="Vehicle / Project ID 검색"
-            value={filterQuery}
-            onChange={(event) => setFilterQuery(event.target.value)}
-          />
-        </div>
-        <label className="hunt-date-filter">
-          <span>Visit Date</span>
-          <Input
-            aria-label="Visit 날짜 필터"
-            type="date"
-            value={filterDate}
-            onChange={(event) => setFilterDate(event.target.value)}
-          />
-        </label>
-        {(filterQuery || filterDate) && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setFilterQuery('');
-              setFilterDate('');
-            }}
-          >
-            <X /> 초기화
-          </Button>
-        )}
-      </div>
-
       <Tabs defaultValue="scan" className="hunt-tabs">
         <TabsList variant="line" className="hunt-tab-list">
           <TabsTrigger value="scan">
-            스캔 대기{' '}
-            <span className="tab-count">{scanWaitingProjects.length}</span>
+            스캔 <span className="tab-count">{scanWaitingProjects.length}</span>
           </TabsTrigger>
           <TabsTrigger value="fitting">
-            피팅 대기{' '}
-            <span className="tab-count">{fittingProjects.length}</span>
+            피팅 <span className="tab-count">{fittingProjects.length}</span>
           </TabsTrigger>
           <TabsTrigger value="calendar">
             월간 스케줄{' '}
@@ -438,263 +318,116 @@ export function HuntBoardPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="scan" className="hunt-tab-content">
-          <section className="scan-status-panel waiting">
-            <div className="section-heading scan-status-heading">
-              <div className="scan-status-title">
-                <h2>스캔 대기</h2>
-                <StatusBadge
-                  label={`${scanWaitingProjects.length} WAITING`}
-                  tone="progress"
-                />
-              </div>
-              <span>스캔이 남은 Zone Project — 방문 예약 후 현장 스캔</span>
-            </div>
-            <Table>
-              <TableHeader className="dark-table-header">
-                <TableRow>
-                  <TableHead>Vehicle / Configuration</TableHead>
-                  <TableHead>Group</TableHead>
-                  <TableHead>대기 Zone</TableHead>
-                  <TableHead>일정</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {!scanWaitingProjects.length && (
-                  <TableRow>
-                    <TableCell colSpan={5}>
-                      <div className="empty-inline">
-                        조건에 맞는 스캔 대기 프로젝트가 없습니다.
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-                {scanWaitingProjects.map((project) => {
-                  const waitingZones = pendingScanZones(project.id);
-                  const visit =
-                    visits.find(
-                      (item) =>
-                        item.projectGroupId === project.id &&
-                        item.status === 'SCHEDULED',
-                    ) ??
-                    visits.find((item) => item.projectGroupId === project.id);
-                  const isCompleted = visit?.status === 'COMPLETED';
-                  return (
-                    <TableRow key={project.id}>
-                      <TableCell>
-                        <div className="vehicle-name">{project.vehicle}</div>
-                        <div className="vehicle-meta">{project.product}</div>
-                      </TableCell>
-                      <TableCell>
-                        <button
-                          type="button"
-                          className="project-reference project-reference-link"
-                          onClick={() => openProject(project.id)}
-                        >
-                          {project.id}
-                        </button>
-                        <div className="vehicle-meta">
-                          {project.zoneProjects
-                            .map(
-                              (zoneProject) =>
-                                `${zoneProject.code} · ${zoneProject.currentStage}`,
-                            )
-                            .join(' / ')}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="zone-list">
-                          {waitingZones.map((zone) => (
-                            <span
-                              className={`zone zone-${zone.toLowerCase()}`}
-                              key={zone}
-                            >
-                              {zone}
-                            </span>
-                          ))}
-                        </div>
-                        <div className="vehicle-meta">
-                          {waitingZones.length} Zone 남음
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {visit ? (
-                          <>
-                            <span className="visit-reference">{visit.id}</span>
-                            <div>{visit.dealer}</div>
-                            <div className="vehicle-meta">
-                              {visit.date.slice(5)} {visit.time} ·{' '}
-                              {visitAssigneeNames(visit)}
-                            </div>
-                          </>
-                        ) : (
-                          <span className="muted-text">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="table-actions">
-                        {visit && !isCompleted ? (
-                          <Button
-                            size="sm"
-                            variant="primary"
-                            onClick={() =>
-                              setVisits((current) =>
-                                current.map((item) =>
-                                  item.id === visit.id
-                                    ? { ...item, status: 'COMPLETED' }
-                                    : item,
-                                ),
-                              )
-                            }
-                          >
-                            방문 완료 처리
-                          </Button>
-                        ) : isCompleted ? (
-                          <StatusBadge label="SCANNED" tone="success" />
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openVisitDialog(project.id)}
-                          >
-                            일정 잡기
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </section>
-
-          <section className="scan-status-panel completed">
-            <div className="section-heading scan-status-heading">
-              <div className="scan-status-title">
-                <h2>
-                  <button
-                    type="button"
-                    className="scan-status-toggle"
-                    aria-expanded={scanCompletedOpen}
-                    aria-controls="scan-completed-panel"
-                    onClick={() => setScanCompletedOpen((open) => !open)}
-                  >
-                    {scanCompletedOpen ? <ChevronDown /> : <ChevronRight />}
-                    스캔 완료
-                  </button>
-                </h2>
-                <StatusBadge
-                  label={`${scanCompletedProjects.length} SCANNED`}
-                  tone="success"
-                />
-              </div>
-              <span>모든 Zone 스캔 완료 · Configuration 확인 근거 확보</span>
-            </div>
-            {scanCompletedOpen && (
-              <div id="scan-completed-panel">
-                {scanCompletedProjects.length ? (
-                  <>
-                    <div className="zone-project-list">
-                      {visibleScanCompleted.map((project) => (
-                        <div className="completion-row" key={project.id}>
-                          <div>
-                            <strong>{project.vehicle}</strong>
-                            <button
-                              type="button"
-                              className="project-reference project-reference-link"
-                              onClick={() => openProject(project.id)}
-                            >
-                              {project.id}
-                            </button>
-                          </div>
-                          <StatusBadge label="SCANNED" tone="success" />
-                          <span className="muted-text">
-                            {project.zoneProjects
-                              .map(
-                                (zoneProject) =>
-                                  `${zoneProject.code} ${zoneProject.currentStage}`,
-                              )
-                              .join(' · ')}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    {scanCompletedProjects.length >
-                      SCAN_COMPLETED_PREVIEW_COUNT && (
-                      <div className="scan-completed-more">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            setScanCompletedShowAll((showAll) => !showAll)
-                          }
-                        >
-                          {scanCompletedShowAll
-                            ? `최근 ${SCAN_COMPLETED_PREVIEW_COUNT}건만 보기`
-                            : `전체 보기 (${scanCompletedProjects.length}건)`}
-                        </Button>
-                        <span className="muted-text">
-                          최근 스캔 완료순 · {visibleScanCompleted.length} /{' '}
-                          {scanCompletedProjects.length} 표시 중
-                        </span>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="empty-inline">
-                    스캔 완료 프로젝트가 없습니다.
-                  </div>
-                )}
-              </div>
-            )}
-          </section>
+        <TabsContent forceMount value="scan" className="hunt-tab-content">
+          <HuntWorkList
+            kind="SCAN"
+            rows={scanRows}
+            onProject={openProject}
+            assignees={visitAssigneeNames}
+            onSchedule={(id) => {
+              setVisitKind('SCAN');
+              setVisitTaskIds([]);
+              openVisitDialog(id);
+            }}
+            onVisit={(visit) => {
+              setCalendarMonth(new Date(`${visit.date}T12:00:00`));
+              setSelectedDay(Number(visit.date.slice(-2)));
+              setSelectedVisitId(visit.id);
+            }}
+          />
         </TabsContent>
-
-        <TabsContent value="fitting" className="hunt-tab-content">
-          <div className="section-heading">
-            <h2>피팅 대기</h2>
-            <span>
-              Fitting 단계 Project Group — Part 단위 검증 후 Configuration 확정
-            </span>
-          </div>
-          {fittingProjects.length ? (
-            <div className="zone-project-list">
-              {fittingProjects.map((project) => (
-                <div className="completion-row" key={project.id}>
-                  <div>
-                    <strong>{project.vehicle}</strong>
-                    <button
-                      type="button"
-                      className="project-reference project-reference-link"
-                      onClick={() => openProject(project.id)}
-                    >
-                      {project.id}
-                    </button>
-                  </div>
-                  <StatusBadge label="FITTING" tone="purple" />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setVisitKind('FITTING');
-                      openVisitDialog(project.id);
-                    }}
-                  >
-                    Fitting Visit 예약
-                  </Button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <div className="empty-icon">✓</div>
-              <strong>피팅 대기 프로젝트가 없습니다.</strong>
-              <p>Sample 승인 게이트를 통과한 프로젝트가 여기에 표시됩니다.</p>
-            </div>
-          )}
+        <TabsContent forceMount value="fitting" className="hunt-tab-content">
+          <HuntWorkList
+            kind="FITTING"
+            rows={fittingRows}
+            onProject={openProject}
+            assignees={visitAssigneeNames}
+            onSchedule={(id) => {
+              setVisitKind('FITTING');
+              setVisitTaskIds([]);
+              openVisitDialog(id);
+            }}
+            onVisit={(visit) => {
+              setCalendarMonth(new Date(`${visit.date}T12:00:00`));
+              setSelectedDay(Number(visit.date.slice(-2)));
+              setSelectedVisitId(visit.id);
+            }}
+          />
         </TabsContent>
 
         <TabsContent value="calendar" className="hunt-tab-content">
+          <div className="workbench-filters hunt-board-filters">
+            <div className="search-field">
+              <Search aria-hidden="true" />
+              <Input
+                aria-label="차량명 또는 Project ID 검색"
+                placeholder="Vehicle / Project ID 검색"
+                value={filterQuery}
+                onChange={(event) => setFilterQuery(event.target.value)}
+              />
+            </div>
+            <label className="hunt-date-filter">
+              <span>Visit Date</span>
+              <Input
+                aria-label="Visit 날짜 필터"
+                type="date"
+                value={filterDate}
+                onChange={(event) => {
+                  setFilterDate(event.target.value);
+                  if (event.target.value)
+                    setCalendarMonth(
+                      new Date(`${event.target.value}T12:00:00`),
+                    );
+                }}
+              />
+            </label>
+            <label className="hunt-date-filter">
+              <span>딜러</span>
+              <select
+                value={calendarDealer}
+                onChange={(e) => setCalendarDealer(e.target.value)}
+              >
+                <option value="">전체 딜러</option>
+                {dealers.map((dealer) => (
+                  <option key={dealer.id} value={dealer.name}>
+                    {dealer.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="hunt-date-filter">
+              <span>담당자</span>
+              <select
+                value={calendarAssignee}
+                onChange={(e) => setCalendarAssignee(e.target.value)}
+              >
+                <option value="">전체 담당자</option>
+                {appUsers.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {(filterQuery ||
+              filterDate ||
+              calendarDealer ||
+              calendarAssignee) && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setFilterQuery('');
+                  setFilterDate('');
+                  setCalendarDealer('');
+                  setCalendarAssignee('');
+                }}
+              >
+                <X /> 초기화
+              </Button>
+            )}
+          </div>
+
           <div className="calendar-toolbar">
             <Button
               size="sm"
@@ -936,7 +669,13 @@ export function HuntBoardPage() {
           <DialogBody className="dialog-form-grid">
             <label>
               Project Group
-              <Select value={visitProjectId} onValueChange={setVisitProjectId}>
+              <Select
+                value={visitProjectId}
+                onValueChange={(value) => {
+                  setVisitProjectId(value);
+                  setVisitTaskIds([]);
+                }}
+              >
                 <SelectTrigger aria-label="Project Group">
                   <SelectValue placeholder="프로젝트 선택" />
                 </SelectTrigger>
@@ -968,7 +707,10 @@ export function HuntBoardPage() {
               방문 유형
               <Select
                 value={visitKind}
-                onValueChange={(value) => setVisitKind(value as Visit['kind'])}
+                onValueChange={(value) => {
+                  setVisitKind(value as Visit['kind']);
+                  setVisitTaskIds([]);
+                }}
               >
                 <SelectTrigger aria-label="Visit type">
                   <SelectValue />
@@ -1046,7 +788,10 @@ export function HuntBoardPage() {
       <Dialog
         open={selectedDay !== undefined}
         onOpenChange={(open) => {
-          if (!open) setSelectedDay(undefined);
+          if (!open) {
+            setSelectedDay(undefined);
+            setSelectedVisitId(undefined);
+          }
         }}
       >
         <DialogContent className="detail-dialog">
@@ -1133,11 +878,39 @@ export function HuntBoardPage() {
                     </dd>
                   </div>
                 </dl>
+                {visit.status === 'SCHEDULED' && (
+                  <Button
+                    variant="primary"
+                    onClick={() =>
+                      setVisits((current) =>
+                        current.map((item) =>
+                          item.id === visit.id
+                            ? { ...item, status: 'COMPLETED' }
+                            : item,
+                        ),
+                      )
+                    }
+                  >
+                    방문 완료 처리
+                  </Button>
+                )}
+                {visit.kind === 'FITTING' && (
+                  <p className="muted-text">
+                    피팅 완료는 프로젝트의 설계 적합 확인과 Shape 확정을
+                    기준으로 구분합니다.
+                  </p>
+                )}
               </div>
             ))}
           </DialogBody>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectedDay(undefined)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSelectedDay(undefined);
+                setSelectedVisitId(undefined);
+              }}
+            >
               닫기
             </Button>
           </DialogFooter>

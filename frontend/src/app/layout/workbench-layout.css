@@ -164,6 +164,10 @@
   margin-bottom: 12px;
 }
 
+.reference-data-filters {
+  margin-top: 16px;
+}
+
 .hunt-board-filters {
   align-items: flex-end;
   flex-wrap: wrap;

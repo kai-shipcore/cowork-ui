@@ -193,7 +193,7 @@ export function ReferenceDataPage() {
           </TabsTrigger>
         </TabsList>
 
-        <div className="workbench-filters">
+        <div className="workbench-filters reference-data-filters">
           <div className="search-field">
             <Search aria-hidden="true" />
             <Input
