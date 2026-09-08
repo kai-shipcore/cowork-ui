@@ -1,0 +1,276 @@
+.parts-workspace {
+  padding: 24px;
+  color: #183247;
+}
+.parts-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.parts-title h1 {
+  font-size: 24px;
+  font-weight: 700;
+}
+.parts-title p,
+.parts-hint {
+  color: #708291;
+  margin-top: 8px;
+}
+.parts-workspace button,
+.parts-form button,
+.parts-tabs button {
+  border: 1px solid #d4dfe5;
+  border-radius: 7px;
+  padding: 8px 14px;
+  cursor: pointer;
+  background: white;
+}
+.parts-workspace button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.parts-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 14px 0;
+}
+.parts-workspace button[aria-pressed='true'],
+.parts-tabs button[aria-pressed='true'] {
+  background: #eaf4ff;
+  border-color: #2563eb;
+  color: #1857ce;
+}
+.parts-generator {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  border: 1px solid #dce4e9;
+  border-radius: 12px;
+  overflow: hidden;
+  background: white;
+}
+.parts-diagram-panel {
+  padding: 28px;
+}
+.parts-form {
+  display: grid;
+  gap: 15px;
+  padding: 20px;
+  background: #f8fafb;
+}
+.parts-workspace label,
+.parts-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: #647789;
+}
+.parts-workspace input,
+.parts-workspace select,
+.parts-workspace textarea,
+.parts-form input,
+.parts-form select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #cdd8df;
+  border-radius: 6px;
+  background: white;
+  color: #162c40;
+}
+/*
+ * Seat diagram: three seats drawn from absolutely positioned pieces so they
+ * overlap like the reference drawing (head over backrest, backrest over the
+ * cushion, cushion over the leg support). Each seat is a 360 x 578 design
+ * box; positions are percentages of it and text uses container-query units
+ * (cqw), so the drawing scales with the panel width.
+ */
+.seat-diagram {
+  position: relative;
+  display: flex;
+  gap: 3.5%;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 24px 0 56px;
+}
+.seat-diagram::after {
+  content: '';
+  position: absolute;
+  right: 4%;
+  bottom: 14px;
+  left: 4%;
+  height: 36px;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(15, 23, 42, 0.16),
+    rgba(15, 23, 42, 0) 72%
+  );
+}
+.seat {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  aspect-ratio: 360 / 578;
+  container-type: inline-size;
+}
+.seat .seat-piece {
+  position: absolute;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 2px solid;
+  font-weight: 700;
+  line-height: 1.1;
+  transform: translateX(-50%);
+  transition: box-shadow 120ms;
+}
+.seat .seat-piece.seat-headrest {
+  top: 0;
+  z-index: 5;
+  width: 55.6%;
+  height: 24.2%;
+  border-color: #3d9a7b;
+  border-radius: 11cqw;
+  background: linear-gradient(180deg, #dbf1e8, #b1dfcd);
+  color: #2b7a63;
+  font-size: 7.2cqw;
+}
+.seat .seat-headrest b {
+  font-size: 15cqw;
+  line-height: 1;
+}
+.seat .seat-headrest small {
+  margin-top: 1.5cqw;
+  font-size: 5cqw;
+}
+.seat .seat-piece.seat-top {
+  top: 19.9%;
+  z-index: 4;
+  width: 72.2%;
+  height: 47.6%;
+  border-color: #3b64c6;
+  border-radius: 8.9cqw;
+  background: linear-gradient(180deg, #e7eefc, #c2d5f6);
+  color: #2a58a8;
+  font-size: 8.3cqw;
+}
+.seat-center .seat-piece.seat-top {
+  font-size: 5.6cqw;
+}
+.seat .seat-piece.seat-arm {
+  top: 28.5%;
+  left: auto;
+  z-index: 3;
+  width: 21.1%;
+  height: 30.3%;
+  border-color: #8a6a3d;
+  border-radius: 6.1cqw;
+  background: linear-gradient(180deg, #ecdcc6, #cfb38b);
+  color: #6a4d2a;
+  font-size: 6.1cqw;
+  writing-mode: vertical-rl;
+  transform: none;
+}
+.seat-passenger .seat-piece.seat-arm {
+  right: 0;
+}
+.seat-driver .seat-piece.seat-arm {
+  left: 0;
+}
+.seat .seat-piece.seat-bottom {
+  top: 58.8%;
+  z-index: 2;
+  width: 98.9%;
+  height: 31.1%;
+  border-color: #b48d2c;
+  border-radius: 12.8cqw;
+  background: linear-gradient(180deg, #f8ecc6, #e9d497);
+  color: #8a6812;
+  font-size: 8.3cqw;
+}
+.seat .seat-piece.seat-leg {
+  top: 87.4%;
+  z-index: 1;
+  width: 88.9%;
+  height: 12.1%;
+  border-color: #7fa36f;
+  border-radius: 9.7cqw;
+  background: linear-gradient(180deg, #e2efde, #cfe2c8);
+  color: #2f6b45;
+  font-size: 4.7cqw;
+}
+.seat .seat-piece[aria-pressed='true'] {
+  z-index: 10;
+  border-width: 4px;
+  border-color: #1d4ed8;
+  box-shadow:
+    0 0 0 4px rgba(59, 130, 246, 0.3),
+    0 0 22px rgba(59, 130, 246, 0.65);
+  outline: none;
+}
+.part-name-preview {
+  display: grid;
+  place-items: center;
+  min-height: 90px;
+  padding: 12px;
+  border: 1px solid #2563eb;
+  border-radius: 8px;
+  color: #1857ce;
+  font-size: 18px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+button.parts-primary {
+  background: #205bdf;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 6px;
+}
+.parts-list-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.parts-list-layout aside {
+  padding: 24px;
+  background: white;
+  border: 1px solid #dce4e9;
+  border-radius: 10px;
+}
+.part-list-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  width: 100%;
+  margin-top: 10px;
+}
+.part-list-row span {
+  font-size: 12px;
+  color: #718192;
+}
+.part-version {
+  padding: 14px 0;
+  border-bottom: 1px solid #e0e7eb;
+}
+.parts-scope {
+  display: grid;
+  place-items: center;
+  min-height: 300px;
+  background: #e9f3f2;
+  border-radius: 32px;
+  font-size: 28px;
+}
+@media (max-width: 900px) {
+  .parts-generator,
+  .parts-list-layout {
+    grid-template-columns: 1fr;
+  }
+  .seat-diagram {
+    gap: 12px;
+  }
+  .parts-workspace {
+    padding: 12px;
+  }
+}

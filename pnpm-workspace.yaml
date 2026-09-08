@@ -1,0 +1,15 @@
+packages:
+  - frontend
+  - backend
+allowBuilds:
+  esbuild: true
+
+# pnpm holds back freshly published packages for a cooling-off period, so a
+# compromised release cannot spread the moment it lands. That protection is
+# aimed at packages we do not control; this one we publish ourselves, from a
+# private repo, gated on its own CI.
+#
+# Listed without a version on purpose. pnpm writes the exact version here by
+# itself, which would mean editing this file on every release.
+minimumReleaseAgeExclude:
+  - '@coverland-engineering/ui'

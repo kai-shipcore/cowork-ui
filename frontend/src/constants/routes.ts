@@ -1,0 +1,15 @@
+export const ROUTES = {
+  dashboard: '/dashboard',
+  vehicleResearch: '/vehicle-research',
+  vehicleProjects: '/vehicle-projects',
+  huntBoard: '/hunt-board',
+  reworkComplaints: '/rework-complaints',
+  samples: '/samples',
+  uniqueVehicles: '/unique-vehicles',
+  products: '/products',
+  productRegistrations: '/product-registrations',
+  vehicleOptions: '/vehicle-options',
+  referenceData: '/reference-data',
+  profileDefault: '/profiles/default',
+  login: '/login',
+} as const;
