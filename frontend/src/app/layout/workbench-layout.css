@@ -3983,6 +3983,38 @@
 .project-action-dialog {
   width: min(760px, calc(100vw - 32px));
   max-width: 760px;
+  /* The handoff checklist is far taller than a short laptop viewport. Cap the
+     dialog so its footer buttons stay reachable and scroll the body instead of
+     letting the content run off the top and bottom of the screen. */
+  max-height: calc(100dvh - 48px);
+}
+
+.project-action-dialog [data-slot='dialog-body'] {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* One checklist row: the confirm box and its status read as a single line,
+   with the reference field directly under them. */
+.handoff-document {
+  display: grid;
+  gap: 6px;
+}
+
+.handoff-document .shape-check {
+  align-items: center;
+  margin: 0;
+}
+
+.handoff-document .shape-check small {
+  color: var(--wb-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.handoff-document .shape-check > button {
+  margin-top: 0;
 }
 
 .project-dialog-stack {

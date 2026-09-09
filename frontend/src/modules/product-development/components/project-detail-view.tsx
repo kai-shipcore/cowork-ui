@@ -1058,13 +1058,13 @@ export function ProjectDetailView({
       >
         <TabsList variant="line" size="md">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="visits">Visits</TabsTrigger>
           <TabsTrigger value="designs">
             {designLabel(project.product)}
           </TabsTrigger>
-          <TabsTrigger value="revisions">Revision Control</TabsTrigger>
           <TabsTrigger value="samples">Samples</TabsTrigger>
+          <TabsTrigger value="revisions">Revision Control</TabsTrigger>
           <TabsTrigger value="files">Files</TabsTrigger>
-          <TabsTrigger value="visits">Visits</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
