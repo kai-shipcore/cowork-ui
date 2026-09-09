@@ -24,6 +24,8 @@ import { CalendarPlus, MapPin, Phone, Plus, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { userName } from '@/shared/domain/app-user';
+import { createProjectVisit } from '@/shared/domain/field-visit';
+import { eligibleProjectIdsForStage } from '@/shared/domain/project-stage';
 import { PageHeader } from '@/shared/components/page-header';
 import { StatusBadge } from '@/shared/components/status-badge';
 import type { Dealer, Visit } from '@/shared/types/workbench';
@@ -79,9 +81,12 @@ export function HuntBoardPage() {
   const [visitProjectId, setVisitProjectId] = useState('');
   const [visitDealer, setVisitDealer] = useState('Galpin Ford');
   const [visitKind, setVisitKind] = useState<Visit['kind']>('SCAN');
-  const [visitDate, setVisitDate] = useState('2026-08-28');
+  const [visitDate, setVisitDate] = useState(
+    new Date().toLocaleDateString('en-CA'),
+  );
   const [visitTime, setVisitTime] = useState('10:00');
-  const [visitTaskIds, setVisitTaskIds] = useState<readonly string[]>([]);
+  const [visitZoneIds, setVisitZoneIds] = useState<readonly string[]>([]);
+  const [staffIds, setStaffIds] = useState<readonly string[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(
     () => new Date(TODAY.year, TODAY.month - 1, 1),
   );
@@ -121,12 +126,7 @@ export function HuntBoardPage() {
         .toLowerCase()
         .includes(normalizedQuery)) &&
     (!calendarDealer || visit.dealer === calendarDealer) &&
-    (!calendarAssignee ||
-      tasksOfGroup(visit.projectGroupId).some(
-        (task) =>
-          visit.taskIds.includes(task.id) &&
-          task.assignedTo === calendarAssignee,
-      ));
+    (!calendarAssignee || (visit.staffIds ?? []).includes(calendarAssignee));
   const visibleVisits = visits.filter(matchesVisitFilters);
   const scanRows = projects
     .map((project) =>
@@ -159,27 +159,27 @@ export function HuntBoardPage() {
           .includes(normalizedDealerQuery)) &&
       (dealerType === 'ALL' || dealer.type === dealerType),
   );
-  // A visit has no assignee: the people going are its tasks' assignees.
-  function tasksOfGroup(projectGroupId: string) {
-    return projectDetails[projectGroupId]?.tasks ?? [];
-  }
-  const openVisitTasks = tasksOfGroup(visitProjectId).filter(
-    (task) =>
-      task.type === visitKind &&
-      !['DONE', 'FAILED', 'CANCELLED'].includes(task.status),
+  const visitProject = projects.find(
+    (project) => project.id === visitProjectId,
   );
+  const eligibleVisitZones = visitProject
+    ? huntRow(
+        visitProject,
+        projectDetails[visitProjectId],
+        visits,
+        visitKind,
+      ).remaining.filter((zone) =>
+        eligibleProjectIdsForStage(
+          visitProject.product,
+          projectDetails[visitProjectId]?.zones ?? visitProject.zoneProjects,
+          visitKind === 'SCAN' ? 'Scan' : 'Fitting',
+        ).includes(zone.id),
+      )
+    : [];
   function visitAssigneeNames(visit: Visit) {
-    const names = [
-      ...new Set(
-        visit.taskIds.flatMap((taskId) => {
-          const task = tasksOfGroup(visit.projectGroupId).find(
-            (item) => item.id === taskId,
-          );
-          return task?.assignedTo ? [userName(appUsers, task.assignedTo)] : [];
-        }),
-      ),
-    ];
-    return names.length ? names.join(', ') : '담당자 미지정';
+    return visit.staffIds?.length
+      ? visit.staffIds.map((id) => userName(appUsers, id)).join(', ')
+      : 'Unassigned';
   }
 
   const selectedDayVisits = selectedVisitId
@@ -201,7 +201,8 @@ export function HuntBoardPage() {
   }
 
   function openVisitDialog(projectId?: string): void {
-    setVisitTaskIds([]);
+    setVisitZoneIds([]);
+    setStaffIds([]);
     setVisitProjectId(
       projectId ?? scanWaitingProjects[0]?.id ?? fittingProjects[0]?.id ?? '',
     );
@@ -211,36 +212,29 @@ export function HuntBoardPage() {
   function saveVisit(): void {
     const project = projects.find((item) => item.id === visitProjectId);
     if (!project) return;
-    const nextNumber =
-      Math.max(
-        0,
-        ...visits.map((visit) => Number(visit.id.replace(/\D/g, ''))),
-      ) + 1;
-    const visit: Visit = {
-      id: `VS-${String(nextNumber).padStart(2, '0')}`,
-      vehicle: project.vehicle,
-      projectGroupId: project.id,
-      product: project.product,
-      vehicleProjectIds: visitTaskIds.length
-        ? [
-            ...new Set(
-              openVisitTasks
-                .filter((task) => visitTaskIds.includes(task.id))
-                .map((task) => task.vehicleProjectId),
-            ),
-          ]
-        : huntRow(
-            project,
-            projectDetails[project.id],
-            visits,
-            visitKind,
-          ).remaining.map((zone) => zone.id),
+    const vehicleProjectIds = visitZoneIds.filter((id) =>
+      eligibleVisitZones.some((zone) => zone.id === id),
+    );
+    if (!vehicleProjectIds.length || !visitDate || !visitTime) return;
+    const record = createProjectVisit({
+      type: visitKind,
       dealer: visitDealer,
       date: visitDate,
       time: visitTime,
-      taskIds: visitTaskIds,
-      kind: visitKind,
+      vehicleProjectIds,
+      staffIds,
+      locationType: 'DEALERSHIP',
+      priority: 'NORMAL',
+      targetVehicleResearchId: project.vehicleResearchId,
+    });
+    const visit: Visit = {
+      ...record,
       status: 'SCHEDULED',
+      taskIds: [],
+      vehicle: project.vehicle,
+      projectGroupId: project.id,
+      product: project.product,
+      kind: visitKind,
     };
     setVisits((current) => [...current, visit]);
     setDialogOpen(false);
@@ -324,7 +318,7 @@ export function HuntBoardPage() {
             assignees={visitAssigneeNames}
             onSchedule={(id) => {
               setVisitKind('SCAN');
-              setVisitTaskIds([]);
+              setVisitZoneIds([]);
               openVisitDialog(id);
             }}
             onVisit={(visit) => {
@@ -342,7 +336,7 @@ export function HuntBoardPage() {
             assignees={visitAssigneeNames}
             onSchedule={(id) => {
               setVisitKind('FITTING');
-              setVisitTaskIds([]);
+              setVisitZoneIds([]);
               openVisitDialog(id);
             }}
             onVisit={(visit) => {
@@ -677,7 +671,7 @@ export function HuntBoardPage() {
                 value={visitProjectId}
                 onValueChange={(value) => {
                   setVisitProjectId(value);
-                  setVisitTaskIds([]);
+                  setVisitZoneIds([]);
                 }}
               >
                 <SelectTrigger aria-label="Project Group">
@@ -713,7 +707,7 @@ export function HuntBoardPage() {
                 value={visitKind}
                 onValueChange={(value) => {
                   setVisitKind(value as Visit['kind']);
-                  setVisitTaskIds([]);
+                  setVisitZoneIds([]);
                 }}
               >
                 <SelectTrigger aria-label="Visit type">
@@ -742,36 +736,45 @@ export function HuntBoardPage() {
               />
             </label>
             <fieldset className="visit-zone-picker full-width">
-              <legend>
-                처리할 {visitKind} Task — 방문 담당자는 Task 담당자입니다
-              </legend>
-              {openVisitTasks.length ? (
-                openVisitTasks.map((task) => (
-                  <label key={task.id}>
+              <legend>Target Zone Projects - {visitKind}</legend>
+              {eligibleVisitZones.map((zone) => (
+                <label key={zone.id}>
+                  <Checkbox
+                    checked={visitZoneIds.includes(zone.id)}
+                    onCheckedChange={(checked) =>
+                      setVisitZoneIds((current) =>
+                        checked === true
+                          ? [...new Set([...current, zone.id])]
+                          : current.filter((id) => id !== zone.id),
+                      )
+                    }
+                  />
+                  <span>
+                    {zone.code} - {zone.id}
+                  </span>
+                </label>
+              ))}
+              {!eligibleVisitZones.length && <p>No eligible zone projects.</p>}
+            </fieldset>
+            <fieldset className="visit-zone-picker two-column full-width">
+              <legend>Visit Staff</legend>
+              {appUsers
+                .filter((user) => user.status === 'ACTIVE')
+                .map((user) => (
+                  <label key={user.id}>
                     <Checkbox
-                      checked={visitTaskIds.includes(task.id)}
+                      checked={staffIds.includes(user.id)}
                       onCheckedChange={(checked) =>
-                        setVisitTaskIds((current) =>
-                          checked
-                            ? [...current, task.id]
-                            : current.filter((taskId) => taskId !== task.id),
+                        setStaffIds((current) =>
+                          checked === true
+                            ? [...new Set([...current, user.id])]
+                            : current.filter((id) => id !== user.id),
                         )
                       }
                     />
-                    <span>
-                      {task.id} · {task.title}
-                    </span>
-                    <span className="muted-text">
-                      {userName(appUsers, task.assignedTo)}
-                    </span>
+                    <span>{user.name}</span>
                   </label>
-                ))
-              ) : (
-                <p className="visit-no-task-note">
-                  이 Project Group에 처리할 {visitKind} Task가 없습니다. Vehicle
-                  Projects의 Tasks 탭에서 먼저 Task를 등록하세요.
-                </p>
-              )}
+                ))}
             </fieldset>
           </DialogBody>
           <DialogFooter>
@@ -780,7 +783,13 @@ export function HuntBoardPage() {
             </Button>
             <Button
               variant="primary"
-              disabled={!visitProjectId}
+              disabled={
+                !visitZoneIds.some((id) =>
+                  eligibleVisitZones.some((zone) => zone.id === id),
+                ) ||
+                !visitDate ||
+                !visitTime
+              }
               onClick={saveVisit}
             >
               예약 저장
@@ -889,7 +898,11 @@ export function HuntBoardPage() {
                       setVisits((current) =>
                         current.map((item) =>
                           item.id === visit.id
-                            ? { ...item, status: 'COMPLETED' }
+                            ? {
+                                ...item,
+                                status: 'COMPLETED',
+                                performedAt: new Date().toISOString(),
+                              }
                             : item,
                         ),
                       )

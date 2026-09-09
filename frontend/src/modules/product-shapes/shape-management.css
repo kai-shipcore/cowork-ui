@@ -1,0 +1,122 @@
+.shape-management {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.shape-info,
+.shape-section {
+  padding: 20px;
+  border: 1px solid #dbe2ec;
+  border-radius: 10px;
+  background: #fff;
+}
+.shape-info {
+  background: #f5f8ff;
+  border-color: #cbd7f7;
+}
+.shape-management p {
+  margin: 8px 0;
+  line-height: 1.6;
+}
+.shape-management h3 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 650;
+}
+.shape-management a {
+  color: #354dcc;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.shape-actions,
+.shape-filters {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.shape-filters input {
+  flex: 1;
+  min-width: 160px;
+  max-width: 360px;
+}
+.shape-management select {
+  border: 1px solid #dbe2ec;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: white;
+  min-height: 36px;
+  max-width: 100%;
+}
+.shape-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 16px 0;
+  line-height: 1.7;
+  font-size: 13px;
+}
+.shape-check > button {
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.shape-impact,
+.shape-errors {
+  background: #fff8ec;
+  color: #895416;
+  border-radius: 6px;
+  padding: 12px 16px;
+  line-height: 1.7;
+}
+.shape-success {
+  background: #eefaf5;
+  padding: 14px;
+  border-radius: 6px;
+}
+.shape-table-scroll {
+  overflow-x: auto;
+  border: 1px solid #dbe2ec;
+  border-radius: 8px;
+}
+.shape-table {
+  border-collapse: collapse;
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+}
+.shape-table th {
+  background: #f7f9fc;
+  white-space: nowrap;
+}
+.shape-table td,
+.shape-table th {
+  padding: 14px;
+  border-bottom: 1px solid #e5eaf1;
+  vertical-align: top;
+}
+.shape-table small {
+  display: block;
+  color: #708198;
+  font-size: 11px;
+  max-width: 220px;
+  overflow-wrap: anywhere;
+  margin-top: 5px;
+}
+.shape-usage {
+  display: grid;
+  gap: 8px;
+  min-width: 210px;
+  padding: 10px 0;
+}
+.shape-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #dbe2ec;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 12px 0;
+  flex-wrap: wrap;
+}

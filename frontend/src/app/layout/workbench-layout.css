@@ -3940,8 +3940,17 @@
 }
 
 .visit-card-heading > strong {
-  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
   letter-spacing: 0.05em;
+}
+
+.visit-card-heading > strong > svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 .visit-card-heading > strong.scan {

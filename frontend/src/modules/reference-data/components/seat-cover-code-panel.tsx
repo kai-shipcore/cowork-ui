@@ -241,8 +241,8 @@ export function SeatCoverCodePanel({ query }: { query: string }) {
             </label>
             <div className="dialog-note">
               Code는 연식이 들어가지 않습니다 — 연식은 패턴 이름이 담당하므로
-              모델연도마다 코드가 늘지 않습니다. vehicle_product_shape의 사이즈
-              코드와는 다른 코드 체계입니다.
+              모델연도마다 코드가 늘지 않습니다. Shape 이름과는 다른 코드
+              체계입니다.
             </div>
             {duplicateCode && code.trim() && (
               <div className="dialog-error">같은 Code가 이미 있습니다.</div>

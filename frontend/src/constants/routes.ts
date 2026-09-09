@@ -2,6 +2,7 @@ export const ROUTES = {
   dashboard: '/dashboard',
   vehicleResearch: '/vehicle-research',
   vehicleProjects: '/vehicle-projects',
+  productShapes: '/product-shapes',
   huntBoard: '/hunt-board',
   reworkComplaints: '/rework-complaints',
   samples: '/samples',

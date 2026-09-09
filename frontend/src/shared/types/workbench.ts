@@ -28,7 +28,42 @@ export interface VehicleZoneProject {
   targetAt?: string;
   lastActivityAt?: string;
   productShapeId?: string;
-  adoptedProjectId?: string;
+  mergedIntoProjectId?: string;
+  /** Local workflow evidence; persisted with the project stage, not the Size master. */
+  sizeReview?: ProjectSizeReview;
+  productionHandoff?: {
+    completedAt: string;
+    completedBy: string;
+    reference: string;
+    evidenceKey: string;
+    checklist?: HandoffChecklist;
+  };
+  handoffChecklist?: HandoffChecklist;
+  shapeReviewHistory?: readonly ProjectSizeReview[];
+  reworkRequestedAt?: string;
+}
+
+export interface HandoffChecklist {
+  evidenceKey?: string;
+  documents: Record<string, { reference: string; confirmed: boolean }>;
+  vehicleConfirmed: boolean;
+  projectNumberConfirmed: boolean;
+  approvedBy: string;
+  approvalConfirmed: boolean;
+}
+
+export interface ProjectSizeReview {
+  meetingAt?: string;
+  participants?: readonly string[];
+  approvalMethod?: 'VERBAL';
+  rejectionType?: 'DOCUMENT' | 'PATTERN';
+  affectedDesignIds?: readonly string[];
+  outcome?: 'APPROVED' | 'REJECTED';
+  reviewedBy: string;
+  reviewedAt: string;
+  blueprintReference: string;
+  note: string;
+  evidenceKey: string;
 }
 
 export type ProductShapeStatus = 'IN_DEVELOPMENT' | 'ACTIVE' | 'RETIRED';
@@ -251,15 +286,32 @@ export interface VehicleProductRegistrationItem {
 }
 
 /**
- * `vehicle_product_shape` — one physical pattern, identified by the size
+ * `vehicle_product_shape` — the final approved Size, identified by the size
  * chart's code (`F-10`, `CN-M`, `S1-TT-SI03`). This name IS the SKU's size
  * segment; Car Cover splits it at the first hyphen around the material.
  *
  * The DDL table carries id / product_type_id / name / lifecycle status.
  * `dimensions` is the optional `vehicle_product_shape_dimension` satellite;
- * source/adoption fields are a UI read model of `vehicle_project`.
+ * source/adoption and global fitting fields are legacy UI compatibility data,
+ * never project references or evidence of current project approval.
  */
 export interface VehicleProductShape {
+  composition?: {
+    sourceProjectId: string;
+    sourceZoneId: string;
+    parts: readonly {
+      designId: string;
+      partId?: string;
+      name: string;
+      revisionId: string;
+      revisionNumber: number;
+      quantity: number;
+    }[];
+    blueprintUrl: string;
+    status: 'DRAFT' | 'COMPLETE';
+    updatedAt: string;
+    updatedBy: string;
+  };
   id: string;
   productTypeId: string;
   name: string;
@@ -270,6 +322,7 @@ export interface VehicleProductShape {
   sourceAssetId?: string;
   createdBy: string;
   createdAt: string;
+  updatedAt?: string;
   note?: string;
   adoptedFromShapeId?: string;
   fittingConfirmedBy?: string;
@@ -290,7 +343,24 @@ export interface VehicleProjectGroup {
   created: string;
 }
 
+export interface FieldVisitProjectLink {
+  id: string;
+  fieldVisitId: string;
+  vehicleProjectId: string;
+  type: 'SCAN' | 'FITTING';
+  targetVehicleResearchId?: string;
+  result?: 'PASS' | 'FAIL';
+  note?: string;
+}
+
 export interface Visit {
+  /** app_user IDs represented by field_visit_staff. */
+  staffIds?: readonly string[];
+  scheduledAt?: string;
+  performedAt?: string;
+  /** Direct field_visit_x_vehicle_project associations. */
+  projectLinks?: readonly FieldVisitProjectLink[];
+
   id: string;
   vehicle: string;
   projectGroupId: string;
@@ -299,11 +369,7 @@ export interface Visit {
   dealer: string;
   date: string;
   time: string;
-  /**
-   * Tasks this visit carries out. The visit has no assignee of its own — the
-   * people going are the assignees of these tasks, which is why
-   * `field_visit` carries no assignee column.
-   */
+  /** @deprecated Only retained to migrate older browser snapshots. */
   taskIds: readonly string[];
   kind: 'SCAN' | 'FITTING';
   status: 'SCHEDULED' | 'COMPLETED';
@@ -427,19 +493,20 @@ export interface ProjectTask {
 }
 
 export interface ProjectVisit {
+  /** app_user IDs represented by field_visit_staff. */
+  staffIds?: readonly string[];
+  scheduledAt?: string;
+  performedAt?: string;
+  /** Direct field_visit_x_vehicle_project associations. */
+  projectLinks?: readonly FieldVisitProjectLink[];
+
   id: string;
   type: 'SCAN' | 'FITTING';
   dealer: string;
   date: string;
   time: string;
   vehicleProjectIds: readonly string[];
-  /**
-   * Tasks this visit carries out. Work is designated as a task first, then a
-   * visit schedules where and when it happens, so one visit can close several
-   * tasks at once — and the visit's assignees ARE these tasks' assignees, so
-   * the visit stores no assignee of its own. Optional because snapshots
-   * persisted before this field existed do not carry it.
-   */
+  /** @deprecated Only retained to migrate older browser snapshots. */
   taskIds?: readonly string[];
   status: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
   locationType?:
@@ -452,6 +519,7 @@ export interface ProjectVisit {
 }
 
 export interface ProjectDesign {
+  requiresRevisionAfterReview?: boolean;
   libraryPartId?: string;
   libraryRevisionId?: string;
   id: string;

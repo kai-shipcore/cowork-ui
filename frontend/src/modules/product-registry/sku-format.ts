@@ -137,7 +137,7 @@ function seatCoverSku(input: SkuInput): SkuResult {
   if (!input.materialCode || !input.colorCode || !input.shapeNames.length) {
     return {
       status: 'unsupported',
-      reason: '재질, Shape(사이즈), Color가 모두 있어야 합니다.',
+      reason: '재질, Shape, Color가 모두 있어야 합니다.',
     };
   }
   return {
@@ -164,14 +164,14 @@ function carCoverSku(input: SkuInput): SkuResult {
   if (!input.materialCode || !input.colorCode || !shapeName) {
     return {
       status: 'unsupported',
-      reason: '재질, Shape(차종·미러 + 사이즈), Color가 모두 있어야 합니다.',
+      reason: '재질, Shape, Color가 모두 있어야 합니다.',
     };
   }
   const hyphen = shapeName.indexOf('-');
   if (hyphen <= 0 || hyphen === shapeName.length - 1) {
     return {
       status: 'unsupported',
-      reason: `Shape 이름 "${shapeName}"이 "차종미러-사이즈" 형태가 아닙니다 (예: CN-M).`,
+      reason: `Shape 이름 "${shapeName}"이 "차종미러-규격" 형태가 아닙니다 (예: CN-M).`,
     };
   }
   return {

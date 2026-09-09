@@ -7,6 +7,12 @@ import { DashboardPage } from '@/modules/dashboard/pages/DashboardPage';
 import { PartsPage } from '@/modules/parts/parts-page';
 import { Layout } from './layout/Layout';
 
+const ProductShapesPage = lazy(() =>
+  import('@/modules/product-shapes/product-shapes-page').then((module) => ({
+    default: module.ProductShapesPage,
+  })),
+);
+
 const VehicleResearchPage = lazy(() =>
   import('@/modules/vehicle-registry/pages/vehicle-research-page').then(
     (module) => ({ default: module.VehicleResearchPage }),
@@ -106,6 +112,14 @@ export function AppRouter() {
   return (
     <Routes>
       <Route element={<Layout />}>
+        <Route
+          path={ROUTES.productShapes}
+          element={
+            <Suspense fallback={<RouteFallback />}>
+              <ProductShapesPage />
+            </Suspense>
+          }
+        />
         <Route path="/parts" element={<PartsPage />} />
         <Route index element={<DashboardPage />} />
         <Route path={ROUTES.dashboard} element={<DashboardPage />} />

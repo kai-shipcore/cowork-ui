@@ -198,7 +198,7 @@ export function RegistrationRequestDialog({
                 </dd>
               </div>
               <div>
-                <dt>Shape (사이즈 세그먼트)</dt>
+                <dt>Shape</dt>
                 <dd>
                   {shapes.length ? (
                     <span className="shape-list">

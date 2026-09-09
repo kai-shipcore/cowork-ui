@@ -3,6 +3,7 @@ import type {
   VehicleProjectGroup,
   Visit,
 } from '@/shared/types/workbench';
+import { handoffReady } from '@/modules/product-shapes/shape-model';
 
 export function huntRow(
   project: VehicleProjectGroup,
@@ -33,7 +34,9 @@ export function huntRow(
         designs.every((d) => d.fittingConfirmed) &&
         detail?.zones.some(
           (z) =>
-            z.id === zone.id && Boolean(z.productShape?.fittingConfirmedAt),
+            z.id === zone.id &&
+            Boolean(z.productionHandoff) &&
+            handoffReady(z, detail.designs, detail.visits),
         ))
     );
   });

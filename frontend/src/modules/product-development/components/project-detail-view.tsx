@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import {
   Activity,
   type ActivityEntry,
@@ -33,23 +33,29 @@ import {
   TabsList,
   TabsTrigger,
 } from '@coverland-engineering/ui/tabs';
+import { Textarea } from '@coverland-engineering/ui/textarea';
 import {
   Armchair,
   ArrowLeft,
-  Box,
   CalendarClock,
   CalendarPlus,
   CarFront,
-  ChevronDown,
   ChevronRight,
   FilePlus2,
   History,
   Plus,
   RectangleHorizontal,
+  ScanLine,
+  Wrench,
 } from 'lucide-react';
-import { useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { findUser, userName } from '@/shared/domain/app-user';
 import { ConfigChips } from '@/shared/domain/config-chips';
+import {
+  createProjectVisit,
+  migrateVisitStaff,
+  type NewVisitInput,
+} from '@/shared/domain/field-visit';
 import { designLabel, hasDesignIdentity } from '@/shared/domain/product-design';
 import {
   eligibleProjectIdsForStage,
@@ -68,38 +74,49 @@ import { StatusBadge } from '@/shared/components/status-badge';
 import type {
   ProjectActivityItem as ActivityItem,
   AppUser,
+  HandoffChecklist,
   ProjectAsset,
   ProjectDesign,
   ProjectDesignRevision,
   ProjectDetailSnapshot,
   ProjectSample,
   ProjectStage,
-  ProjectTask,
-  ProjectTaskType,
   ProjectVisit,
   SampleRequestItem,
   SeatCoverCode,
   SeatCoverPart,
   UniqueVehicle,
-  VehicleProductShape,
+  VehicleConfiguration,
   VehicleProjectGroup,
   Visit,
   ZoneProject,
 } from '@/shared/types/workbench';
 import { importProjectParts } from '@/modules/parts/part-library';
 import { PartLinkDialog } from '@/modules/parts/part-link-dialog';
+import {
+  handoffBlockers,
+  handoffReady,
+  sizeReviewEvidence,
+} from '@/modules/product-shapes/shape-model';
 import { CURRENT_USER_ID } from '@/app/current-user';
 import { SEED_SCAN_VISIT_DATE } from '@/app/workbench-mock-data';
 import { isLegacySeedActivity, useWorkbenchStore } from '@/app/workbench-store';
+import {
+  emptyHandoffChecklist,
+  HANDOFF_DOCUMENTS,
+  handoffChecklistErrors,
+  prepareHandoffChecklist,
+} from '../handoff-checklist';
+import { getSampleGate, type SampleGate } from '../sample-gate';
+import { HandoffChecklistForm } from './handoff-checklist-form';
+import '@/modules/product-shapes/shape-management.css';
 
 const FIXED_DETAIL_TABS = [
   'overview',
-  'shapes',
   'designs',
   'revisions',
   'samples',
   'files',
-  'tasks',
   'visits',
   'activity',
 ] as const;
@@ -108,16 +125,15 @@ type DetailTab = (typeof FIXED_DETAIL_TABS)[number];
 
 /** Narrows an untrusted value (a URL query parameter) to a deep-linkable tab. */
 export function toDetailTab(value: string | null): DetailTab | undefined {
+  if (value === 'tasks') return 'visits';
+  if (value === 'shapes') return 'overview';
   return FIXED_DETAIL_TABS.find((tab) => tab === value);
 }
 
 type DialogName =
   | 'new-configuration'
-  | 'shape-create'
-  | 'shape-adopt'
   | 'design'
   | 'revision'
-  | 'task'
   | 'visit'
   | 'sample'
   | 'file'
@@ -145,14 +161,6 @@ interface NewDesignInput {
   dxfFingerprint: string;
 }
 
-interface NewShapeInput {
-  name: string;
-  dimensions?: VehicleProductShape['dimensions'];
-  sourceAssetId?: string;
-  createdBy: string;
-  note: string;
-}
-
 const DEALERS = [
   'Galpin Ford',
   'AutoNation Toyota Cerritos',
@@ -167,28 +175,6 @@ const DESIGNERS = [
   { id: 'USR-CHRISTIAN', name: 'Christian' },
 ] as const;
 
-/**
- * The people going on a visit are the assignees of the tasks it carries out —
- * a visit has no assignee of its own.
- */
-function visitAssigneeNames(
-  users: readonly AppUser[],
-  tasks: readonly ProjectTask[],
-  visit: ProjectVisit,
-): string {
-  const ids = [
-    ...new Set(
-      (visit.taskIds ?? []).flatMap((taskId) => {
-        const task = tasks.find((item) => item.id === taskId);
-        return task?.assignedTo ? [task.assignedTo] : [];
-      }),
-    ),
-  ];
-  return ids.length
-    ? ids.map((id) => userName(users, id)).join(', ')
-    : '담당자 미지정';
-}
-
 function currentRevision(design: ProjectDesign) {
   return design.revisions.reduce((latest, revision) =>
     revision.revisionNumber > latest.revisionNumber ? revision : latest,
@@ -199,7 +185,16 @@ function isRevisionSampleRequestable(
   design: ProjectDesign,
   sampleItems: readonly SampleRequestItem[],
 ): boolean {
+  if (design.requiresRevisionAfterReview) return false;
   const revision = currentRevision(design);
+  if (
+    !sampleItems.some(
+      (item) =>
+        item.vehicleProductDesignId === design.id &&
+        item.vehicleProductDesignRevisionId === revision.id,
+    )
+  )
+    return true;
   if (!revision.changeRequest) return false;
   const latest = sampleItems
     .filter((item) => item.vehicleProductDesignRevisionId === revision.id)
@@ -264,25 +259,6 @@ function initialZones(project: VehicleProjectGroup): readonly ZoneProject[] {
     ...(index === 0 && zoneProject.currentStage === 'Scan'
       ? { scanned: false }
       : {}),
-    ...(zoneProject.productShapeId
-      ? {
-          shape: zoneProject.productShapeId,
-          productShape: {
-            id: zoneProject.productShapeId,
-            productTypeId: zoneProject.productTypeId,
-            name: zoneProject.productShapeId,
-            status: 'ACTIVE' as const,
-            source: zoneProject.adoptedProjectId
-              ? ('ADOPTED' as const)
-              : ('NEW' as const),
-            createdBy: 'Legacy data',
-            createdAt: '2026-08-01T00:00:00-07:00',
-            ...(zoneProject.adoptedProjectId
-              ? { adoptedFromShapeId: zoneProject.adoptedProjectId }
-              : {}),
-          },
-        }
-      : {}),
   }));
 }
 
@@ -315,51 +291,15 @@ function mergeSavedZones(
             saved.productShape?.id ??
             saved.productShapeId ??
             zone.productShapeId,
-          adoptedProjectId: saved.adoptedProjectId ?? zone.adoptedProjectId,
+          sizeReview: saved.sizeReview ?? zone.sizeReview,
+          productionHandoff: saved.productionHandoff ?? zone.productionHandoff,
+          handoffChecklist: saved.handoffChecklist ?? zone.handoffChecklist,
+          shapeReviewHistory:
+            saved.shapeReviewHistory ?? zone.shapeReviewHistory,
+          reworkRequestedAt: saved.reworkRequestedAt ?? zone.reworkRequestedAt,
         }
       : zone;
   });
-}
-
-function initialTasks(project: VehicleProjectGroup): readonly ProjectTask[] {
-  if (project.id !== 'PG-00124') {
-    return [];
-  }
-  return [
-    {
-      id: 'TSK-001',
-      vehicleProjectId: project.zoneProjects[0]?.id ?? '',
-      type: 'SCAN',
-      title: 'Front Row 스캔',
-      assignedTo: 'USR-YOUNG',
-      assignedAt: '2026-08-19T09:00:00-07:00',
-      requestedBy: 'USR-KAI',
-      created: '2026-08-19',
-      status: 'ACCEPTED',
-    },
-    {
-      id: 'TSK-002',
-      vehicleProjectId: project.zoneProjects[0]?.id ?? '',
-      type: 'DESIGN',
-      title: 'Front Pattern Design',
-      assignedTo: 'USR-JH',
-      assignedAt: '2026-08-20T09:00:00-07:00',
-      requestedBy: 'USR-KAI',
-      created: '2026-08-20',
-      status: 'OPEN',
-    },
-    {
-      id: 'TSK-003',
-      vehicleProjectId: project.zoneProjects[1]?.id ?? '',
-      type: 'SCAN',
-      title: '2nd Row 스캔',
-      assignedTo: 'USR-CHRISTIAN',
-      assignedAt: '2026-08-21T09:00:00-07:00',
-      requestedBy: 'USR-KAI',
-      created: '2026-08-21',
-      status: 'OPEN',
-    },
-  ];
 }
 
 function initialVisits(project: VehicleProjectGroup): readonly ProjectVisit[] {
@@ -376,7 +316,7 @@ function initialVisits(project: VehicleProjectGroup): readonly ProjectVisit[] {
       vehicleProjectIds: project.zoneProjects
         .slice(0, 1)
         .map((item) => item.id),
-      taskIds: ['TSK-001'],
+      staffIds: ['USR-YOUNG'],
       status: 'SCHEDULED',
     },
   ];
@@ -437,9 +377,10 @@ export function ProjectDetailView({
   initialTab,
 }: ProjectDetailViewProps) {
   const [partParams, setPartParams] = useSearchParams();
+  const navigate = useNavigate();
   const [linkZone, setLinkZone] = useState<string>();
   const {
-    projects: allProjects,
+    vehicleProductShapes,
     projectDetails,
     saveProjectDetail,
     setProjects,
@@ -451,11 +392,11 @@ export function ProjectDetailView({
     sampleShipments: sharedSampleShipments,
     setSampleRequestItems,
     setSampleShipments,
-    uniqueVehicles,
     setUniqueVehicles,
     seatCoverParts,
     seatCoverCodes,
     appUsers,
+    configurations,
   } = useWorkbenchStore();
   const savedDetail = projectDetails[project.id];
   const activeUsers = appUsers.filter((user) => user.status === 'ACTIVE');
@@ -467,7 +408,10 @@ export function ProjectDetailView({
       dealer: visit.dealer,
       date: visit.date,
       time: visit.time,
-      taskIds: visit.taskIds,
+      staffIds: migrateVisitStaff(visit, savedDetail?.tasks ?? []),
+      scheduledAt: visit.scheduledAt,
+      performedAt: visit.performedAt,
+      projectLinks: visit.projectLinks,
       vehicleProjectIds: visit.vehicleProjectIds,
       status: visit.status,
       ...(visit.locationType ? { locationType: visit.locationType } : {}),
@@ -493,6 +437,7 @@ export function ProjectDetailView({
       return {
         id: request.id,
         factory: request.factory,
+        designIds: items.map((item) => item.vehicleProductDesignId),
         items: items.length,
         round: Math.max(1, ...items.map((item) => item.sampleRound)),
         status: allReceived ? 'ARRIVED' : anyShipped ? 'SHIPPED' : 'REQUESTED',
@@ -525,10 +470,20 @@ export function ProjectDetailView({
   const [activeTab, setActiveTab] = useState<DetailTab>(
     initialTab ?? 'overview',
   );
-  const [zones, setZones] = useState<readonly ZoneProject[]>(() =>
+  const [zoneRecords, setZones] = useState<readonly ZoneProject[]>(() =>
     mergeSavedZones(project, savedDetail?.zones).map((zone) =>
       completedSharedScanZones.has(zone.id) ? { ...zone, scanned: true } : zone,
     ),
+  );
+  const zones = useMemo(
+    () =>
+      zoneRecords.map((zone) => ({
+        ...zone,
+        productShape: vehicleProductShapes.find(
+          (shape) => shape.id === zone.productShapeId,
+        ),
+      })),
+    [zoneRecords, vehicleProductShapes],
   );
   const designEligibleProjectIds = eligibleProjectIdsForStage(
     project.product,
@@ -576,15 +531,16 @@ export function ProjectDetailView({
     if (aggregateStage !== stage) setStage(aggregateStage);
   }, [project.product, stage, zones]);
 
-  const [tasks, setTasks] = useState<readonly ProjectTask[]>(
-    () => savedDetail?.tasks ?? initialTasks(project),
-  );
-  const [visits, setVisits] = useState<readonly ProjectVisit[]>(
-    () =>
+  const [visits, setVisits] = useState<readonly ProjectVisit[]>(() =>
+    (
       savedDetail?.visits ??
       (visitsFromSharedStore.length
         ? visitsFromSharedStore
-        : initialVisits(project)),
+        : initialVisits(project))
+    ).map((visit) => ({
+      ...visit,
+      staffIds: migrateVisitStaff(visit, savedDetail?.tasks ?? []),
+    })),
   );
   const [designs, setDesigns] = useState<readonly ProjectDesign[]>(
     () => savedDetail?.designs ?? initialDesigns(project),
@@ -615,49 +571,12 @@ export function ProjectDetailView({
   const [dialog, setDialog] = useState<DialogName>();
   const [dialogZone, setDialogZone] = useState<string>();
   const [dialogDesignId, setDialogDesignId] = useState<string>();
-  const [fNumber, setFNumber] = useState<string | undefined>(
-    savedDetail?.fNumber,
-  );
-  const nextFNumber = `F#${
-    Math.max(
-      20855,
-      ...uniqueVehicles.map((vehicle) =>
-        Number(vehicle.fNumber.replace(/\D/g, '')),
-      ),
-    ) + 1
-  }`;
-  const shapeLibrary = Array.from(
-    new Map(
-      allProjects
-        .filter((group) => group.productTypeId === project.productTypeId)
-        .flatMap((group) => {
-          const savedZones = projectDetails[group.id]?.zones ?? [];
-          return group.zoneProjects.flatMap((zoneProject) => {
-            const savedShape = savedZones.find(
-              (zone) => zone.id === zoneProject.id,
-            )?.productShape;
-            if (savedShape) return [[savedShape.id, savedShape] as const];
-            if (!zoneProject.productShapeId) return [];
-            const fallback: VehicleProductShape = {
-              id: zoneProject.productShapeId,
-              productTypeId: group.productTypeId,
-              name: zoneProject.productShapeId,
-              status: 'ACTIVE',
-              source: zoneProject.adoptedProjectId ? 'ADOPTED' : 'NEW',
-              createdBy: 'Legacy data',
-              createdAt: group.created,
-            };
-            return [[fallback.id, fallback] as const];
-          });
-        }),
-    ).values(),
-  ).filter((shape) => shape.status !== 'RETIRED');
-
+  const [fNumber] = useState<string | undefined>(savedDetail?.fNumber);
   useEffect(() => {
     const snapshot: ProjectDetailSnapshot = {
       stage,
       zones,
-      tasks,
+      tasks: savedDetail?.tasks ?? [],
       visits,
       designs,
       samples,
@@ -675,7 +594,7 @@ export function ProjectDetailView({
     samples,
     saveProjectDetail,
     stage,
-    tasks,
+    savedDetail?.tasks,
     visits,
     zones,
   ]);
@@ -688,21 +607,25 @@ export function ProjectDetailView({
         const zoneProjects = item.zoneProjects.map((zoneProject) => {
           const currentZone = zones.find((zone) => zone.id === zoneProject.id);
           if (!currentZone) return zoneProject;
-          const productShapeId = currentZone.productShape?.id;
-          const adoptedProjectId = currentZone.productShape?.adoptedFromShapeId;
+          const productShapeId = currentZone.productShapeId;
+
           return {
             ...zoneProject,
             currentStage: currentZone.currentStage,
-            ...(productShapeId ? { productShapeId } : {}),
-            ...(adoptedProjectId ? { adoptedProjectId } : {}),
+            productShapeId,
+            sizeReview: currentZone.sizeReview,
+            productionHandoff: currentZone.productionHandoff,
+            shapeReviewHistory: currentZone.shapeReviewHistory,
+            reworkRequestedAt: currentZone.reworkRequestedAt,
           };
         });
         const zonesChanged = zoneProjects.some(
           (zoneProject, index) =>
             zoneProject.productShapeId !==
               item.zoneProjects[index]?.productShapeId ||
-            zoneProject.adoptedProjectId !==
-              item.zoneProjects[index]?.adoptedProjectId ||
+            zoneProject.sizeReview !== item.zoneProjects[index]?.sizeReview ||
+            zoneProject.productionHandoff !==
+              item.zoneProjects[index]?.productionHandoff ||
             zoneProject.currentStage !== item.zoneProjects[index]?.currentStage,
         );
         if (
@@ -734,7 +657,11 @@ export function ProjectDetailView({
         dealer: visit.dealer,
         date: visit.date,
         time: visit.time,
-        taskIds: visit.taskIds ?? [],
+        taskIds: [],
+        staffIds: visit.staffIds,
+        scheduledAt: visit.scheduledAt,
+        performedAt: visit.performedAt,
+        projectLinks: visit.projectLinks,
         kind: visit.type,
         status: visit.status === 'COMPLETED' ? 'COMPLETED' : 'SCHEDULED',
         locationType: visit.locationType ?? 'DEALERSHIP',
@@ -785,23 +712,36 @@ export function ProjectDetailView({
       );
       return [
         ...otherProjects,
+        ...current.filter(
+          (item) =>
+            requestIds.has(item.sampleRequestId) &&
+            !designs.some(
+              (design) => design.id === item.vehicleProductDesignId,
+            ),
+        ),
         ...samples.flatMap((sample) =>
           (sample.designIds
             ? designs.filter((design) => sample.designIds?.includes(design.id))
-            : sample.round > 1
-              ? designs.filter((design) =>
-                  Boolean(currentRevision(design).changeRequest),
-                )
-              : designs
+            : designs.filter((design) =>
+                current.some(
+                  (item) =>
+                    item.sampleRequestId === sample.id &&
+                    item.vehicleProductDesignId === design.id,
+                ),
+              )
           )
             .slice(0, Math.max(1, sample.items))
             .map((design, index) => {
               const itemId = `SRI-${sample.id}-${index + 1}`;
               // A request line stays pinned to the revision it was raised for,
               // so adding a Revision later does not rewrite earlier rounds.
-              const existing = current.find((item) => item.id === itemId);
+              const existing = current.find(
+                (item) =>
+                  item.sampleRequestId === sample.id &&
+                  item.vehicleProductDesignId === design.id,
+              );
               return {
-                id: itemId,
+                id: existing?.id ?? itemId,
                 sampleRequestId: sample.id,
                 vehicleProductDesignId: design.id,
                 vehicleProductDesignRevisionId:
@@ -931,7 +871,7 @@ export function ProjectDetailView({
     }
     if (name === 'sample' && !canRequestSample) return;
     if (name === 'visit' && !canScheduleScan && !canScheduleFitting) return;
-    setDialogZone(zone);
+    setDialogZone(zone ?? (name === 'visit' ? focusedZone.id : undefined));
     setDialogDesignId(designId);
     setDialog(name);
   }
@@ -942,36 +882,46 @@ export function ProjectDetailView({
     setDialogDesignId(undefined);
   }
 
+  const sampleGate = getSampleGate(
+    project.product,
+    focusedStage === 'Sample'
+      ? focusScope.filter((zone) => zone.currentStage === 'Sample')
+      : focusScope,
+    designs,
+    sharedSampleRequestItems,
+  );
+
+  const handoffScope = focusScope.filter((zone) =>
+    focusedStage === 'Approved'
+      ? zone.id === focusedZone?.id
+      : zone.currentStage === 'Fitting',
+  );
+  const handoffSampleGate = getSampleGate(
+    project.product,
+    handoffScope,
+    designs,
+    sharedSampleRequestItems,
+  );
+
   function advanceStage(): void {
     const individualGateReady = (zone: ZoneProject) => {
       switch (zone.currentStage) {
         case 'Scan':
           return zone.scanned;
         case '3D Model':
-          return (
-            assets.some((asset) => asset.type === '3D MODEL') &&
-            Boolean(zone.productShape)
-          );
         case 'Fit Review':
-          return (
-            zone.productShape?.status === 'ACTIVE' ||
-            Boolean(zone.adoptedProjectId)
-          );
+          return assets.some((asset) => asset.type === '3D MODEL');
+        case 'Fitting':
+          return false; // Development completion requires the explicit handoff action.
         case 'Design':
           return designs.some((design) => design.vehicleProjectId === zone.id);
-        case 'Sample': {
-          const zoneDesigns = designs.filter(
-            (design) => design.vehicleProjectId === zone.id,
-          );
-          const sampleArrived = samples.some((sample) =>
-            ['ARRIVED', 'APPROVED'].includes(sample.status),
-          );
-          return (
-            sampleArrived &&
-            (project.product === 'Floor Mat' ||
-              (zoneDesigns.length > 0 && zoneDesigns.every(isSampleApproved)))
-          );
-        }
+        case 'Sample':
+          return getSampleGate(
+            project.product,
+            [zone],
+            designs,
+            sharedSampleRequestItems,
+          ).ready;
         default:
           return true;
       }
@@ -998,99 +948,6 @@ export function ProjectDetailView({
     );
   }
 
-  function createShape(zoneId: string, input: NewShapeInput): void {
-    const shapeId = `SHP-${project.productTypeId.replace('PT-', '')}-${Date.now().toString().slice(-6)}`;
-    const shape: VehicleProductShape = {
-      id: shapeId,
-      productTypeId: project.productTypeId,
-      name: input.name,
-      status: 'IN_DEVELOPMENT',
-      source: 'NEW',
-      ...(input.dimensions ? { dimensions: input.dimensions } : {}),
-      ...(input.sourceAssetId ? { sourceAssetId: input.sourceAssetId } : {}),
-      createdBy: input.createdBy,
-      createdAt: new Date().toISOString(),
-      ...(input.note ? { note: input.note } : {}),
-    };
-    setZones((current) =>
-      current.map((zone) =>
-        zone.id === zoneId
-          ? {
-              ...zone,
-              shape: shape.name,
-              productShapeId: shape.id,
-              productShape: shape,
-            }
-          : zone,
-      ),
-    );
-    addActivity(
-      'Shape 초안 생성',
-      `${shape.name} · ${zoneId} · IN_DEVELOPMENT`,
-    );
-    closeDialog();
-  }
-
-  function adoptShape(zoneId: string, sourceShape: VehicleProductShape): void {
-    const shape: VehicleProductShape = {
-      ...sourceShape,
-      source: 'ADOPTED',
-      adoptedFromShapeId: sourceShape.id,
-      fittingConfirmedAt: undefined,
-      fittingConfirmedBy: undefined,
-    };
-    setZones((current) =>
-      current.map((zone) =>
-        zone.id === zoneId
-          ? {
-              ...zone,
-              shape: shape.name,
-              productShapeId: shape.id,
-              adoptedProjectId: sourceShape.id,
-              productShape: shape,
-            }
-          : zone,
-      ),
-    );
-    addActivity('기존 Shape 채택', `${shape.name} · ${zoneId}`);
-    closeDialog();
-  }
-
-  function confirmShapeFit(zoneId: string): void {
-    if (!fittingEligibleProjectIds.includes(zoneId)) return;
-    setZones((current) =>
-      current.map((zone) =>
-        zone.id === zoneId && zone.productShape
-          ? {
-              ...zone,
-              productShape: {
-                ...zone.productShape,
-                status: 'ACTIVE',
-                fittingConfirmedBy: 'USR-KAI',
-                fittingConfirmedAt: new Date().toISOString(),
-              },
-            }
-          : zone,
-      ),
-    );
-    addActivity('Shape Fitting 확인', `${zoneId} · confirmed by USR-KAI`);
-  }
-
-  function confirmFitting(): void {
-    if (!canScheduleFitting) return;
-    setDesigns((current) =>
-      current.map((design) =>
-        focusScopeIds.has(design.vehicleProjectId)
-          ? { ...design, fittingConfirmed: true }
-          : design,
-      ),
-    );
-    addActivity(
-      'Fitting 검증 완료',
-      `${focusScope.map((zone) => zone.code).join(', ')} · 전 Part confirmed`,
-    );
-  }
-
   if (!focusedZone) {
     return (
       <section className="project-workspace">
@@ -1108,9 +965,6 @@ export function ProjectDetailView({
     );
   }
 
-  const focusedTasks = tasks.filter(
-    (task) => task.vehicleProjectId === focusedZone.id,
-  );
   const focusedVisits = visits.filter((visit) =>
     visit.vehicleProjectIds.includes(focusedZone.id),
   );
@@ -1181,19 +1035,22 @@ export function ProjectDetailView({
         reworkRevision={reworkRevision}
       />
       <ProjectNextActionGuide
+        sampleGate={sampleGate}
         project={project}
         stage={focusedStage}
         pipeline={pipeline}
         zones={focusScope}
         visits={visits}
         designs={scopeDesigns}
-        samples={samples}
         assets={assets}
         onAdvance={advanceStage}
         onOpenTab={setActiveTab}
-        onConfirmFitting={confirmFitting}
-        onConfirmShapeFit={confirmShapeFit}
         onPromote={() => openDialog('promote')}
+        onOpenShape={() =>
+          navigate(
+            `/product-shapes?view=review&project=${encodeURIComponent(project.id)}&zone=${encodeURIComponent(focusedZone.id)}`,
+          )
+        }
       />
       <Tabs
         value={activeTab}
@@ -1201,16 +1058,12 @@ export function ProjectDetailView({
       >
         <TabsList variant="line" size="md">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="shapes">
-            <Box aria-hidden="true" /> Shapes
-          </TabsTrigger>
           <TabsTrigger value="designs">
             {designLabel(project.product)}
           </TabsTrigger>
           <TabsTrigger value="revisions">Revision Control</TabsTrigger>
           <TabsTrigger value="samples">Samples</TabsTrigger>
           <TabsTrigger value="files">Files</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="visits">Visits</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
@@ -1222,28 +1075,14 @@ export function ProjectDetailView({
             }
             project={project}
             zone={focusedZone}
-            tasks={focusedTasks}
             visits={focusedVisits}
             designs={focusedDesigns}
             canCreateDesign={canCreateDesign}
             onAddDesign={() => openDialog('design', focusedZone.id)}
-            onAddTask={() => openDialog('task', focusedZone.id)}
             onRevision={(designId) =>
               openDialog('revision', undefined, designId)
             }
-            onOpenTasks={() => setActiveTab('tasks')}
             onOpenVisits={() => setActiveTab('visits')}
-          />
-        </TabsContent>
-        <TabsContent value="shapes">
-          <ShapesTab
-            project={project}
-            stage={focusedStage}
-            zones={[focusedZone]}
-            visits={visits}
-            onCreate={(zoneId) => openDialog('shape-create', zoneId)}
-            onAdopt={(zoneId) => openDialog('shape-adopt', zoneId)}
-            onConfirmFit={confirmShapeFit}
           />
         </TabsContent>
         <TabsContent value="designs">
@@ -1276,6 +1115,8 @@ export function ProjectDetailView({
         </TabsContent>
         <TabsContent value="samples">
           <SamplesTab
+            sampleGate={sampleGate}
+            onResolveGate={(tab) => setActiveTab(tab)}
             product={project.product}
             designs={scopeDesigns.filter((design) =>
               sampleEligibleProjectIds.includes(design.vehicleProjectId),
@@ -1406,44 +1247,13 @@ export function ProjectDetailView({
             onAdd={() => openDialog('file')}
           />
         </TabsContent>
-        <TabsContent value="tasks">
-          <TasksTab
-            users={activeUsers}
-            tasks={focusedTasks}
-            visits={focusedVisits}
-            canScheduleScan={canScheduleScan}
-            canScheduleFitting={canScheduleFitting}
-            onScheduleVisit={() => openDialog('visit')}
-            onAdd={() => openDialog('task')}
-            onStatus={(taskId, status) => {
-              setTasks((current) =>
-                current.map((task) =>
-                  task.id === taskId
-                    ? {
-                        ...task,
-                        status,
-                        ...(status === 'ACCEPTED' && !task.assignedAt
-                          ? { assignedAt: new Date().toISOString() }
-                          : {}),
-                        ...(['DONE', 'FAILED', 'CANCELLED'].includes(status)
-                          ? { closedAt: new Date().toISOString() }
-                          : { closedAt: undefined }),
-                      }
-                    : task,
-                ),
-              );
-            }}
-          />
-        </TabsContent>
         <TabsContent value="visits">
           <VisitsTab
             users={activeUsers}
-            tasks={tasks}
             visits={focusedVisits}
             canScheduleVisit={canScheduleScan || canScheduleFitting}
             onAdd={() => openDialog('visit')}
             onCancel={(visitId) => {
-              const cancelled = visits.find((item) => item.id === visitId);
               setVisits((current) =>
                 current.map((visit) =>
                   visit.id === visitId
@@ -1451,17 +1261,6 @@ export function ProjectDetailView({
                     : visit,
                 ),
               );
-              // The work is still owed, so its tasks go back to the queue.
-              const taskIds = cancelled?.taskIds ?? [];
-              if (taskIds.length) {
-                setTasks((current) =>
-                  current.map((task) =>
-                    taskIds.includes(task.id) && task.status === 'ACCEPTED'
-                      ? { ...task, status: 'OPEN' }
-                      : task,
-                  ),
-                );
-              }
             }}
             onComplete={(visitId, result) => {
               const visit = visits.find((item) => item.id === visitId);
@@ -1482,6 +1281,14 @@ export function ProjectDetailView({
                     ? {
                         ...item,
                         status: 'COMPLETED',
+                        performedAt: new Date().toISOString(),
+                        projectLinks: item.projectLinks?.map((link) => ({
+                          ...link,
+                          result:
+                            item.type === 'FITTING'
+                              ? (result ?? 'PASS')
+                              : undefined,
+                        })),
                         ...(item.type === 'FITTING'
                           ? { result: result ?? 'PASS' }
                           : { result: undefined }),
@@ -1489,23 +1296,6 @@ export function ProjectDetailView({
                     : item,
                 ),
               );
-              const visitTaskIds = visit.taskIds ?? [];
-              if (visitTaskIds.length) {
-                setTasks((current) =>
-                  current.map((task) =>
-                    visitTaskIds.includes(task.id)
-                      ? {
-                          ...task,
-                          status:
-                            visit.type === 'FITTING' && result === 'FAIL'
-                              ? 'FAILED'
-                              : 'DONE',
-                          closedAt: new Date().toISOString(),
-                        }
-                      : task,
-                  ),
-                );
-              }
               if (visit.type === 'SCAN') {
                 setZones((current) =>
                   current.map((zone) =>
@@ -1527,22 +1317,6 @@ export function ProjectDetailView({
                     visit.vehicleProjectIds.includes(design.vehicleProjectId)
                       ? { ...design, fittingConfirmed: true }
                       : design,
-                  ),
-                );
-                setZones((current) =>
-                  current.map((zone) =>
-                    visit.vehicleProjectIds.includes(zone.id) &&
-                    zone.productShape
-                      ? {
-                          ...zone,
-                          productShape: {
-                            ...zone.productShape,
-                            status: 'ACTIVE',
-                            fittingConfirmedBy: 'USR-KAI',
-                            fittingConfirmedAt: new Date().toISOString(),
-                          },
-                        }
-                      : zone,
                   ),
                 );
               } else {
@@ -1581,6 +1355,44 @@ export function ProjectDetailView({
         </TabsContent>
       </Tabs>
       <ProjectDialog
+        handoffZoneCodes={handoffScope.map((zone) => zone.code).join(', ')}
+        handoffDraft={prepareHandoffChecklist(
+          handoffScope[0]?.handoffChecklist,
+          handoffScope[0]
+            ? sizeReviewEvidence(handoffScope[0].id, designs, visits)
+            : '',
+        )}
+        onHandoffDraft={(value) =>
+          setZones((current) =>
+            current.map((zone) =>
+              handoffScope.some((target) => target.id === zone.id)
+                ? {
+                    ...zone,
+                    handoffChecklist: {
+                      ...value,
+                      evidenceKey: sizeReviewEvidence(zone.id, designs, visits),
+                    },
+                  }
+                : zone,
+            ),
+          )
+        }
+        handoffErrors={[
+          ...handoffScope.flatMap((zone) =>
+            handoffBlockers(zone, designs, visits),
+          ),
+          ...handoffSampleGate.blockers.map((blocker) => blocker.message),
+        ]}
+        allDesigns={[
+          ...Object.entries(projectDetails).flatMap(([id, detail]) =>
+            id === project.id ? [] : detail.designs,
+          ),
+          ...designs,
+        ]}
+        designs={designs}
+        samples={samples}
+        sampleItems={sharedSampleRequestItems}
+        configurations={configurations}
         users={activeUsers}
         seatCoverParts={seatCoverParts}
         seatCoverCodes={seatCoverCodes}
@@ -1588,22 +1400,6 @@ export function ProjectDetailView({
         dialog={dialog}
         project={project}
         zones={focusScope}
-        assets={assets}
-        shapeLibrary={shapeLibrary.filter(
-          (shape) =>
-            shape.status === 'ACTIVE' &&
-            !zones.some((zone) => zone.productShape?.id === shape.id),
-        )}
-        designs={scopeDesigns}
-        samples={samples}
-        sampleItems={sharedSampleRequestItems}
-        allDesigns={[
-          ...Object.entries(projectDetails).flatMap(([id, detail]) =>
-            id === project.id ? [] : detail.designs,
-          ),
-          ...designs,
-        ]}
-        tasks={tasks}
         canRequestSample={canRequestSample}
         canScheduleScan={canScheduleScan}
         canScheduleFitting={canScheduleFitting}
@@ -1613,10 +1409,7 @@ export function ProjectDetailView({
         fittingEligibleProjectIds={fittingEligibleProjectIds}
         dialogZone={dialogZone}
         dialogDesignId={dialogDesignId}
-        nextFNumber={nextFNumber}
         onClose={closeDialog}
-        onCreateShape={createShape}
-        onAdoptShape={adoptShape}
         onDesign={(input) => {
           if (!designEligibleProjectIds.includes(input.vehicleProjectId))
             return;
@@ -1688,6 +1481,7 @@ export function ProjectDetailView({
                       },
                     ],
                     fittingConfirmed: false,
+                    requiresRevisionAfterReview: false,
                   }
                 : item,
             ),
@@ -1721,60 +1515,21 @@ export function ProjectDetailView({
           );
           closeDialog();
         }}
-        onTask={(vehicleProjectId, title, type, assignee) => {
-          const task: ProjectTask = {
-            id: `TSK-${String(tasks.length + 1).padStart(3, '0')}`,
-            vehicleProjectId,
-            title,
-            type,
-            ...(assignee
-              ? {
-                  assignedTo: assignee,
-                  assignedAt: new Date().toISOString(),
-                }
-              : {}),
-            requestedBy: CURRENT_USER_ID,
-            created: '2026-08-31',
-            status: 'OPEN',
-          };
-          setTasks((current) => [...current, task]);
-          addActivity('Task 생성', `${title} · ${assignee}`);
-          closeDialog();
-        }}
-        onVisit={(type, dealer, date, time, vehicleProjectIds, taskIds) => {
+        onVisit={(input) => {
           const eligibleIds =
-            type === 'SCAN'
+            input.type === 'SCAN'
               ? scanEligibleProjectIds
               : fittingEligibleProjectIds;
           if (
-            vehicleProjectIds.length === 0 ||
-            vehicleProjectIds.some((id) => !eligibleIds.includes(id))
+            !input.vehicleProjectIds.length ||
+            input.vehicleProjectIds.some((id) => !eligibleIds.includes(id))
           )
             return;
-          const visit: ProjectVisit = {
-            id: `VS-${project.id.replace(/\D/g, '')}-${String(visits.length + 1).padStart(2, '0')}`,
-            type,
-            dealer,
-            date,
-            time,
-            vehicleProjectIds,
-            taskIds,
-            status: 'SCHEDULED',
-            locationType: 'DEALERSHIP',
-            priority: 'NORMAL',
-          };
+          const visit = createProjectVisit(input);
           setVisits((current) => [...current, visit]);
-          // The task was the instruction; scheduling it is the work starting.
-          setTasks((current) =>
-            current.map((task) =>
-              taskIds.includes(task.id) && task.status === 'OPEN'
-                ? { ...task, status: 'ACCEPTED' }
-                : task,
-            ),
-          );
           addActivity(
-            `${type} Visit 예약`,
-            `${dealer} · ${date} ${time} · ${taskIds.join(', ')}`,
+            `${input.type} Visit 예약`,
+            `${input.dealer} · ${input.date} ${input.time} · ${input.vehicleProjectIds.join(', ')}`,
           );
           closeDialog();
         }}
@@ -1785,11 +1540,9 @@ export function ProjectDetailView({
               sampleEligibleProjectIds.includes(design.vehicleProjectId) &&
               designIds.includes(design.id),
           );
-          const eligibleDesigns = samples.length
-            ? candidates.filter((design) =>
-                Boolean(currentRevision(design).changeRequest),
-              )
-            : candidates;
+          const eligibleDesigns = candidates.filter((design) =>
+            isRevisionSampleRequestable(design, sharedSampleRequestItems),
+          );
           if (!eligibleDesigns.length) return;
           const sample: ProjectSample = {
             id: `SR-${project.id.replace(/\D/g, '')}-${String(samples.length + 1).padStart(2, '0')}`,
@@ -1826,20 +1579,43 @@ export function ProjectDetailView({
           );
           closeDialog();
         }}
-        onPromote={() => {
-          if (!canScheduleFitting) return;
-          setFNumber(nextFNumber);
+        onPromote={(checklist) => {
+          const reference = HANDOFF_DOCUMENTS.map(
+            ([id, label]) =>
+              `${label}: ${checklist.documents[id]?.reference ?? ''}`,
+          ).join(' / ');
+          if (
+            handoffChecklistErrors(checklist).length > 0 ||
+            checklist.evidenceKey !==
+              (handoffScope[0]
+                ? sizeReviewEvidence(handoffScope[0].id, designs, visits)
+                : '') ||
+            !handoffScope.length ||
+            !handoffScope.every((zone) =>
+              handoffReady(zone, designs, visits),
+            ) ||
+            !handoffSampleGate.ready
+          )
+            return;
+          const now = new Date().toISOString();
           setZones((current) =>
             current.map((zone) =>
-              focusScopeIds.has(zone.id)
-                ? { ...zone, currentStage: 'Approved' }
+              handoffScope.some((target) => target.id === zone.id)
+                ? {
+                    ...zone,
+                    currentStage: 'Approved',
+                    productionHandoff: {
+                      completedAt: now,
+                      completedBy: CURRENT_USER_ID,
+                      reference,
+                      checklist,
+                      evidenceKey: sizeReviewEvidence(zone.id, designs, visits),
+                    },
+                  }
                 : zone,
             ),
           );
-          addActivity(
-            'Configuration 확정',
-            `${nextFNumber} 발급 · Unique Vehicle 생성 · SKU Registration DRAFT`,
-          );
+          addActivity('양산 인계 완료 · 개발 완료', reference);
           closeDialog();
         }}
       />
@@ -1992,8 +1768,8 @@ const SEAT_COVER_STAGE_LABELS: Partial<Record<ProjectStage, string>> = {
   Scan: 'Scan / Measure',
   Design: 'Pattern',
   Sample: 'Sample',
-  Fitting: 'Fit & Approve',
-  Approved: 'Handoff',
+  Fitting: 'Fitting / 인계 준비',
+  Approved: '양산 인계 · 개발 완료',
 };
 
 const FLOOR_MAT_STAGE_LABELS: Partial<Record<ProjectStage, string>> = {
@@ -2013,7 +1789,7 @@ function ProjectProgressRail({
       ? SEAT_COVER_STAGE_LABELS
       : product === 'Floor Mat'
         ? FLOOR_MAT_STAGE_LABELS
-        : undefined;
+        : { Fitting: 'Fitting / 인계 준비', Approved: '양산 인계 · 개발 완료' };
   const stageIndex = Math.max(0, pipeline.indexOf(stage));
   const isRework =
     reworkSamples.length > 0 && stageIndex < pipeline.indexOf('Sample');
@@ -2148,19 +1924,18 @@ function ProjectProgressRail({
 }
 
 interface ProjectNextActionGuideProps {
+  sampleGate: SampleGate;
   project: VehicleProjectGroup;
   stage: ProjectStage;
   pipeline: readonly ProjectStage[];
   zones: readonly ZoneProject[];
   visits: readonly ProjectVisit[];
   designs: readonly ProjectDesign[];
-  samples: readonly ProjectSample[];
   assets: readonly ProjectAsset[];
   onAdvance: () => void;
   onOpenTab: (tab: DetailTab) => void;
-  onConfirmFitting: () => void;
-  onConfirmShapeFit: (zoneId: string) => void;
   onPromote: () => void;
+  onOpenShape: () => void;
 }
 
 interface NextActionDefinition {
@@ -2174,60 +1949,34 @@ interface NextActionDefinition {
 }
 
 function ProjectNextActionGuide({
+  sampleGate,
   project,
   stage,
   pipeline,
   zones,
   visits,
   designs,
-  samples,
   assets,
   onAdvance,
   onOpenTab,
-  onConfirmFitting,
-  onConfirmShapeFit,
   onPromote,
+  onOpenShape,
 }: ProjectNextActionGuideProps) {
   const stageIndex = Math.max(0, pipeline.indexOf(stage));
   const stageZones = zones.filter((zone) => zone.currentStage === stage);
   const scanVisits = visits.filter((visit) => visit.type === 'SCAN');
   const allScanned = stageZones.every((zone) => zone.scanned);
   const fittingVisits = visits.filter((visit) => visit.type === 'FITTING');
-  const completedFittingProjectIds = new Set(
-    fittingVisits
-      .filter(
-        (visit) => visit.status === 'COMPLETED' && visit.result !== 'FAIL',
-      )
-      .flatMap((visit) => visit.vehicleProjectIds),
-  );
   const bomReady =
     designs.length > 0 &&
     stageZones.every((zone) =>
       designs.some((design) => design.vehicleProjectId === zone.id),
     );
-  const sampleReady =
-    samples.some((sample) => sample.status === 'APPROVED') &&
-    (project.product === 'Floor Mat' || designs.every(isSampleApproved));
+  const sampleReady = sampleGate.ready;
   const fittingReady =
-    stageZones.every((zone) => completedFittingProjectIds.has(zone.id)) &&
-    designs.some((design) =>
-      stageZones.some((zone) => zone.id === design.vehicleProjectId),
-    ) &&
-    designs
-      .filter((design) =>
-        stageZones.some((zone) => zone.id === design.vehicleProjectId),
-      )
-      .every((design) => design.fittingConfirmed) &&
-    stageZones.every(
-      (zone) =>
-        zone.productShape?.status === 'ACTIVE' &&
-        zone.productShape.fittingConfirmedAt,
-    );
+    stageZones.length > 0 &&
+    stageZones.every((zone) => handoffReady(zone, designs, visits));
   const modelAsset = assets.find((asset) => asset.type === '3D MODEL');
-  const allShapesDefined = stageZones.every((zone) => zone.productShape);
-  const allShapesApproved = stageZones.every(
-    (zone) => zone.productShape?.status === 'ACTIVE',
-  );
   // Rework: the zone is back in Design because its last fitting failed. Until
   // a new Revision exists, every current revision still carries the sample
   // approval it earned before the failed fitting.
@@ -2314,65 +2063,25 @@ function ProjectNextActionGuide({
           };
       break;
     case '3D Model':
-      guide =
-        modelAsset && allShapesDefined
-          ? {
-              title: '3D Model과 Zone Shape 초안이 준비되었습니다',
-              description: `${modelAsset.name} 및 대상 Zone의 Shape 등록을 확인했습니다. Shape 정보를 최종 확인한 뒤 Fit Review 단계로 이동하세요.`,
-              steps: [
-                '3D 모델 확보 완료',
-                'Zone별 Shape 초안 생성 또는 기존 Shape 채택',
-                '3D Model 단계 완료',
-              ],
-              linkLabel: 'Shapes 탭에서 Shape 초안 확인',
-              targetTab: 'shapes',
-              primaryLabel: '3D Model 단계 완료',
-              primaryAction: onAdvance,
-            }
-          : {
-              title: modelAsset
-                ? 'Zone별 Shape 초안을 생성하세요'
-                : '3D Model 파일을 등록하세요',
-              description: modelAsset
-                ? 'Shapes 탭에서 각 Zone의 신규 Shape를 정의하거나 승인된 기존 Shape를 채택해야 Fit Review로 이동할 수 있습니다.'
-                : '구매하거나 확보한 3D 모델을 Files 탭에 3D MODEL 타입으로 등록한 뒤 Zone별 Shape를 정의합니다.',
-              steps: [
-                '3D 모델 확보',
-                '3D MODEL 타입 파일 등록',
-                'Zone별 Shape 초안 생성 또는 채택',
-              ],
-              linkLabel: modelAsset
-                ? 'Shapes 탭으로 이동'
-                : 'Files 탭으로 이동',
-              targetTab: modelAsset ? 'shapes' : 'files',
-              primaryLabel: modelAsset
-                ? 'Shape 정의하기'
-                : '3D Model 파일 등록하기',
-              primaryAction: () => onOpenTab(modelAsset ? 'shapes' : 'files'),
-            };
-      break;
     case 'Fit Review':
-      guide = allShapesApproved
-        ? {
-            title: '현재 Zone / Bundle Shape이 승인되었습니다',
-            description:
-              'Shape 치수와 모델 적합성 검토가 완료되었습니다. Design 단계로 이동하세요.',
-            steps: ['Shape 치수 확인', '검토 및 승인', 'Fit Review 완료'],
-            linkLabel: 'Shapes 탭에서 승인 정보 확인',
-            targetTab: 'shapes',
-            primaryLabel: 'Fit Review 단계 완료',
-            primaryAction: onAdvance,
-          }
-        : {
-            title: 'Zone별 Shape을 검토하고 승인하세요',
-            description:
-              'Shape 치수, 원본 3D Model과 채택 출처를 확인한 뒤 각 Zone Shape을 승인해야 다음 단계로 이동할 수 있습니다.',
-            steps: ['Shape 치수 확인', '모델 적합성 검토', 'Zone별 Shape 승인'],
-            linkLabel: 'Shapes 탭에서 검토',
-            targetTab: 'shapes',
-            primaryLabel: 'Shape 검토하기',
-            primaryAction: () => onOpenTab('shapes'),
-          };
+      guide = {
+        title: modelAsset
+          ? stage === '3D Model'
+            ? '3D 모델 자료를 확인하세요'
+            : '패턴 작업 전 모델 적합성을 검토하세요'
+          : '3D Model 파일을 등록하세요',
+        description:
+          'Files에서 확보한 모델을 확인하고 다음 단계로 진행하세요. 최종 Shape 검토·발급은 샘플 피팅 이후에 진행합니다.',
+        steps: ['3D 모델 확보', '모델 자료 검토', '패턴 작업 진행'],
+        linkLabel: '모델 자료 확인',
+        targetTab: 'files',
+        primaryLabel: modelAsset
+          ? stage === '3D Model'
+            ? '3D Model 단계 완료'
+            : '모델 검토 완료 · Design으로 이동'
+          : '모델 파일 등록',
+        primaryAction: modelAsset ? onAdvance : () => onOpenTab('files'),
+      };
       break;
     case 'Design':
       if (failedFitting) {
@@ -2383,7 +2092,7 @@ function ProjectNextActionGuide({
           steps: [
             '실패 원인을 반영한 Revision 추가',
             'Design 단계 완료 후 Sample 재요청·입고·승인',
-            '새 FITTING Task와 Visit으로 재피팅',
+            'Visits에서 새 피팅 일정을 등록해 재피팅',
           ],
           linkLabel: 'Design / Parts에서 Revision 추가',
           targetTab: 'designs',
@@ -2453,73 +2162,71 @@ function ProjectNextActionGuide({
             primaryAction: onAdvance,
           }
         : {
-            title: '샘플을 요청하고 승인까지 진행하세요',
-            description:
-              'Samples 탭에서 요청, 배송, 입고 상태를 처리하고 현재 Revision을 승인합니다.',
+            title: 'Sample 단계를 완료할 수 없습니다',
+            description: sampleGate.blockers
+              .map((blocker) => blocker.message)
+              .join(' '),
             steps: [
               'Sample Request 생성',
               '배송 및 입고 처리',
               '현재 Revision 승인',
             ],
-            linkLabel: 'Samples 탭으로 이동',
-            targetTab: 'samples',
-            primaryLabel: 'Sample Request 확인하기',
-            primaryAction: () => onOpenTab('samples'),
+            linkLabel:
+              sampleGate.blockers[0]?.tab === 'designs'
+                ? '패턴 / Design 확인'
+                : 'Samples 확인',
+            targetTab: sampleGate.blockers[0]?.tab ?? 'samples',
+            primaryLabel:
+              sampleGate.blockers[0]?.tab === 'designs'
+                ? '패턴 / Design 등록하기'
+                : '미완료 항목 확인하기',
+            primaryAction: () =>
+              onOpenTab(sampleGate.blockers[0]?.tab ?? 'samples'),
           };
       break;
     case 'Fitting': {
-      const allFittingVisitsComplete = zones.every((zone) =>
-        completedFittingProjectIds.has(zone.id),
-      );
-      const allBomFitsConfirmed =
-        designs.length > 0 &&
-        designs.every((design) => design.fittingConfirmed);
-      const allShapeFitsConfirmed = zones.every(
-        (zone) =>
-          zone.productShape?.status === 'ACTIVE' &&
-          zone.productShape.fittingConfirmedAt,
-      );
       guide = {
-        title: 'Fitting Visit과 Shape 확정을 완료하세요',
-        description: `Fitting Visit 결과를 확인하고 ${designLabel(project.product)} 및 Zone Shape을 확정하면 F#를 발급할 수 있습니다.`,
-        steps: [
-          fittingVisits.length
-            ? 'Fitting Visit 완료 처리'
-            : 'Fitting Visit 등록',
-          `${designLabel(project.product)} Fitting Confirm`,
-          'Shape 확정 및 F# 발급',
-        ],
-        linkLabel: 'Visits 탭에서 FITTING Visit 확인',
+        title:
+          fittingReady && sampleReady
+            ? '양산 인계를 완료하면 개발이 종료됩니다'
+            : '현재 샘플·피팅 결과를 확인하세요',
+        description:
+          '최종 패턴, 피팅 결과와 생산 자료를 인계하고 완료를 기록하세요. Shape 검토·발급은 개발 완료 후 Shape 메뉴에서 별도로 진행합니다.',
+        steps: ['샘플·피팅 완료', '양산 인계', '개발 완료'],
+        linkLabel: '피팅 결과 확인',
         targetTab: 'visits',
-        primaryLabel: fittingReady
-          ? 'Configuration 확정 및 F# 발급'
-          : !allFittingVisitsComplete
-            ? 'Fitting Visit 확인하기'
-            : !allShapeFitsConfirmed
-              ? 'Shape 적합 확인하기'
-              : !allBomFitsConfirmed
-                ? `${designLabel(project.product)} 적합 확인하기`
-                : 'Fitting 상태 확인하기',
-        primaryAction: fittingReady
-          ? onPromote
-          : !allFittingVisitsComplete
-            ? () => onOpenTab('visits')
-            : !allShapeFitsConfirmed
-              ? () => onOpenTab('shapes')
-              : () => onOpenTab('designs'),
+        primaryLabel:
+          fittingReady && sampleReady
+            ? '양산 인계 완료 기록'
+            : '미완료 작업 확인',
+        primaryAction:
+          fittingReady && sampleReady
+            ? onPromote
+            : () =>
+                onOpenTab(
+                  sampleReady
+                    ? 'visits'
+                    : (sampleGate.blockers[0]?.tab ?? 'samples'),
+                ),
       };
       break;
     }
     case 'Approved':
       guide = {
-        title: '개발 프로세스가 완료되었습니다',
+        title: stageZones.every((zone) => zone.productionHandoff)
+          ? '양산 인계 완료 · 개발 완료'
+          : '이전 완료 프로젝트 · 양산 인계 확인 필요',
         description:
-          '발급된 F#와 Configuration 확정 이력은 Activity에서 확인할 수 있습니다.',
-        steps: ['Configuration 확정', 'F# 발급', 'Unique Vehicle 생성'],
-        linkLabel: 'Activity에서 완료 이력 확인',
+          '후속 검토 회의, Shape 발급과 구성 등록은 Shape 메뉴에서 진행합니다. 기존 완료 데이터는 인계 기록을 확인한 후 검토할 수 있습니다.',
+        steps: ['개발 완료', 'Shape 검토·발급', 'Part 구성·Blueprint 등록'],
+        linkLabel: '양산 인계 이력 확인',
         targetTab: 'activity',
-        primaryLabel: 'Activity 확인하기',
-        primaryAction: () => onOpenTab('activity'),
+        primaryLabel: stageZones.every((zone) => zone.productionHandoff)
+          ? 'Shape 메뉴에서 후속 작업 진행'
+          : '양산 인계 확인 기록',
+        primaryAction: stageZones.every((zone) => zone.productionHandoff)
+          ? onOpenShape
+          : onPromote,
       };
       break;
     default:
@@ -2544,7 +2251,8 @@ function ProjectNextActionGuide({
         <div className="project-next-action-kicker">
           <StatusBadge label="NEXT ACTION" tone="progress" />
           <span>
-            단계 {stageIndex + 1}/{pipeline.length} · {stage}
+            단계 {stageIndex + 1}/{pipeline.length} ·{' '}
+            {stage === 'Approved' ? '개발 완료' : stage}
           </span>
         </div>
         <h2>{guide.title}</h2>
@@ -2568,44 +2276,12 @@ function ProjectNextActionGuide({
         </ol>
       </div>
       <div className="project-next-action-controls">
-        {stage === 'Fitting' && !fittingReady && (
-          <div className="project-next-action-quick-controls">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!designs.length}
-              onClick={onConfirmFitting}
-            >
-              {designLabel(project.product)} 전체 Fitting Confirm
+        {stage === 'Approved' &&
+          stageZones.every((zone) => zone.productionHandoff) && (
+            <Button variant="outline" onClick={onPromote}>
+              인계 체크리스트 보기 / 재확인
             </Button>
-            {zones.map((zone) =>
-              zone.productShape?.fittingConfirmedAt ? (
-                <span className="shape-code" key={zone.code}>
-                  {zone.code} · Shape Fit Confirmed
-                </span>
-              ) : zone.productShape?.status === 'ACTIVE' ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  key={zone.code}
-                  disabled={!completedFittingProjectIds.has(zone.id)}
-                  onClick={() => onConfirmShapeFit(zone.id)}
-                >
-                  Confirm {zone.code} Shape Fit
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  key={zone.code}
-                  onClick={() => onOpenTab('shapes')}
-                >
-                  Define {zone.code} Shape
-                </Button>
-              ),
-            )}
-          </div>
-        )}
+          )}
         <Button
           className="project-next-action-button"
           variant="primary"
@@ -2623,182 +2299,12 @@ interface ZoneTabProps {
   onManagerChange: (userId: string | undefined) => void;
   project: VehicleProjectGroup;
   zone: ZoneProject;
-  tasks: readonly ProjectTask[];
   visits: readonly ProjectVisit[];
   designs: readonly ProjectDesign[];
   canCreateDesign: boolean;
   onAddDesign: () => void;
-  onAddTask: () => void;
   onRevision: (designId: string) => void;
-  onOpenTasks: () => void;
   onOpenVisits: () => void;
-}
-
-interface ShapesTabProps {
-  project: VehicleProjectGroup;
-  stage: ProjectStage;
-  zones: readonly ZoneProject[];
-  visits: readonly ProjectVisit[];
-  onCreate: (zoneId: string) => void;
-  onAdopt: (zoneId: string) => void;
-  onConfirmFit: (zoneId: string) => void;
-}
-
-function ShapesTab({
-  project,
-  stage,
-  zones,
-  visits,
-  onCreate,
-  onAdopt,
-  onConfirmFit,
-}: ShapesTabProps) {
-  return (
-    <div className="project-tab-stack">
-      <div className="detail-help-text shape-workflow-help">
-        <Box aria-hidden="true" />
-        <span>
-          <strong>Shape workflow</strong> · 3D Model에서 초안 생성 또는 기존
-          Shape 채택 → Fit Review 승인 → Fitting 적합 확인
-        </span>
-      </div>
-      {zones.map((zone) => {
-        const shape = zone.productShape;
-        const dimension = shape?.dimensions;
-        const fittingVisitComplete = visits.some(
-          (visit) =>
-            visit.type === 'FITTING' &&
-            visit.status === 'COMPLETED' &&
-            visit.vehicleProjectIds.includes(zone.id),
-        );
-        return (
-          <Card className="detail-panel shape-detail-card" key={zone.id}>
-            <CardHeader>
-              <CardTitle>
-                <span className={`zone zone-${zone.code.toLowerCase()}`}>
-                  {zone.code}
-                </span>{' '}
-                {zone.label} · {zone.id}
-              </CardTitle>
-              {shape ? (
-                <StatusBadge
-                  label={shape.status.replace('_', ' ')}
-                  tone={shape.status === 'ACTIVE' ? 'success' : 'progress'}
-                />
-              ) : (
-                <StatusBadge label="NOT ASSIGNED" tone="neutral" />
-              )}
-            </CardHeader>
-            <CardContent>
-              {shape ? (
-                <div className="shape-detail-content">
-                  <div className="shape-identity">
-                    <Box aria-hidden="true" />
-                    <div>
-                      <strong>{shape.name}</strong>
-                      <code>{shape.id}</code>
-                    </div>
-                  </div>
-                  <dl className="shape-metadata-grid">
-                    <dt>Product Type</dt>
-                    <dd>{project.product}</dd>
-                    <dt>Source</dt>
-                    <dd>
-                      {shape.source === 'ADOPTED'
-                        ? `Adopted · ${shape.adoptedFromShapeId}`
-                        : 'New Shape'}
-                    </dd>
-                    <dt>Dimensions</dt>
-                    <dd>
-                      {dimension && dimension.length > 0
-                        ? `${dimension.length} × ${dimension.frontWidth ?? '—'} / ${dimension.backWidth ?? '—'} × ${dimension.height} ${dimension.unit}`
-                        : 'Legacy Shape · dimension not entered'}
-                    </dd>
-                    <dt>Source Asset</dt>
-                    <dd>{shape.sourceAssetId ?? '—'}</dd>
-                    <dt>Created</dt>
-                    <dd>
-                      {shape.createdBy} · {shape.createdAt.slice(0, 10)}
-                    </dd>
-                    <dt>Lifecycle</dt>
-                    <dd>
-                      {shape.status === 'ACTIVE'
-                        ? 'Fitting task DONE · Active'
-                        : 'In development · Fitting confirmation required'}
-                    </dd>
-                    <dt>Fitting</dt>
-                    <dd>
-                      {shape.fittingConfirmedAt
-                        ? `${shape.fittingConfirmedBy} · ${shape.fittingConfirmedAt.slice(0, 10)}`
-                        : 'Not confirmed'}
-                    </dd>
-                    {shape.note && (
-                      <>
-                        <dt>Note</dt>
-                        <dd>{shape.note}</dd>
-                      </>
-                    )}
-                  </dl>
-                  <div className="shape-card-actions">
-                    {shape.status !== 'ACTIVE' && stage !== 'Fitting' && (
-                      <span className="shape-action-hint">
-                        Fitting Visit PASS 후 FITTING Task를 DONE 처리하면
-                        ACTIVE가 됩니다.
-                      </span>
-                    )}
-                    {stage === 'Fitting' &&
-                      shape.status !== 'ACTIVE' &&
-                      !shape.fittingConfirmedAt && (
-                        <Button
-                          size="sm"
-                          variant="primary"
-                          disabled={!fittingVisitComplete}
-                          title={
-                            fittingVisitComplete
-                              ? undefined
-                              : 'Fitting Visit을 먼저 완료하세요.'
-                          }
-                          onClick={() => onConfirmFit(zone.id)}
-                        >
-                          Confirm Shape Fit
-                        </Button>
-                      )}
-                  </div>
-                </div>
-              ) : (
-                <div className="shape-empty-state">
-                  <Box aria-hidden="true" />
-                  <div>
-                    <strong>이 Zone에 정의된 Shape가 없습니다.</strong>
-                    <p>
-                      신규 치수를 등록하거나 같은 Product Type의 승인된 Shape를
-                      채택하세요.
-                    </p>
-                  </div>
-                  <div className="shape-card-actions">
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      onClick={() => onCreate(zone.id)}
-                    >
-                      <Plus /> Create New Shape
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onAdopt(zone.id)}
-                    >
-                      Adopt Existing Shape
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
-  );
 }
 
 function ZoneTab({
@@ -2806,14 +2312,11 @@ function ZoneTab({
   onManagerChange,
   project,
   zone,
-  tasks,
   visits,
   designs,
   canCreateDesign,
   onAddDesign,
-  onAddTask,
   onRevision,
-  onOpenTasks,
   onOpenVisits,
 }: ZoneTabProps) {
   return (
@@ -2832,10 +2335,6 @@ function ZoneTab({
             </dd>
             <dt>Research</dt>
             <dd>{project.vehicle}</dd>
-            <dt>Shape</dt>
-            <dd>{zone.productShape?.name ?? zone.shape ?? 'Not Assigned'}</dd>
-            <dt>Same Shape As</dt>
-            <dd>{zone.productShape?.adoptedFromShapeId ?? 'None'}</dd>
             <dt>Scan</dt>
             <dd>{zone.scanned ? 'Completed' : '—'}</dd>
             <dt>Manager</dt>
@@ -2904,39 +2403,16 @@ function ZoneTab({
       </Card>
       <Card className="detail-panel">
         <CardHeader>
-          <CardTitle>Tasks</CardTitle>
-          <Button size="sm" variant="outline" onClick={onAddTask}>
-            <Plus /> Add Task
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {tasks.length ? (
-            tasks.map((task) => (
-              <TaskRow
-                users={users}
-                task={task}
-                visit={visits.find((item) =>
-                  (item.taskIds ?? []).includes(task.id),
-                )}
-                key={task.id}
-                onOpen={onOpenTasks}
-              />
-            ))
-          ) : (
-            <div className="empty-inline">Task가 없습니다.</div>
-          )}
-        </CardContent>
-      </Card>
-      <Card className="detail-panel">
-        <CardHeader>
           <CardTitle>Visits</CardTitle>
+          <Button size="sm" variant="outline" onClick={onOpenVisits}>
+            <CalendarPlus /> Schedule Scan / Fitting
+          </Button>
         </CardHeader>
         <CardContent>
           {visits.length ? (
             visits.map((visit) => (
               <VisitCard
                 users={users}
-                tasks={tasks}
                 visit={visit}
                 key={visit.id}
                 onOpen={onOpenVisits}
@@ -3374,6 +2850,8 @@ function RevisionVerification({
 }
 
 interface SamplesTabProps {
+  sampleGate: SampleGate;
+  onResolveGate: (tab: DetailTab) => void;
   product: VehicleProjectGroup['product'];
   designs: readonly ProjectDesign[];
   samples: readonly ProjectSample[];
@@ -3391,6 +2869,8 @@ interface SamplesTabProps {
 }
 
 function SamplesTab({
+  sampleGate,
+  onResolveGate,
   product,
   designs,
   samples,
@@ -3401,9 +2881,6 @@ function SamplesTab({
   onApproveDesign,
   onVerifyRevision,
 }: SamplesTabProps) {
-  const arrived = samples.some((sample) =>
-    ['ARRIVED', 'APPROVED'].includes(sample.status),
-  );
   // Approval is per revision: a Rev 3 can only be approved once a sample that
   // was actually made from Rev 3 has been received.
   const isRevisionArrived = (design: ProjectDesign) =>
@@ -3434,22 +2911,24 @@ function SamplesTab({
     );
     return designs.filter((design) => designIds.has(design.id));
   };
-  const canApproveRequest = (sample: ProjectSample) =>
-    sampleItems
-      .filter((item) => item.sampleRequestId === sample.id)
-      .every((item) => {
+  const canApproveRequest = (sample: ProjectSample) => {
+    const items = sampleItems.filter(
+      (item) => item.sampleRequestId === sample.id,
+    );
+    return (
+      items.length > 0 &&
+      items.every((item) => {
         const design = designs.find(
           (candidate) => candidate.id === item.vehicleProductDesignId,
         );
         const revision = design?.revisions.find(
           (candidate) => candidate.id === item.vehicleProductDesignRevisionId,
         );
-        return canApproveRevisionSample(revision, item);
-      });
-  const gatePassed =
-    canRequestSample &&
-    arrived &&
-    (product === 'Floor Mat' || designs.every(isSampleApproved));
+        return Boolean(revision) && canApproveRevisionSample(revision, item);
+      })
+    );
+  };
+  const gatePassed = canRequestSample && sampleGate.ready;
   const requestableDesigns = samples.length
     ? designs.filter((design) =>
         isRevisionSampleRequestable(design, sampleItems),
@@ -3617,7 +3096,23 @@ function SamplesTab({
                 </div>
               ))
             ) : (
-              <div className="empty-inline">Design이 없습니다.</div>
+              <div className="stage-gate-lock" role="status">
+                <strong>
+                  연결된 패턴 / Design이 없어 Sample 단계를 완료할 수 없습니다.
+                </strong>
+                <span>
+                  샘플 요청의 APPROVED 표시만으로는 단계가 완료되지 않습니다.
+                  패턴 / Design을 등록하고 해당 Revision의 샘플 입고와 승인을
+                  진행하세요.
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onResolveGate('designs')}
+                >
+                  패턴 / Design 등록하기
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -3629,8 +3124,20 @@ function SamplesTab({
         <span>
           {gatePassed
             ? '전 design 입고 및 승인 완료 — Overview에서 Fitting 단계로 진행하세요.'
-            : '전 design 입고 및 현재 revision 기준 승인이 필요합니다.'}
+            : sampleGate.blockers.map((blocker) => blocker.message).join(' ') ||
+              '이 Zone의 이전 개발 단계가 완료되어야 합니다.'}
         </span>
+        {!gatePassed && sampleGate.blockers.length > 0 && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              onResolveGate(sampleGate.blockers[0]?.tab ?? 'samples')
+            }
+          >
+            미완료 항목 확인
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -3690,200 +3197,6 @@ function FilesTab({ users, assets, onAdd }: FilesTabProps) {
   );
 }
 
-interface TasksTabProps {
-  users: readonly AppUser[];
-  tasks: readonly ProjectTask[];
-  visits: readonly ProjectVisit[];
-  canScheduleScan: boolean;
-  canScheduleFitting: boolean;
-  onAdd: () => void;
-  onStatus: (taskId: string, status: ProjectTask['status']) => void;
-  onScheduleVisit: () => void;
-}
-
-function TasksTab({
-  users,
-  tasks,
-  visits,
-  canScheduleScan,
-  canScheduleFitting,
-  onAdd,
-  onStatus,
-  onScheduleVisit,
-}: TasksTabProps) {
-  return (
-    <div className="project-tab-stack">
-      <Card className="detail-panel">
-        <CardHeader>
-          <CardTitle>
-            Tasks <small>스캔·피팅 업무 지정 + ad-hoc 업무</small>
-          </CardTitle>
-          <Button size="sm" variant="primary" onClick={onAdd}>
-            <Plus /> Add Task
-          </Button>
-        </CardHeader>
-        <CardContent className="task-group-list">
-          {TASK_STATUS_GROUPS.map((group) => {
-            const rows = tasks.filter((task) => task.status === group.status);
-            return (
-              <details className="task-group" key={group.status} open>
-                <summary>
-                  <ChevronDown aria-hidden="true" />
-                  <StatusBadge label={group.label} tone={group.tone} />
-                  <span className="task-group-count">{rows.length}</span>
-                </summary>
-                {rows.length ? (
-                  <div className="task-table" role="table">
-                    <div className="task-row head" role="row">
-                      <span role="columnheader">Name</span>
-                      <span role="columnheader">Assignee</span>
-                      <span role="columnheader">Visit</span>
-                      <span role="columnheader" aria-label="작업" />
-                    </div>
-                    {rows.map((task) => (
-                      <TaskRow
-                        users={users}
-                        task={task}
-                        visit={visits.find((item) =>
-                          (item.taskIds ?? []).includes(task.id),
-                        )}
-                        key={task.id}
-                        onStart={() => onStatus(task.id, 'ACCEPTED')}
-                        onComplete={() => onStatus(task.id, 'DONE')}
-                        onFail={() => onStatus(task.id, 'FAILED')}
-                        onCancel={() => onStatus(task.id, 'CANCELLED')}
-                        onSchedule={
-                          (task.type === 'SCAN' && canScheduleScan) ||
-                          (task.type === 'FITTING' && canScheduleFitting)
-                            ? onScheduleVisit
-                            : undefined
-                        }
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="empty-inline task-group-empty">
-                    Task가 없습니다.
-                  </div>
-                )}
-              </details>
-            );
-          })}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-const VISIT_TASK_TYPES: readonly ProjectTaskType[] = ['SCAN', 'FITTING'];
-
-/** Board columns, in the order work moves through them. */
-const TASK_STATUS_GROUPS: readonly {
-  status: ProjectTask['status'];
-  label: string;
-  tone: 'neutral' | 'progress' | 'success' | 'danger';
-}[] = [
-  { status: 'OPEN', label: 'OPEN', tone: 'neutral' },
-  { status: 'ACCEPTED', label: 'ACCEPTED', tone: 'progress' },
-  { status: 'DONE', label: 'DONE', tone: 'success' },
-  { status: 'FAILED', label: 'FAILED', tone: 'danger' },
-  { status: 'CANCELLED', label: 'CANCELLED', tone: 'neutral' },
-];
-
-interface TaskRowProps {
-  users: readonly AppUser[];
-  task: ProjectTask;
-  /** Visit that carries out this task, when one has been scheduled. */
-  visit?: ProjectVisit;
-  onStart?: () => void;
-  onComplete?: () => void;
-  onFail?: () => void;
-  onCancel?: () => void;
-  onSchedule?: () => void;
-  /** Set where the row is a shortcut to the Tasks tab. */
-  onOpen?: () => void;
-}
-
-function TaskRow({
-  users,
-  task,
-  visit,
-  onStart,
-  onComplete,
-  onFail,
-  onCancel,
-  onSchedule,
-  onOpen,
-}: TaskRowProps) {
-  const needsVisit = VISIT_TASK_TYPES.includes(task.type);
-  const assignee = findUser(users, task.assignedTo);
-  return (
-    <div
-      className={onOpen ? 'task-row row-link' : 'task-row'}
-      role="row"
-      tabIndex={onOpen ? 0 : undefined}
-      onClick={onOpen}
-      onKeyDown={onOpen ? rowKeyHandler(onOpen) : undefined}
-    >
-      <span className="task-row-name" role="cell">
-        <strong>{task.title}</strong>
-        <span className="vehicle-meta">
-          {task.type} · {task.vehicleProjectId} · 요청{' '}
-          {userName(users, task.requestedBy)} · {task.created}
-        </span>
-      </span>
-      <span className="task-row-assignee" role="cell">
-        {assignee ? (
-          <>
-            <UserAvatar user={assignee} />
-            <span>{assignee.name}</span>
-          </>
-        ) : (
-          <span className="muted-text">Unassigned</span>
-        )}
-      </span>
-      <span className="task-row-visit" role="cell">
-        <TaskVisitCell task={task} visit={visit} />
-      </span>
-      <span className="task-row-actions" role="cell">
-        {needsVisit &&
-          !visit &&
-          !['DONE', 'FAILED', 'CANCELLED'].includes(task.status) &&
-          onSchedule && (
-            <Button size="sm" variant="outline" onClick={onSchedule}>
-              <CalendarPlus /> 일정 잡기
-            </Button>
-          )}
-        {task.status === 'OPEN' &&
-          !needsVisit &&
-          task.assignedTo &&
-          onStart && (
-            <Button size="sm" variant="outline" onClick={onStart}>
-              Start
-            </Button>
-          )}
-        {task.status === 'ACCEPTED' && !needsVisit && onComplete && (
-          <>
-            {onFail && (
-              <Button size="sm" variant="outline" onClick={onFail}>
-                Fail
-              </Button>
-            )}
-            <Button size="sm" variant="primary" onClick={onComplete}>
-              Complete
-            </Button>
-          </>
-        )}
-        {['OPEN', 'ACCEPTED'].includes(task.status) && !visit && onCancel && (
-          <Button size="sm" variant="ghost" onClick={onCancel}>
-            Cancel
-          </Button>
-        )}
-      </span>
-    </div>
-  );
-}
-
 /**
  * Enter/Space activation for a row that is clickable but cannot be a
  * `<button>`, because it may contain its own action buttons.
@@ -3897,49 +3210,8 @@ function rowKeyHandler(onOpen: () => void) {
   };
 }
 
-interface TaskVisitCellProps {
-  task: ProjectTask;
-  /** Visit that carries out this task, when one has been scheduled. */
-  visit?: ProjectVisit;
-}
-
-/**
- * The Visit column of a task row.
- *
- * Completing a visit is what completes its SCAN/FITTING tasks, so this column
- * has to carry the visit's status: reporting "일정 미정" beside a visit that
- * already happened reads as a contradiction.
- */
-function TaskVisitCell({ task, visit }: TaskVisitCellProps) {
-  if (!VISIT_TASK_TYPES.includes(task.type)) {
-    return <span className="muted-text">—</span>;
-  }
-  if (visit) {
-    const done = visit.status === 'COMPLETED';
-    return (
-      <>
-        <span className="task-visit-line">
-          <span className="visit-reference">{visit.id}</span>
-          <StatusBadge
-            label={done ? '방문 완료' : '예정'}
-            tone={done ? 'success' : 'purple'}
-          />
-        </span>
-        <span className="vehicle-meta">
-          {visit.dealer} · {visit.date} {visit.time}
-        </span>
-      </>
-    );
-  }
-  if (task.status === 'DONE') {
-    return <span className="muted-text">방문 기록 없음</span>;
-  }
-  return <span className="muted-text">일정 미정</span>;
-}
-
 interface VisitsTabProps {
   users: readonly AppUser[];
-  tasks: readonly ProjectTask[];
   visits: readonly ProjectVisit[];
   canScheduleVisit: boolean;
   onAdd: () => void;
@@ -3949,7 +3221,6 @@ interface VisitsTabProps {
 
 function VisitsTab({
   users,
-  tasks,
   visits,
   canScheduleVisit,
   onAdd,
@@ -3962,7 +3233,7 @@ function VisitsTab({
     <Card className="detail-panel">
       <CardHeader>
         <CardTitle>
-          Visits <small>Task로 지정된 스캔·피팅의 방문 일정</small>
+          Visits <small>스캔·피팅 일정과 방문 결과</small>
         </CardTitle>
         <Button
           size="sm"
@@ -3985,7 +3256,7 @@ function VisitsTab({
               <CalendarClock aria-hidden="true" />
               <div>
                 <h3>Upcoming</h3>
-                <p>예정된 방문 · 일정 변경 및 완료 처리</p>
+                <p>예정된 방문 · 취소 및 완료 처리</p>
               </div>
             </div>
             <StatusBadge
@@ -3998,7 +3269,6 @@ function VisitsTab({
               upcoming.map((visit) => (
                 <VisitCard
                   users={users}
-                  tasks={tasks}
                   visit={visit}
                   key={visit.id}
                   onCancel={() => onCancel(visit.id)}
@@ -4025,12 +3295,7 @@ function VisitsTab({
           <div className="visit-section-list">
             {past.length ? (
               past.map((visit) => (
-                <VisitCard
-                  users={users}
-                  tasks={tasks}
-                  visit={visit}
-                  key={visit.id}
-                />
+                <VisitCard users={users} visit={visit} key={visit.id} />
               ))
             ) : (
               <div className="empty-inline">지난 방문 기록이 없습니다.</div>
@@ -4044,8 +3309,6 @@ function VisitsTab({
 
 interface VisitCardProps {
   users: readonly AppUser[];
-  /** Tasks the visit carries out; their assignees are the visit's people. */
-  tasks: readonly ProjectTask[];
   visit: ProjectVisit;
   onCancel?: () => void;
   onComplete?: (result?: 'PASS' | 'FAIL') => void;
@@ -4055,7 +3318,6 @@ interface VisitCardProps {
 
 function VisitCard({
   users,
-  tasks,
   visit,
   onCancel,
   onComplete,
@@ -4070,6 +3332,11 @@ function VisitCard({
     >
       <div className="visit-card-heading">
         <strong className={visit.type === 'SCAN' ? 'scan' : 'fitting'}>
+          {visit.type === 'SCAN' ? (
+            <ScanLine aria-hidden="true" />
+          ) : (
+            <Wrench aria-hidden="true" />
+          )}
           {visit.type}
         </strong>
         <StatusBadge
@@ -4085,23 +3352,34 @@ function VisitCard({
       </div>
       <h3>{visit.dealer}</h3>
       <p>
-        {visit.date} · {visit.time} · {visitAssigneeNames(users, tasks, visit)}
+        {visit.date} · {visit.time} ·{' '}
+        {visit.staffIds?.length
+          ? visit.staffIds.map((id) => userName(users, id)).join(', ')
+          : 'Unassigned'}
       </p>
       <dl>
-        <dt>Tasks</dt>
-        <dd>
-          {visit.taskIds?.length ? (
-            <span className="zone-list">
-              {visit.taskIds.map((taskId) => (
-                <span className="zone-project-reference" key={taskId}>
-                  {taskId}
-                </span>
-              ))}
-            </span>
-          ) : (
-            <span className="muted-text">—</span>
-          )}
-        </dd>
+        <dt>Location</dt>
+        <dd>{visit.locationType ?? 'DEALERSHIP'}</dd>
+        <dt>Priority</dt>
+        <dd>{visit.priority ?? 'NORMAL'}</dd>
+        {visit.performedAt && (
+          <>
+            <dt>Performed</dt>
+            <dd>{new Date(visit.performedAt).toLocaleString()}</dd>
+          </>
+        )}
+        {visit.targetVehicleResearchId && (
+          <>
+            <dt>Target Vehicle</dt>
+            <dd>{visit.targetVehicleResearchId}</dd>
+          </>
+        )}
+        {visit.note && (
+          <>
+            <dt>Note</dt>
+            <dd>{visit.note}</dd>
+          </>
+        )}
         <dt>Projects</dt>
         <dd>
           <span className="zone-list">
@@ -4179,6 +3457,11 @@ function ActivityTab({ activity }: ActivityTabProps) {
 }
 
 interface ProjectDialogProps {
+  handoffZoneCodes: string;
+  handoffDraft?: HandoffChecklist;
+  onHandoffDraft: (value: HandoffChecklist) => void;
+  handoffErrors: readonly string[];
+  configurations: readonly VehicleConfiguration[];
   allDesigns: readonly ProjectDesign[];
   users: readonly AppUser[];
   /** seat_cover_part / seat_cover_code dictionaries, read from the store. */
@@ -4187,12 +3470,9 @@ interface ProjectDialogProps {
   dialog?: DialogName;
   project: VehicleProjectGroup;
   zones: readonly ZoneProject[];
-  assets: readonly ProjectAsset[];
-  shapeLibrary: readonly VehicleProductShape[];
   designs: readonly ProjectDesign[];
   samples: readonly ProjectSample[];
   sampleItems: readonly SampleRequestItem[];
-  tasks: readonly ProjectTask[];
   canRequestSample: boolean;
   canScheduleScan: boolean;
   canScheduleFitting: boolean;
@@ -4202,10 +3482,7 @@ interface ProjectDialogProps {
   fittingEligibleProjectIds: readonly string[];
   dialogZone?: string;
   dialogDesignId?: string;
-  nextFNumber: string;
   onClose: () => void;
-  onCreateShape: (zoneId: string, input: NewShapeInput) => void;
-  onAdoptShape: (zoneId: string, shape: VehicleProductShape) => void;
   onDesign: (input: NewDesignInput) => void;
   onRevision: (
     designId: string,
@@ -4213,20 +3490,7 @@ interface ProjectDialogProps {
     createdBy: string,
     changeRequest: NonNullable<ProjectDesignRevision['changeRequest']>,
   ) => void;
-  onTask: (
-    zone: string,
-    title: string,
-    type: ProjectTaskType,
-    assignee: string,
-  ) => void;
-  onVisit: (
-    type: ProjectVisit['type'],
-    dealer: string,
-    date: string,
-    time: string,
-    vehicleProjectIds: readonly string[],
-    taskIds: readonly string[],
-  ) => void;
+  onVisit: (input: NewVisitInput) => void;
   onSample: (factory: string, designIds: readonly string[]) => void;
   onFile: (name: string, type: ProjectAsset['type']) => void;
   onConfiguration: (
@@ -4235,10 +3499,15 @@ interface ProjectDialogProps {
     mode: 'NEW' | 'FIX',
     note: string,
   ) => void;
-  onPromote: () => void;
+  onPromote: (checklist: HandoffChecklist) => void;
 }
 
 function ProjectDialog({
+  handoffZoneCodes,
+  handoffDraft,
+  onHandoffDraft,
+  handoffErrors,
+  configurations,
   allDesigns,
   users,
   seatCoverParts,
@@ -4246,12 +3515,9 @@ function ProjectDialog({
   dialog,
   project,
   zones,
-  assets,
-  shapeLibrary,
   designs,
   samples,
   sampleItems,
-  tasks,
   canRequestSample,
   canScheduleScan,
   canScheduleFitting,
@@ -4261,19 +3527,18 @@ function ProjectDialog({
   fittingEligibleProjectIds,
   dialogZone,
   dialogDesignId,
-  nextFNumber,
   onClose,
-  onCreateShape,
-  onAdoptShape,
   onDesign,
   onRevision,
-  onTask,
   onVisit,
   onSample,
   onFile,
   onConfiguration,
   onPromote,
 }: ProjectDialogProps) {
+  const [handoffValue, setHandoffValue] = useState<HandoffChecklist>(
+    () => handoffDraft ?? emptyHandoffChecklist(),
+  );
   const [zone, setZone] = useState(
     dialogZone ??
       (dialog === 'design' ? designEligibleProjectIds[0] : undefined) ??
@@ -4281,22 +3546,6 @@ function ProjectDialog({
       '',
   );
   const selectedZone = zones.find((item) => item.id === (dialogZone ?? zone));
-  const [shapeName, setShapeName] = useState(
-    `${project.product.replace(/ /g, '-').toUpperCase()}-${selectedZone?.code ?? 'ZONE'}-001`,
-  );
-  const [shapeLength, setShapeLength] = useState('1000');
-  const [shapeFrontWidth, setShapeFrontWidth] = useState('500');
-  const [shapeBackWidth, setShapeBackWidth] = useState('500');
-  const [shapeHeight, setShapeHeight] = useState('300');
-  const [shapeUnit, setShapeUnit] = useState<'CM' | 'IN'>('CM');
-  const [shapeSourceAssetId, setShapeSourceAssetId] = useState('NONE');
-  const [shapeCreatedBy, setShapeCreatedBy] = useState('USR-JH');
-  const [shapeNote, setShapeNote] = useState('');
-  const [adoptShapeId, setAdoptShapeId] = useState(shapeLibrary[0]?.id ?? '');
-  const [title, setTitle] = useState('Front Pattern Design');
-  const [type, setType] = useState<ProjectTaskType>('SCAN');
-  // Holds an app_user.id, matching vehicle_project_task.assigned_to.
-  const [assignee, setAssignee] = useState('USR-JH');
   const [designName, setDesignName] = useState(
     project.product === 'Seat Cover' ? 'FH-J-D' : '',
   );
@@ -4330,11 +3579,28 @@ function ProjectDialog({
   >('UNIVERSAL');
   const [isForMiddleSeat, setIsForMiddleSeat] = useState(false);
   const [isCustomPart, setIsCustomPart] = useState(false);
-  const [visitType, setVisitType] = useState<ProjectVisit['type']>('SCAN');
+  const [visitType, setVisitType] = useState<ProjectVisit['type']>(
+    canScheduleFitting && selectedZone?.currentStage === 'Fitting'
+      ? 'FITTING'
+      : canScheduleScan
+        ? 'SCAN'
+        : 'FITTING',
+  );
   const [dealer, setDealer] = useState<(typeof DEALERS)[number]>('Galpin Ford');
-  const [date, setDate] = useState('2026-09-02');
+  const [date, setDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [time, setTime] = useState('10:00');
-  const [selectedTaskIds, setSelectedTaskIds] = useState<readonly string[]>([]);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<
+    readonly string[]
+  >(dialogZone ? [dialogZone] : []);
+  const [staffIds, setStaffIds] = useState<readonly string[]>([]);
+  const [locationType, setLocationType] =
+    useState<NonNullable<ProjectVisit['locationType']>>('DEALERSHIP');
+  const [priority, setPriority] =
+    useState<NonNullable<ProjectVisit['priority']>>('NORMAL');
+  const [visitNote, setVisitNote] = useState('');
+  const [targetVehicleResearchId, setTargetVehicleResearchId] = useState(
+    project.vehicleResearchId,
+  );
   const [factory, setFactory] =
     useState<(typeof FACTORIES)[number]>('Tianhong');
   const sampleCandidates = designs.filter(
@@ -4409,69 +3675,21 @@ function ProjectDialog({
   const visitEligibleProjectIds =
     visitType === 'SCAN' ? scanEligibleProjectIds : fittingEligibleProjectIds;
   const visitGateUnlocked = visitEligibleProjectIds.length > 0;
-  // A visit carries out tasks of its own kind, so scheduling starts from the
-  // open SCAN / FITTING tasks rather than from the raw zone project list.
-  const openVisitTasks = tasks.filter(
-    (task) =>
-      visitGateUnlocked &&
-      visitEligibleProjectIds.includes(task.vehicleProjectId) &&
-      task.type === visitType &&
-      !['DONE', 'FAILED', 'CANCELLED'].includes(task.status),
-  );
-  const vehicleProjectIdsForSelectedTasks = [
-    ...new Set(
-      tasks
-        .filter((task) => selectedTaskIds.includes(task.id))
-        .map((task) => task.vehicleProjectId),
-    ),
-  ];
   const dialogTitles: Record<DialogName, string> = {
     'new-configuration': 'New Configuration Found',
-    'shape-create': 'Create New Product Shape',
-    'shape-adopt': 'Adopt Existing Shape',
     design: `${designLabel(project.product)} 등록 · Revision 1`,
     revision: `${designLabel(project.product)} · 새 버전 추가`,
-    task: 'Create Task',
     visit: 'Schedule Visit',
     sample: 'Sample Request',
     file: 'Add File Reference',
-    promote: 'Promote to Unique Vehicle',
+    promote: '양산 인계 완료 기록',
   };
 
   function submit(): void {
     if (!dialog) {
       return;
     }
-    if (dialog === 'shape-create') {
-      onCreateShape(effectiveZone, {
-        name: shapeName.trim(),
-        ...(project.product === 'Car Cover'
-          ? {
-              dimensions: {
-                length: Number(shapeLength),
-                ...(shapeFrontWidth
-                  ? { frontWidth: Number(shapeFrontWidth) }
-                  : {}),
-                ...(shapeBackWidth
-                  ? { backWidth: Number(shapeBackWidth) }
-                  : {}),
-                height: Number(shapeHeight),
-                unit: shapeUnit,
-              },
-            }
-          : {}),
-        ...(shapeSourceAssetId !== 'NONE'
-          ? { sourceAssetId: shapeSourceAssetId }
-          : {}),
-        createdBy: shapeCreatedBy,
-        note: shapeNote.trim(),
-      });
-    } else if (dialog === 'shape-adopt') {
-      const selectedShape = shapeLibrary.find(
-        (shape) => shape.id === adoptShapeId,
-      );
-      if (selectedShape) onAdoptShape(effectiveZone, selectedShape);
-    } else if (dialog === 'design') {
+    if (dialog === 'design') {
       if (
         !effectiveDesignGateUnlocked ||
         designIdentityExists ||
@@ -4541,17 +3759,26 @@ function ProjectDialog({
         confirmedBy: revisionCreatedBy,
         confirmedAt: new Date().toISOString(),
       });
-    } else if (dialog === 'task') {
-      onTask(effectiveZone, title.trim(), type, assignee);
     } else if (dialog === 'visit') {
-      onVisit(
-        visitType,
-        dealer,
+      const vehicleProjectIds = selectedProjectIds.filter((id) =>
+        visitEligibleProjectIds.includes(id),
+      );
+      if (!vehicleProjectIds.length || !date || !time) return;
+      onVisit({
+        type: visitType,
+        dealer:
+          locationType === 'DEALERSHIP'
+            ? dealer
+            : locationType.replace('_', ' '),
         date,
         time,
-        vehicleProjectIdsForSelectedTasks,
-        selectedTaskIds,
-      );
+        vehicleProjectIds,
+        staffIds,
+        locationType,
+        priority,
+        note: visitNote.trim(),
+        targetVehicleResearchId,
+      });
     } else if (dialog === 'sample') {
       onSample(factory, selectedSampleDesignIds);
     } else if (dialog === 'file') {
@@ -4564,7 +3791,8 @@ function ProjectDialog({
         configurationNote.trim(),
       );
     } else {
-      onPromote();
+      if (!handoffChecklistErrors(handoffValue).length && !handoffErrors.length)
+        onPromote(handoffValue);
     }
   }
 
@@ -4659,188 +3887,6 @@ function ProjectDialog({
                   placeholder="예: 딜러 확인 결과 Storage 옵션 오기재"
                 />
               </label>
-            </div>
-          )}
-          {dialog === 'shape-create' && (
-            <div className="project-dialog-stack">
-              <div className="dialog-vehicle-summary">
-                <span>Zone Project</span>
-                <strong>
-                  {selectedZone?.code} · {selectedZone?.label} ·{' '}
-                  {selectedZone?.id}
-                </strong>
-                <small>
-                  {project.product} · 신규 Shape는 IN_DEVELOPMENT 상태로
-                  생성됩니다.
-                </small>
-              </div>
-              <div className="dialog-form-grid shape-dialog-grid">
-                <label className="full-width">
-                  Shape Name / Code
-                  <Input
-                    value={shapeName}
-                    onChange={(event) => setShapeName(event.target.value)}
-                  />
-                </label>
-                {project.product === 'Car Cover' && (
-                  <>
-                    <label>
-                      Length
-                      <Input
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        value={shapeLength}
-                        onChange={(event) => setShapeLength(event.target.value)}
-                      />
-                    </label>
-                    <label>
-                      Height
-                      <Input
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        value={shapeHeight}
-                        onChange={(event) => setShapeHeight(event.target.value)}
-                      />
-                    </label>
-                    <label>
-                      Front Width
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={shapeFrontWidth}
-                        onChange={(event) =>
-                          setShapeFrontWidth(event.target.value)
-                        }
-                      />
-                    </label>
-                    <label>
-                      Back Width
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={shapeBackWidth}
-                        onChange={(event) =>
-                          setShapeBackWidth(event.target.value)
-                        }
-                      />
-                    </label>
-                    <label>
-                      Dimension Unit
-                      <Select
-                        value={shapeUnit}
-                        onValueChange={(value) =>
-                          setShapeUnit(value as 'CM' | 'IN')
-                        }
-                      >
-                        <SelectTrigger aria-label="Shape dimension unit">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="CM">cm</SelectItem>
-                          <SelectItem value="IN">inch</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </label>
-                  </>
-                )}
-                <label>
-                  Source 3D Model / Scan
-                  <Select
-                    value={shapeSourceAssetId}
-                    onValueChange={setShapeSourceAssetId}
-                  >
-                    <SelectTrigger aria-label="Shape source asset">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="NONE">No linked asset</SelectItem>
-                      {assets
-                        .filter((asset) =>
-                          ['3D MODEL', 'SCAN'].includes(asset.type),
-                        )
-                        .map((asset) => (
-                          <SelectItem value={asset.id} key={asset.id}>
-                            {asset.name} · {asset.type}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </label>
-                <label>
-                  Created By
-                  <Select
-                    value={shapeCreatedBy}
-                    onValueChange={setShapeCreatedBy}
-                  >
-                    <SelectTrigger aria-label="Shape author">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DESIGNERS.map((designer) => (
-                        <SelectItem value={designer.id} key={designer.id}>
-                          {designer.name} · {designer.id}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </label>
-                <label className="full-width">
-                  Note
-                  <Input
-                    value={shapeNote}
-                    onChange={(event) => setShapeNote(event.target.value)}
-                    placeholder="Shape 출처 또는 검토 시 참고할 내용을 입력하세요."
-                  />
-                </label>
-              </div>
-            </div>
-          )}
-          {dialog === 'shape-adopt' && (
-            <div className="project-dialog-stack">
-              <div className="dialog-vehicle-summary">
-                <span>Target Zone Project</span>
-                <strong>
-                  {selectedZone?.code} · {selectedZone?.label} ·{' '}
-                  {selectedZone?.id}
-                </strong>
-                <small>같은 Product Type의 승인된 Shape만 표시됩니다.</small>
-              </div>
-              {shapeLibrary.length ? (
-                <div className="shape-adopt-list">
-                  {shapeLibrary.map((shape) => (
-                    <label
-                      className={adoptShapeId === shape.id ? 'selected' : ''}
-                      key={shape.id}
-                    >
-                      <input
-                        type="radio"
-                        name="adopt-shape"
-                        checked={adoptShapeId === shape.id}
-                        onChange={() => setAdoptShapeId(shape.id)}
-                      />
-                      <span>
-                        <strong>{shape.name}</strong>
-                        <small>
-                          {shape.id} ·{' '}
-                          {shape.dimensions
-                            ? `${shape.dimensions.length} × ${shape.dimensions.height} ${shape.dimensions.unit}`
-                            : 'No shape-level dimensions'}
-                        </small>
-                      </span>
-                      <StatusBadge label="ACTIVE" tone="success" />
-                    </label>
-                  ))}
-                </div>
-              ) : (
-                <div className="empty-inline">
-                  채택할 수 있는 승인된 {project.product} Shape가 없습니다. 신규
-                  Shape를 생성하세요.
-                </div>
-              )}
             </div>
           )}
           {dialog === 'design' && (
@@ -5245,96 +4291,86 @@ function ProjectDialog({
               </div>
             </div>
           )}
-          {dialog === 'task' && (
-            <div className="dialog-form-grid">
-              <div className="dialog-note">
-                SCAN · FITTING Task는 &quot;이 Zone Project를 스캔/피팅해야
-                한다&quot;는 업무 지시입니다. 등록하면 Visits 탭에서 어떤 딜러로
-                언제 갈지 일정을 잡습니다. 그 외 타입은 현장 방문이 없는 ad-hoc
-                업무입니다.
-              </div>
-              <label>
-                Task Type
-                <Select
-                  value={type}
-                  onValueChange={(value) => setType(value as ProjectTaskType)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="SCAN">SCAN</SelectItem>
-                    <SelectItem value="FITTING">FITTING</SelectItem>
-                    <SelectItem value="DESIGN">DESIGN</SelectItem>
-                    <SelectItem value="REVIEW">REVIEW</SelectItem>
-                    <SelectItem value="ADMIN">ADMIN</SelectItem>
-                    <SelectItem value="OTHER">OTHER</SelectItem>
-                  </SelectContent>
-                </Select>
-              </label>
-              <label>
-                Zone Project
-                <Select
-                  value={effectiveZone}
-                  onValueChange={setZone}
-                  disabled={Boolean(dialogZone)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {zones.map((item) => (
-                      <SelectItem value={item.id} key={item.id}>
-                        {item.code} · {item.label} · {item.id}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </label>
-              <label className="full-width">
-                Title
-                <Input
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                />
-              </label>
-              <div className="static-field">
-                <span>Assigned To</span>
-                <UserPicker
-                  label="업무 담당자"
-                  value={findUser(users, assignee)}
-                  users={users}
-                  onChange={(userId) => setAssignee(userId ?? '')}
-                />
-              </div>
-              <div className="static-field">
-                <span>Requested By</span>
-                <span className="static-field-value">
-                  {(() => {
-                    const requester = findUser(users, CURRENT_USER_ID);
-                    return requester ? (
-                      <>
-                        <UserAvatar user={requester} />
-                        <span>{requester.name}</span>
-                      </>
-                    ) : (
-                      <span className="muted-text">{CURRENT_USER_ID}</span>
-                    );
-                  })()}
-                </span>
-              </div>
-            </div>
-          )}
           {dialog === 'visit' && (
             <div className="project-dialog-stack">
               <div className="dialog-form-grid">
                 <label>
+                  Location Type
+                  <Select
+                    value={locationType}
+                    onValueChange={(value) =>
+                      setLocationType(
+                        value as NonNullable<ProjectVisit['locationType']>,
+                      )
+                    }
+                  >
+                    <SelectTrigger aria-label="Location Type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[
+                        'DEALERSHIP',
+                        'OWNER_VEHICLE',
+                        'OFFICE',
+                        'FACTORY',
+                        'OTHER',
+                      ].map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {value.replace('_', ' ')}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
+                <label>
+                  Priority
+                  <Select
+                    value={priority}
+                    onValueChange={(value) =>
+                      setPriority(value as 'NORMAL' | 'URGENT')
+                    }
+                  >
+                    <SelectTrigger aria-label="Priority">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NORMAL">Normal</SelectItem>
+                      <SelectItem value="URGENT">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </label>
+                <label>
+                  Target Vehicle
+                  <Select
+                    value={targetVehicleResearchId || 'NONE'}
+                    onValueChange={(value) =>
+                      setTargetVehicleResearchId(value === 'NONE' ? '' : value)
+                    }
+                  >
+                    <SelectTrigger aria-label="Target Vehicle">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NONE">Not specified</SelectItem>
+                      {configurations.map((configuration) => (
+                        <SelectItem
+                          key={configuration.id}
+                          value={configuration.id}
+                        >
+                          {configuration.vehicle} · {configuration.id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
+                <label>
                   Visit Type
                   <Select
                     value={visitType}
-                    onValueChange={(value) =>
-                      setVisitType(value as ProjectVisit['type'])
-                    }
+                    onValueChange={(value) => {
+                      setVisitType(value as ProjectVisit['type']);
+                      setSelectedProjectIds([]);
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -5355,6 +4391,7 @@ function ProjectDialog({
                 <label>
                   Location / Dealer
                   <Select
+                    disabled={locationType !== 'DEALERSHIP'}
                     value={dealer}
                     onValueChange={(value) =>
                       setDealer(value as (typeof DEALERS)[number])
@@ -5398,52 +4435,57 @@ function ProjectDialog({
                 </div>
               )}
               <fieldset className="visit-zone-picker">
-                <legend>
-                  {visitType} Tasks — 이 방문으로 처리할 업무를 고르세요 (1
-                  Visit ↔ N Tasks)
-                </legend>
-                {openVisitTasks.length ? (
-                  openVisitTasks.map((task) => {
-                    const zone = zones.find(
-                      (item) => item.id === task.vehicleProjectId,
-                    );
-                    return (
-                      <label key={task.id}>
-                        <Checkbox
-                          checked={selectedTaskIds.includes(task.id)}
-                          onCheckedChange={(checked) =>
-                            setSelectedTaskIds((current) =>
-                              checked
-                                ? [...current, task.id]
-                                : current.filter(
-                                    (taskId) => taskId !== task.id,
-                                  ),
-                            )
-                          }
-                        />
-                        <span>
-                          {task.id} · {task.title} ·{' '}
-                          {zone
-                            ? `${zone.code} ${zone.label}`
-                            : task.vehicleProjectId}{' '}
-                          · {userName(users, task.assignedTo)}
-                        </span>
-                        <StatusBadge
-                          label={task.status}
-                          tone={
-                            task.status === 'ACCEPTED' ? 'progress' : 'neutral'
-                          }
-                        />
-                      </label>
-                    );
-                  })
-                ) : (
-                  <p className="visit-no-task-note">
-                    처리할 {visitType} Task가 없습니다. Tasks 탭에서 {visitType}{' '}
-                    Task를 먼저 등록하면 여기서 일정을 잡을 수 있습니다.
-                  </p>
+                <legend>Target Zone Projects - {visitType}</legend>
+                {zones
+                  .filter((item) => visitEligibleProjectIds.includes(item.id))
+                  .map((item) => (
+                    <label key={item.id}>
+                      <Checkbox
+                        checked={selectedProjectIds.includes(item.id)}
+                        onCheckedChange={(checked) =>
+                          setSelectedProjectIds((current) =>
+                            checked === true
+                              ? [...new Set([...current, item.id])]
+                              : current.filter((id) => id !== item.id),
+                          )
+                        }
+                      />
+                      <span>
+                        {item.code} · {item.label} · {item.id}
+                      </span>
+                      <StatusBadge label={item.currentStage} tone="neutral" />
+                    </label>
+                  ))}
+                {!visitGateUnlocked && (
+                  <p className="muted-text">No eligible zone projects.</p>
                 )}
               </fieldset>
+              <fieldset className="visit-zone-picker two-column">
+                <legend>Visit Staff</legend>
+                {users.map((user) => (
+                  <label key={user.id}>
+                    <Checkbox
+                      checked={staffIds.includes(user.id)}
+                      onCheckedChange={(checked) =>
+                        setStaffIds((current) =>
+                          checked === true
+                            ? [...new Set([...current, user.id])]
+                            : current.filter((id) => id !== user.id),
+                        )
+                      }
+                    />
+                    <span>{user.name}</span>
+                  </label>
+                ))}
+              </fieldset>
+              <label>
+                Visit Note
+                <Textarea
+                  value={visitNote}
+                  onChange={(event) => setVisitNote(event.target.value)}
+                  placeholder="Vehicle availability, equipment, or instructions for this visit."
+                />
+              </label>
             </div>
           )}
           {dialog === 'sample' && (
@@ -5535,21 +4577,27 @@ function ProjectDialog({
           )}
           {dialog === 'promote' && (
             <div className="project-dialog-stack">
+              {handoffErrors.length > 0 && (
+                <div role="alert" className="shape-errors">
+                  {handoffErrors.map((error) => (
+                    <p key={error}>{error}</p>
+                  ))}
+                </div>
+              )}
               <div className="dialog-note">
-                This configuration will become a <strong>Unique Vehicle</strong>
-                . 이후 변경은 Retire + Split → Lineage로 처리합니다.
+                Stage 13 · 생산 담당자에게 최종 자료를 인계한 뒤 개발 완료를
+                기록합니다. Shape 발급은 후속 프로세스입니다.
               </div>
-              <div className="dialog-vehicle-summary">
-                <span>Product Type</span>
-                <strong>{project.product}</strong>
-                <span>Vehicle</span>
-                <strong>{project.vehicle}</strong>
-                <ConfigChips options={project.options} />
-              </div>
-              <div className="promote-f-number">
-                <strong>{nextFNumber}</strong>
-                <span>A new F-Number will be assigned · 되돌릴 수 없음</span>
-              </div>
+              <HandoffChecklistForm
+                value={handoffValue}
+                onChange={(value) => {
+                  setHandoffValue(value);
+                  onHandoffDraft(value);
+                }}
+                projectId={project.id}
+                vehicle={`${project.vehicle} / ${project.options.map(([key, value]) => `${key}: ${value}`).join(', ')}`}
+                zones={handoffZoneCodes}
+              />
             </div>
           )}
         </DialogBody>
@@ -5561,11 +4609,9 @@ function ProjectDialog({
             variant="primary"
             onClick={submit}
             disabled={
-              (dialog === 'shape-create' &&
-                (!shapeName.trim() ||
-                  (project.product === 'Car Cover' &&
-                    (Number(shapeLength) <= 0 || Number(shapeHeight) <= 0)))) ||
-              (dialog === 'shape-adopt' && !adoptShapeId) ||
+              (dialog === 'promote' &&
+                (handoffChecklistErrors(handoffValue).length > 0 ||
+                  handoffErrors.length > 0)) ||
               (dialog === 'design' &&
                 (!effectiveDesignGateUnlocked ||
                   designIdentityExists ||
@@ -5577,9 +4623,13 @@ function ProjectDialog({
                   Number(designQuantity) < 1)) ||
               (dialog === 'revision' &&
                 (!revisionNote.trim() || !revisionRequestValid)) ||
-              (dialog === 'task' && !title.trim()) ||
               (dialog === 'visit' &&
-                (!visitGateUnlocked || !selectedTaskIds.length)) ||
+                (!visitGateUnlocked ||
+                  !selectedProjectIds.some((id) =>
+                    visitEligibleProjectIds.includes(id),
+                  ) ||
+                  !date ||
+                  !time)) ||
               (dialog === 'sample' &&
                 (!canRequestSample || !selectedSampleDesignIds.length)) ||
               (dialog === 'file' && !fileName.trim())
@@ -5587,23 +4637,17 @@ function ProjectDialog({
           >
             {dialog === 'new-configuration'
               ? 'Apply'
-              : dialog === 'shape-create'
-                ? 'Create Shape Draft'
-                : dialog === 'shape-adopt'
-                  ? 'Adopt Shape'
-                  : dialog === 'design'
-                    ? `${designLabel(project.product)} 등록`
-                    : dialog === 'revision'
-                      ? 'Add Revision'
-                      : dialog === 'task'
-                        ? 'Create Task'
-                        : dialog === 'visit'
-                          ? 'Schedule Visit'
-                          : dialog === 'sample'
-                            ? 'Create Request'
-                            : dialog === 'file'
-                              ? 'Add Reference'
-                              : 'Create Unique Vehicle'}
+              : dialog === 'design'
+                ? `${designLabel(project.product)} 등록`
+                : dialog === 'revision'
+                  ? 'Add Revision'
+                  : dialog === 'visit'
+                    ? 'Schedule Visit'
+                    : dialog === 'sample'
+                      ? 'Create Request'
+                      : dialog === 'file'
+                        ? 'Add Reference'
+                        : '양산 인계 완료 · 개발 완료'}
           </Button>
         </DialogFooter>
       </DialogContent>

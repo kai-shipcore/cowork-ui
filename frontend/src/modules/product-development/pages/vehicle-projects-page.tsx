@@ -68,7 +68,7 @@ const PROJECT_STAGE_FILTERS = [
   { label: 'Design', value: 'Design' },
   { label: 'Sample', value: 'Sample' },
   { label: 'Fitting', value: 'Fitting' },
-  { label: 'Approved', value: 'Approved' },
+  { label: '개발 완료', value: 'Approved' },
 ] as const;
 type ProjectStageFilter = (typeof PROJECT_STAGE_FILTERS)[number]['value'];
 const INITIAL_CONFIGURATION_IDS = new Set(
@@ -97,8 +97,6 @@ const PROJECT_MANAGERS = [
   { id: 'USR-CHRISTIAN', name: 'Christian' },
   { id: 'USR-JH', name: 'JH' },
 ] as const;
-
-const CLOSED_TASK_STATUSES = ['DONE', 'FAILED', 'CANCELLED'] as const;
 
 function delayDisplay(zone: VehicleZoneProject) {
   if (zone.status === 'ON_HOLD') {
@@ -136,13 +134,6 @@ function shortDate(value?: string) {
       }).format(date);
 }
 
-type ZoneDevelopmentStrategy = 'NEW' | 'ADOPT_SHAPE' | 'REUSE_PROJECT';
-
-interface WizardZoneSource {
-  strategy: ZoneDevelopmentStrategy;
-  referenceId: string;
-}
-
 function vehicleParts(vehicle: string) {
   const match = vehicle.match(/^(\d{4}(?:–\d{4})?)\s+(.+)$/);
   return match
@@ -178,7 +169,6 @@ export function VehicleProjectsPage() {
   const {
     configurations,
     projects,
-    projectDetails,
     setConfigurations,
     setProjects,
     resetWorkbench,
@@ -193,9 +183,7 @@ export function VehicleProjectsPage() {
   const [wizardProduct, setWizardProduct] = useState<ProductType>('Seat Cover');
   const [wizardConfigurationId, setWizardConfigurationId] = useState<string>();
   const [wizardManagerId, setWizardManagerId] = useState('USR-KAI');
-  const [wizardZoneSources, setWizardZoneSources] = useState<
-    Readonly<Record<string, WizardZoneSource>>
-  >({});
+
   const [wizardMessage, setWizardMessage] = useState('');
   const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(
     () => new Set(),
@@ -228,29 +216,6 @@ export function VehicleProjectsPage() {
   const detailProject = projects.find(
     (project) => project.id === selectedProject,
   );
-  const projectOpenTasks = (project: VehicleProjectGroup) => {
-    const tasks =
-      projectDetails[project.id]?.tasks ??
-      (project.id === 'PG-00124'
-        ? [
-            {
-              title: 'Front Pattern Design',
-              assignedTo: 'USR-JH',
-              status: 'OPEN',
-            },
-          ]
-        : []);
-    return tasks.filter(
-      (task) =>
-        !CLOSED_TASK_STATUSES.includes(
-          task.status as (typeof CLOSED_TASK_STATUSES)[number],
-        ),
-    );
-  };
-  const zoneOpenTasks = (project: VehicleProjectGroup, zoneId: string) =>
-    projectOpenTasks(project).filter(
-      (task) => task.vehicleProjectId === zoneId,
-    );
   const wizardConfiguration = configurations.find(
     (configuration) => configuration.id === wizardConfigurationId,
   );
@@ -260,53 +225,12 @@ export function VehicleProjectsPage() {
   const wizardProductChoice = PRODUCT_CHOICES.find(
     (choice) => choice.name === wizardProduct,
   );
-  const reusableZoneProjects = projects.flatMap((project) =>
-    project.product === wizardProduct
-      ? project.zoneProjects
-          .filter((zoneProject) => Boolean(zoneProject.productShapeId))
-          .map((zoneProject) => ({
-            ...zoneProject,
-            vehicle: project.vehicle,
-          }))
-      : [],
-  );
-  const reusableShapes = Array.from(
-    new Set(
-      reusableZoneProjects.flatMap((zoneProject) =>
-        zoneProject.productShapeId ? [zoneProject.productShapeId] : [],
-      ),
-    ),
-  );
   const nextProjectGroupId = `PG-${String(
     projects.reduce((largest, project) => {
       const value = Number(project.id.replace(/\D/g, ''));
       return Number.isFinite(value) ? Math.max(largest, value) : largest;
     }, 0) + 1,
   ).padStart(5, '0')}`;
-
-  function zoneSource(code: string): WizardZoneSource {
-    return wizardZoneSources[code] ?? { strategy: 'NEW', referenceId: '' };
-  }
-
-  function updateZoneStrategy(
-    code: string,
-    strategy: ZoneDevelopmentStrategy,
-  ): void {
-    setWizardZoneSources((current) => ({
-      ...current,
-      [code]: { strategy, referenceId: '' },
-    }));
-  }
-
-  function updateZoneReference(code: string, referenceId: string): void {
-    setWizardZoneSources((current) => ({
-      ...current,
-      [code]: {
-        ...(current[code] ?? { strategy: 'NEW' as const, referenceId: '' }),
-        referenceId,
-      },
-    }));
-  }
 
   useEffect(() => {
     const requestedConfigurationId = searchParams.get('configuration');
@@ -323,7 +247,6 @@ export function VehicleProjectsPage() {
     setWizardProduct('Seat Cover');
     setWizardConfigurationId(requestedConfigurationId);
     setWizardManagerId('USR-KAI');
-    setWizardZoneSources({});
     setWizardMessage('');
     setWizardOpen(true);
     setSearchParams((current) => {
@@ -369,14 +292,12 @@ export function VehicleProjectsPage() {
     setWizardProduct('Seat Cover');
     setWizardConfigurationId(undefined);
     setWizardManagerId('USR-KAI');
-    setWizardZoneSources({});
     setWizardMessage('');
     setWizardOpen(true);
   };
 
   const chooseProduct = (nextProduct: ProductType) => {
     setWizardProduct(nextProduct);
-    setWizardZoneSources({});
     setWizardConfigurationId((current) =>
       current &&
       !projects.some(
@@ -396,19 +317,6 @@ export function VehicleProjectsPage() {
     const projectGroupId = nextProjectGroupId;
     const zoneProjects: readonly VehicleZoneProject[] = wizardZones.map(
       (code) => {
-        const source = zoneSource(code);
-        const reusedProject = reusableZoneProjects.find(
-          (zoneProject) => zoneProject.id === source.referenceId,
-        );
-        const adoptedProjectId =
-          source.strategy === 'ADOPT_SHAPE'
-            ? reusableZoneProjects.find(
-                (zoneProject) =>
-                  zoneProject.productShapeId === source.referenceId,
-              )?.id
-            : source.strategy === 'REUSE_PROJECT'
-              ? reusedProject?.id
-              : undefined;
         const initialStage =
           wizardProduct === 'Car Cover' ? '3D Model' : 'Vehicle Hunt';
         return {
@@ -424,7 +332,6 @@ export function VehicleProjectsPage() {
           status: 'ACTIVE',
           priority: 'NORMAL',
           lastActivityAt: new Date().toISOString(),
-          ...(adoptedProjectId ? { adoptedProjectId } : {}),
         };
       },
     );
@@ -464,18 +371,6 @@ export function VehicleProjectsPage() {
       setWizardMessage('Vehicle Configuration을 1개 선택하세요.');
       return;
     }
-    if (
-      wizardStep === 3 &&
-      wizardZones.some((code) => {
-        const source = zoneSource(code);
-        return source.strategy !== 'NEW' && !source.referenceId;
-      })
-    ) {
-      setWizardMessage(
-        '기존 Shape 또는 재사용할 Zone Project를 모든 대상 Zone에서 선택하세요.',
-      );
-      return;
-    }
     if (wizardStep === 4) {
       createProject();
       return;
@@ -500,7 +395,7 @@ export function VehicleProjectsPage() {
   return (
     <section>
       <PageHeader
-        description="Project Group = 한 Vehicle Configuration의 개발 Work Container · Zone별 프로젝트(F/B/E)를 묶음 · F#은 Fitting으로 Configuration 확정 후 발급"
+        description="차량·제품별 Zone 개발 프로젝트 · 패턴 → 샘플 → 피팅 → 양산 인계로 개발 완료 · 이후 Shape 메뉴에서 검토·발급"
         tables={
           import.meta.env.DEV
             ? [
@@ -508,7 +403,6 @@ export function VehicleProjectsPage() {
                 { name: 'vehicle_project' },
                 { name: 'vehicle_zone' },
                 { name: 'vehicle_product_shape' },
-                { name: 'vehicle_project_task' },
                 { name: 'project_x_product_design_item' },
                 { name: 'vehicle_product_design' },
                 { name: 'vehicle_product_design_revision' },
@@ -579,7 +473,6 @@ export function VehicleProjectsPage() {
               <TableHead>Delay</TableHead>
               <TableHead>Target</TableHead>
               <TableHead>Last Update</TableHead>
-              <TableHead>Open Tasks</TableHead>
               <TableHead className="action-column" />
             </TableRow>
           </TableHeader>
@@ -592,7 +485,7 @@ export function VehicleProjectsPage() {
               return (
                 <Fragment key={project.id}>
                   <TableRow className="project-group-header-row">
-                    <TableCell colSpan={10}>
+                    <TableCell colSpan={9}>
                       <div className="project-group-header-content">
                         <button
                           type="button"
@@ -632,7 +525,6 @@ export function VehicleProjectsPage() {
                         pipeline.indexOf(zoneProject.currentStage),
                       );
                       const delay = delayDisplay(zoneProject);
-                      const openTasks = zoneOpenTasks(project, zoneProject.id);
                       return (
                         <TableRow
                           className="clickable-row zone-project-data-row"
@@ -656,7 +548,7 @@ export function VehicleProjectsPage() {
                           </TableCell>
                           <TableCell>
                             <StatusBadge
-                              label={`${stageIndex + 1} / ${pipeline.length} · ${zoneProject.currentStage}`}
+                              label={`${stageIndex + 1} / ${pipeline.length} · ${zoneProject.currentStage === 'Approved' ? '개발 완료' : zoneProject.currentStage}`}
                               tone={
                                 zoneProject.currentStage === 'Approved'
                                   ? 'success'
@@ -701,12 +593,6 @@ export function VehicleProjectsPage() {
                             {shortDate(
                               zoneProject.lastActivityAt ?? project.created,
                             )}
-                          </TableCell>
-                          <TableCell>
-                            <StatusBadge
-                              label={`${openTasks.length} OPEN`}
-                              tone={openTasks.length ? 'warning' : 'neutral'}
-                            />
                           </TableCell>
                           <TableCell className="table-actions">
                             <ChevronRight />
@@ -835,7 +721,6 @@ export function VehicleProjectsPage() {
                           disabled={Boolean(usedProject)}
                           onClick={() => {
                             setWizardConfigurationId(configuration.id);
-                            setWizardZoneSources({});
                             setWizardMessage('');
                           }}
                         >
@@ -872,7 +757,7 @@ export function VehicleProjectsPage() {
               <div className="wizard-zone-step">
                 <div className="wizard-zone-heading">
                   <strong>Zone Project Settings</strong>
-                  <span>— DDL 필수값과 Shape 채택 방식을 설정합니다</span>
+                  <span>— 개발할 Zone과 담당자를 확인합니다</span>
                 </div>
                 <p className="wizard-configuration-summary">
                   {wizardConfiguration.vehicle} ·{' '}
@@ -902,7 +787,6 @@ export function VehicleProjectsPage() {
                 </div>
                 <div className="wizard-zone-project-settings">
                   {wizardZones.map((zone) => {
-                    const source = zoneSource(zone);
                     return (
                       <section
                         className="wizard-zone-project-setting"
@@ -920,101 +804,15 @@ export function VehicleProjectsPage() {
                             </small>
                           </div>
                         </div>
-                        <label>
-                          Shape 생성 방식
-                          <Select
-                            value={source.strategy}
-                            onValueChange={(value) =>
-                              updateZoneStrategy(
-                                zone,
-                                value as ZoneDevelopmentStrategy,
-                              )
-                            }
-                          >
-                            <SelectTrigger
-                              aria-label={`${zone} Shape 생성 방식`}
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="NEW">
-                                New Shape · 새로 개발
-                              </SelectItem>
-                              <SelectItem
-                                value="ADOPT_SHAPE"
-                                disabled={!reusableShapes.length}
-                              >
-                                Adopt Existing Shape
-                              </SelectItem>
-                              <SelectItem
-                                value="REUSE_PROJECT"
-                                disabled={!reusableZoneProjects.length}
-                              >
-                                Reuse Project / Shape
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </label>
-                        {source.strategy === 'ADOPT_SHAPE' && (
-                          <label>
-                            Existing Shape
-                            <Select
-                              value={source.referenceId}
-                              onValueChange={(value) =>
-                                updateZoneReference(zone, value)
-                              }
-                            >
-                              <SelectTrigger aria-label={`${zone} 기존 Shape`}>
-                                <SelectValue placeholder="Shape 선택" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {reusableShapes.map((shapeId) => (
-                                  <SelectItem value={shapeId} key={shapeId}>
-                                    {shapeId}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </label>
-                        )}
-                        {source.strategy === 'REUSE_PROJECT' && (
-                          <label>
-                            Source Zone Project
-                            <Select
-                              value={source.referenceId}
-                              onValueChange={(value) =>
-                                updateZoneReference(zone, value)
-                              }
-                            >
-                              <SelectTrigger
-                                aria-label={`${zone} 재사용 프로젝트`}
-                              >
-                                <SelectValue placeholder="Zone Project 선택" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {reusableZoneProjects.map((zoneProject) => (
-                                  <SelectItem
-                                    value={zoneProject.id}
-                                    key={zoneProject.id}
-                                  >
-                                    {zoneProject.id} · {zoneProject.vehicle} ·{' '}
-                                    {zoneProject.productShapeId}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </label>
-                        )}
                       </section>
                     );
                   })}
                 </div>
                 <div className="dialog-note wizard-rule-note">
-                  <strong>DDL 저장 기준</strong> Manager는 생성되는 모든
-                  vehicle_project에 적용됩니다. 스캔 필요 여부는 별도 컬럼이
-                  아니라 시작 current_stage가 선언합니다 — Car Cover는 스캔
-                  단계가 없는 파이프라인이라 3D Model에서 시작합니다. 기존 항목
-                  채택 시 adopted_project_id에는 선택한 Shape ID가 저장됩니다.
+                  <strong>양산 인계 시 프로젝트 개발이 완료됩니다.</strong>{' '}
+                  Part·샘플·피팅과 인계를 마친 후 Shape 메뉴에서 최종 검토·승인,
+                  발급 및 구성 등록을 진행하세요. 담당자는 생성되는 각 Zone
+                  프로젝트에 적용됩니다.
                 </div>
               </div>
             )}
@@ -1046,14 +844,6 @@ export function VehicleProjectsPage() {
                 </div>
                 <p className="wizard-projects-label">PROJECTS TO CREATE</p>
                 {wizardZones.map((zone) => {
-                  const source = zoneSource(zone);
-                  const reusedProject = reusableZoneProjects.find(
-                    (zoneProject) => zoneProject.id === source.referenceId,
-                  );
-                  const adoptedShapeId =
-                    source.strategy === 'ADOPT_SHAPE'
-                      ? source.referenceId
-                      : reusedProject?.productShapeId;
                   return (
                     <div className="wizard-review-card project" key={zone}>
                       <div>
@@ -1082,23 +872,15 @@ export function VehicleProjectsPage() {
                           <dt>manager_id</dt>
                           <dd>{wizardManagerId}</dd>
                         </div>
-                        <div>
-                          <dt>Development</dt>
-                          <dd>{source.strategy}</dd>
-                        </div>
-                        <div>
-                          <dt>adopted_project_id</dt>
-                          <dd>{adoptedShapeId || 'NULL'}</dd>
-                        </div>
                       </dl>
                     </div>
                   );
                 })}
                 <div className="wizard-fnumber-note full-width">
-                  <strong>F-Number — Not assigned yet</strong>
+                  <strong>Shape — 개발 완료 후 발급</strong>
                   <span>
-                    Project Group ref는 자동 생성됩니다. F#은 Fitting 완료 후
-                    발급됩니다.
+                    프로젝트 번호는 자동 생성됩니다. 공식 Shape는 양산 인계 후
+                    별도 검토·승인을 거쳐 발급합니다.
                   </span>
                 </div>
               </div>

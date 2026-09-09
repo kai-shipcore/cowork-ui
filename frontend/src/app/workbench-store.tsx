@@ -9,6 +9,8 @@ import {
   type ReactNode,
   type SetStateAction,
 } from 'react';
+import { migrateVisitStaff } from '@/shared/domain/field-visit';
+import { summarizeGroupStage } from '@/shared/domain/project-stage';
 import type {
   AppUser,
   Complaint,
@@ -41,6 +43,10 @@ import type {
   Visit,
   ZoneProject,
 } from '@/shared/types/workbench';
+import {
+  collectShapes,
+  removeLegacyAdoption,
+} from '@/modules/product-shapes/shape-model';
 import {
   APP_USERS,
   COMPLAINTS,
@@ -83,6 +89,7 @@ interface WorkbenchState {
   productColors: readonly ProductReferenceItem[];
   productMaterials: readonly ProductReferenceItem[];
   vehicleProductShapes: readonly VehicleProductShape[];
+  shapeCatalogVersion?: number;
   appUsers: readonly AppUser[];
   vehicleZones: readonly VehicleZone[];
   vehicleOptionKeys: readonly VehicleOptionKey[];
@@ -99,6 +106,13 @@ interface WorkbenchState {
 }
 
 interface WorkbenchStore extends WorkbenchState {
+  updateProjectWorkflow: (
+    projectId: string,
+    transform: (detail: ProjectDetailSnapshot) => ProjectDetailSnapshot,
+  ) => void;
+  setVehicleProductShapes: Dispatch<
+    SetStateAction<readonly VehicleProductShape[]>
+  >;
   setConfigurations: Dispatch<SetStateAction<readonly VehicleConfiguration[]>>;
   setProjects: Dispatch<SetStateAction<readonly VehicleProjectGroup[]>>;
   setVisits: Dispatch<SetStateAction<readonly Visit[]>>;
@@ -149,7 +163,13 @@ function initialState(): WorkbenchState {
     uniqueVehicles: UNIQUE_VEHICLES,
     productColors: PRODUCT_COLORS,
     productMaterials: PRODUCT_MATERIALS,
-    vehicleProductShapes: VEHICLE_PRODUCT_SHAPES,
+    vehicleProductShapes: collectShapes(
+      VEHICLE_PRODUCT_SHAPES,
+      VEHICLE_PROJECTS,
+      {},
+      false,
+    ),
+    shapeCatalogVersion: 1,
     appUsers: APP_USERS,
     vehicleZones: VEHICLE_ZONES,
     vehicleOptionKeys: VEHICLE_OPTION_KEYS,
@@ -176,7 +196,7 @@ interface LegacyVehicleProject extends VehicleProjectGroup {
 }
 
 interface LegacyVisit extends Omit<Visit, 'taskIds'> {
-  /** Dropped: a visit's people are its tasks' assignees. */
+  /** Legacy single staff member. */
   assignee?: string;
   taskIds?: readonly string[];
   project?: string;
@@ -279,15 +299,12 @@ function migrateZoneShape(
     productTypeId: productType,
     name: zone.shape || shapeId,
     status: 'ACTIVE',
-    source: zone.adoptedProjectId ? 'ADOPTED' : 'NEW',
+    source: 'NEW',
     ...(productType === 'PT-CC'
       ? { dimensions: { length: 0, height: 0, unit: 'CM' as const } }
       : {}),
     createdBy: 'Legacy data',
     createdAt: '2026-08-01T00:00:00-07:00',
-    ...(zone.adoptedProjectId
-      ? { adoptedFromShapeId: zone.adoptedProjectId }
-      : {}),
   };
 }
 
@@ -313,7 +330,7 @@ function migrateProject(project: LegacyVehicleProject): VehicleProjectGroup {
   const zoneProjects: readonly VehicleZoneProject[] = project.zoneProjects
     ?.length
     ? project.zoneProjects.map((zoneProject) => ({
-        ...zoneProject,
+        ...removeLegacyAdoption(zoneProject),
         productTypeId: zoneProject.productTypeId || resolvedProductTypeId,
         status: zoneProject.status ?? 'ACTIVE',
         priority: zoneProject.priority ?? 'NORMAL',
@@ -394,6 +411,10 @@ function loadState(): WorkbenchState {
       const legacyZoneCodes = legacy.zones ?? [];
       return {
         ...visit,
+        staffIds: migrateVisitStaff(
+          visit,
+          stored.projectDetails?.[projectGroupId]?.tasks ?? [],
+        ),
         projectGroupId,
         vehicleProjectIds: visit.vehicleProjectIds?.length
           ? visit.vehicleProjectIds
@@ -431,7 +452,7 @@ function loadState(): WorkbenchState {
               );
               return {
                 ...vehicleProject,
-                ...legacy,
+                ...removeLegacyAdoption(legacy),
                 ...(productShape
                   ? {
                       productShape,
@@ -441,7 +462,7 @@ function loadState(): WorkbenchState {
                   : {}),
               } as ZoneProject;
             }),
-            tasks: detail.tasks.map((task) => {
+            tasks: (detail.tasks ?? []).map((task) => {
               const legacy = task as LegacyProjectTask;
               const status: ProjectTask['status'] =
                 legacy.status === 'PENDING'
@@ -471,6 +492,7 @@ function loadState(): WorkbenchState {
               const legacy = visit as LegacyProjectVisit;
               return {
                 ...visit,
+                staffIds: migrateVisitStaff(visit, detail.tasks ?? []),
                 vehicleProjectIds: visit.vehicleProjectIds?.length
                   ? visit.vehicleProjectIds
                   : (legacy.zones ?? [])
@@ -622,8 +644,13 @@ function loadState(): WorkbenchState {
       // stored state can be missing these collections entirely.
       productColors: stored.productColors ?? fallback.productColors,
       productMaterials: stored.productMaterials ?? fallback.productMaterials,
-      vehicleProductShapes:
+      vehicleProductShapes: collectShapes(
         stored.vehicleProductShapes ?? fallback.vehicleProductShapes,
+        projects,
+        projectDetails,
+        stored.shapeCatalogVersion !== 1,
+      ),
+      shapeCatalogVersion: 1,
       appUsers: stored.appUsers ?? fallback.appUsers,
       vehicleZones: stored.vehicleZones ?? fallback.vehicleZones,
       vehicleOptionKeys: stored.vehicleOptionKeys ?? fallback.vehicleOptionKeys,
@@ -697,6 +724,10 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
     () => entitySetter('configurations'),
     [entitySetter],
   );
+  const setVehicleProductShapes = useMemo(
+    () => entitySetter('vehicleProductShapes'),
+    [entitySetter],
+  );
   const setProjects = useMemo(() => entitySetter('projects'), [entitySetter]);
   const setVisits = useCallback<Dispatch<SetStateAction<readonly Visit[]>>>(
     (value) => {
@@ -716,6 +747,14 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
               return status
                 ? {
                     ...visit,
+                    ...(shared
+                      ? {
+                          staffIds: shared.staffIds,
+                          scheduledAt: shared.scheduledAt,
+                          performedAt: shared.performedAt,
+                          projectLinks: shared.projectLinks,
+                        }
+                      : {}),
                     status,
                     ...(shared?.result ? { result: shared.result } : {}),
                   }
@@ -734,7 +773,10 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
                 dealer: visit.dealer,
                 date: visit.date,
                 time: visit.time,
-                taskIds: visit.taskIds,
+                staffIds: visit.staffIds,
+                scheduledAt: visit.scheduledAt,
+                performedAt: visit.performedAt,
+                projectLinks: visit.projectLinks,
                 vehicleProjectIds: visit.vehicleProjectIds,
                 status: visit.status,
                 ...(visit.locationType
@@ -761,7 +803,8 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
                 ...detail,
                 visits: [...detailVisits, ...missingVisits],
                 zones: detail.zones.map((zone) =>
-                  completedScanZones.has(zone.id)
+                  completedScanZones.has(zone.id) &&
+                  ['Vehicle Hunt', 'Scan'].includes(zone.currentStage)
                     ? {
                         ...zone,
                         scanned: true,
@@ -769,24 +812,6 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
                       }
                     : zone,
                 ),
-                tasks: detail.tasks.map((task) => {
-                  const completedVisit = sharedVisits.find(
-                    (visit) =>
-                      visit.status === 'COMPLETED' &&
-                      visit.taskIds.includes(task.id),
-                  );
-                  return completedVisit
-                    ? {
-                        ...task,
-                        status:
-                          completedVisit.kind === 'FITTING' &&
-                          completedVisit.result === 'FAIL'
-                            ? ('FAILED' as const)
-                            : ('DONE' as const),
-                        closedAt: new Date().toISOString(),
-                      }
-                    : task;
-                }),
               },
             ];
           }),
@@ -876,6 +901,43 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const updateProjectWorkflow = useCallback(
+    (
+      projectId: string,
+      transform: (detail: ProjectDetailSnapshot) => ProjectDetailSnapshot,
+    ) => {
+      setState((current) => {
+        const detail = current.projectDetails[projectId];
+        const project = current.projects.find((item) => item.id === projectId);
+        if (!detail || !project) return current;
+        const next = transform(detail);
+        const zones = project.zoneProjects.map((zone) => {
+          const updated = next.zones.find((item) => item.id === zone.id);
+          return updated ? { ...zone, ...updated } : zone;
+        });
+        const summary = summarizeGroupStage(project.product, zones);
+        return {
+          ...current,
+          projectDetails: {
+            ...current.projectDetails,
+            [projectId]: { ...next, stage: summary.currentStage },
+          },
+          projects: current.projects.map((item) =>
+            item.id === projectId
+              ? {
+                  ...item,
+                  zoneProjects: zones,
+                  stage: summary.currentStage,
+                  status: summary.isComplete ? 'APPROVED' : 'IN PROGRESS',
+                }
+              : item,
+          ),
+        };
+      });
+    },
+    [],
+  );
+
   const resetWorkbench = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
     setState(initialState());
@@ -886,6 +948,7 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       ...state,
       setConfigurations,
       setProjects,
+      setVehicleProductShapes,
       setVisits,
       setDealers,
       setComplaints,
@@ -906,10 +969,12 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       setRegistrations,
       setRegistrationItems,
       saveProjectDetail,
+      updateProjectWorkflow,
       resetWorkbench,
     }),
     [
       saveProjectDetail,
+      updateProjectWorkflow,
       setComplaints,
       setConfigurations,
       setDealers,
@@ -919,6 +984,7 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       setProductColors,
       setProductMaterials,
       setProjects,
+      setVehicleProductShapes,
       setRegistrationItems,
       setSeatCoverCodeOptionValues,
       setSeatCoverCodes,
