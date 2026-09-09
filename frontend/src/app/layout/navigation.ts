@@ -44,7 +44,7 @@ export const MENU_SIDEBAR_MAIN: MenuConfig = [
     children: [
       {
         title: 'Home',
-        path: '#',
+        path: ROUTES.dashboard,
         icon: Bolt,
       },
       {

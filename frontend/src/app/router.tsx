@@ -121,7 +121,7 @@ export function AppRouter() {
           }
         />
         <Route path="/parts" element={<PartsPage />} />
-        <Route index element={<DashboardPage />} />
+        <Route index element={<Navigate to={ROUTES.dashboard} replace />} />
         <Route path={ROUTES.dashboard} element={<DashboardPage />} />
         <Route
           path={ROUTES.vehicleResearch}

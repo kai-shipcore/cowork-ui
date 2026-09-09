@@ -8,6 +8,7 @@ import {
   BreadcrumbSeparator,
 } from '@coverland-engineering/ui/breadcrumb';
 import { Link, useLocation } from 'react-router-dom';
+import { ROUTES } from '@/constants/routes';
 import { useMenu } from '@/shared/hooks/use-menu';
 import { MENU_SIDEBAR_ALL, type MenuItem } from '@/app/layout/navigation';
 
@@ -31,18 +32,24 @@ function ToolbarActions({ children }: { children?: ReactNode }) {
 function ToolbarBreadcrumbs() {
   const { pathname } = useLocation();
   const { getBreadcrumb } = useMenu(pathname);
-  const items: MenuItem[] = getBreadcrumb(MENU_SIDEBAR_ALL);
+  const trail: MenuItem[] = getBreadcrumb(MENU_SIDEBAR_ALL);
 
-  if (items.length === 0) {
+  if (trail.length === 0) {
     return null;
   }
+
+  // Untitled menu groups have nothing to show, and the Home entry is already
+  // the fixed root crumb — listing it again would read "Home / Home".
+  const items = trail.filter(
+    (item) => item.title && item.path !== ROUTES.dashboard,
+  );
 
   return (
     <Breadcrumb>
       <BreadcrumbList>
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link to="#">Home</Link>
+            <Link to={ROUTES.dashboard}>Home</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
         {items.map((item, index) => {
