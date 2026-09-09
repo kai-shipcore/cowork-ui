@@ -26,6 +26,35 @@ import type {
   Visit,
 } from '@/shared/types/workbench';
 
+const WORKBENCH_TIME_ZONE = 'America/Los_Angeles';
+
+/**
+ * A day in the month the operator is looking at right now.
+ *
+ * Seed visits carry no meaning of their own — they exist so the month
+ * calendar opens with something on it. Fixed dates would drift out of the
+ * current month and leave that screen blank, so the day is offset from today
+ * and clamped into this month.
+ */
+function dayThisMonth(offsetFromToday: number): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: WORKBENCH_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value ?? 0);
+  const year = value('year');
+  const month = value('month');
+  const lastDay = new Date(year, month, 0).getDate();
+  const day = Math.min(Math.max(value('day') + offsetFromToday, 1), lastDay);
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/** Date of the seeded SCAN visit VS-01, shared with the project detail seed. */
+export const SEED_SCAN_VISIT_DATE = dayThisMonth(6);
+
 function createZoneProjects(
   projectGroupId: string,
   productTypeId: string,
@@ -682,7 +711,7 @@ export const VISITS: readonly Visit[] = [
     product: 'Seat Cover',
     vehicleProjectIds: ['PG-00124-F'],
     dealer: 'Galpin Ford',
-    date: '2026-08-28',
+    date: SEED_SCAN_VISIT_DATE,
     time: '10:00',
     taskIds: ['TSK-001'],
     kind: 'SCAN',
@@ -695,7 +724,7 @@ export const VISITS: readonly Visit[] = [
     product: 'Seat Cover',
     vehicleProjectIds: ['PG-00125-F', 'PG-00125-B'],
     dealer: 'AutoNation Toyota Cerritos',
-    date: '2026-08-18',
+    date: dayThisMonth(-1),
     time: '13:30',
     taskIds: [],
     kind: 'SCAN',
@@ -786,15 +815,18 @@ export const COMPLAINTS: readonly Complaint[] = [
 ];
 
 export const SAMPLE_REQUESTS: readonly SampleRequest[] = [
+  // Camry round 1: received and superseded by the round-2 request below. The
+  // CR-V Seat Cover project deliberately has no sample yet, so it stays a
+  // clean Design-stage example after "Reset Mock Data".
   {
-    id: 'SR-1042',
-    projectGroupId: 'PG-00125',
-    vehicle: '2026 Honda CR-V',
-    product: 'Seat Cover',
-    factory: 'Tianhong',
-    sentAt: '2026-08-17T09:00:00-07:00',
+    id: 'SR-1039',
+    projectGroupId: 'PG-00122',
+    vehicle: '2025 Toyota Camry',
+    product: 'Floor Mat',
+    factory: 'Ningbo Ruixin',
+    sentAt: '2026-08-05T09:00:00-07:00',
     sentBy: 'USR-KAI',
-    createdAt: '2026-08-17T08:30:00-07:00',
+    createdAt: '2026-08-05T08:30:00-07:00',
   },
   {
     id: 'SR-1041',
@@ -818,12 +850,12 @@ export const SAMPLE_REQUESTS: readonly SampleRequest[] = [
 
 export const SAMPLE_SHIPMENTS: readonly SampleShipment[] = [
   {
-    id: 'SHIP-501',
-    factory: 'Tianhong',
-    sampleReadyAt: '2026-08-19T10:00:00-07:00',
-    shippedAt: '2026-08-20T09:00:00-07:00',
-    expectedArrivalDate: '2026-08-26',
-    arrivedAt: '2026-08-25T15:20:00-07:00',
+    id: 'SHIP-499',
+    factory: 'Ningbo Ruixin',
+    sampleReadyAt: '2026-08-07T10:00:00-07:00',
+    shippedAt: '2026-08-08T09:00:00-07:00',
+    expectedArrivalDate: '2026-08-14',
+    arrivedAt: '2026-08-13T15:20:00-07:00',
     shipmentReference: 'SF-284910573',
   },
   {
@@ -837,15 +869,15 @@ export const SAMPLE_SHIPMENTS: readonly SampleShipment[] = [
 ];
 
 export const SAMPLE_REQUEST_ITEMS: readonly SampleRequestItem[] = [
-  ...Array.from({ length: 4 }, (_, index) => ({
-    id: `SRI-1042-${index + 1}`,
-    sampleRequestId: 'SR-1042',
-    vehicleProductDesignId: `DS-CRV-${index + 1}`,
-    vehicleProductDesignRevisionId: `REV-CRV-${index + 1}-1`,
+  ...Array.from({ length: 3 }, (_, index) => ({
+    id: `SRI-1039-${index + 1}`,
+    sampleRequestId: 'SR-1039',
+    vehicleProductDesignId: `DS-CAMRY-${index + 1}`,
+    vehicleProductDesignRevisionId: `REV-CAMRY-${index + 1}-1`,
     sampleRound: 1,
     priority: 'NORMAL' as const,
-    sampleReceivedAt: '2026-08-25T15:20:00-07:00',
-    sampleShipmentId: 'SHIP-501',
+    sampleReceivedAt: '2026-08-13T15:20:00-07:00',
+    sampleShipmentId: 'SHIP-499',
   })),
   ...Array.from({ length: 3 }, (_, index) => ({
     id: `SRI-1041-${index + 1}`,

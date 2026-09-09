@@ -22,8 +22,13 @@ import type {
   VehicleProductRegistration,
   VehicleProductRegistrationItem,
 } from '@/shared/types/workbench';
+import { userName } from '@/shared/domain/app-user';
 import { CURRENT_USER_ID } from '@/app/current-user';
 import { useWorkbenchStore } from '@/app/workbench-store';
+import {
+  ComplaintDialog,
+  type ComplaintDraft,
+} from '../components/complaint-dialog';
 import {
   RegistrationRequestDialog,
   type RegistrationRequestDraft,
@@ -33,11 +38,14 @@ import {
 export function UniqueVehiclesPage() {
   const [query, setQuery] = useState('');
   const [requesting, setRequesting] = useState<UniqueVehicle>();
+  const [complaining, setComplaining] = useState<UniqueVehicle>();
+  const [message, setMessage] = useState('');
   const {
     uniqueVehicles,
     setUniqueVehicles,
     complaints,
     setComplaints,
+    appUsers,
     projects,
     productMaterials,
     productColors,
@@ -140,7 +148,16 @@ export function UniqueVehiclesPage() {
     setRequesting(undefined);
   }
 
-  function createComplaint(vehicle: (typeof uniqueVehicles)[number]): void {
+  /** Shape names assigned to this F#, for the complaint's affected design. */
+  function designOptionsFor(vehicle: UniqueVehicle): readonly string[] {
+    return vehicle.shapes.map(
+      (shapeId) =>
+        vehicleProductShapes.find((shape) => shape.id === shapeId)?.name ??
+        shapeId,
+    );
+  }
+
+  function createComplaint(vehicle: UniqueVehicle, draft: ComplaintDraft) {
     const nextNumber =
       Math.max(
         0,
@@ -153,14 +170,18 @@ export function UniqueVehiclesPage() {
       fNumber: vehicle.fNumber,
       vehicle: vehicle.vehicle,
       product: vehicle.product,
-      issue: 'Fitting complaint created from Unique Vehicles.',
-      design: vehicle.shapes[0] ?? 'Not assigned',
-      revision: 'Rev 1',
+      issue: draft.issue,
+      design: draft.design,
+      revision: draft.revision,
       reported: new Date().toISOString().slice(0, 10),
-      owner: 'Kai',
+      owner: draft.owner,
       status: 'OPEN',
     };
     setComplaints((current) => [complaint, ...current]);
+    setComplaining(undefined);
+    setMessage(
+      `${complaint.id} 컴플레인을 접수했습니다 — ${vehicle.fNumber} · ${draft.design}`,
+    );
   }
 
   return (
@@ -180,16 +201,11 @@ export function UniqueVehiclesPage() {
             : undefined
         }
       />
-      <div className="registry-note">
-        <div className="f-number-example">F#20855</div>
-        <div>
-          <strong>F-Number는 Project 시작 번호가 아닙니다.</strong>
-          <p>
-            전 Zone fitting confirmed + Shape 부여 후 Configuration이 확정될 때
-            발급됩니다.
-          </p>
-        </div>
-      </div>
+      {message && (
+        <p className="page-status-message" role="status">
+          {message}
+        </p>
+      )}
       <div className="workbench-filters">
         <div className="search-field">
           <Search aria-hidden="true" />
@@ -290,7 +306,10 @@ export function UniqueVehiclesPage() {
                       size="sm"
                       variant="outline"
                       className="complaint-button"
-                      onClick={() => createComplaint(vehicle)}
+                      onClick={() => {
+                        setMessage('');
+                        setComplaining(vehicle);
+                      }}
                     >
                       Complaint
                     </Button>
@@ -301,6 +320,17 @@ export function UniqueVehiclesPage() {
           </TableBody>
         </Table>
       </Card>
+
+      {complaining && (
+        <ComplaintDialog
+          key={complaining.fNumber}
+          vehicle={complaining}
+          designOptions={designOptionsFor(complaining)}
+          defaultOwner={userName(appUsers, CURRENT_USER_ID)}
+          onSubmit={(draft) => createComplaint(complaining, draft)}
+          onClose={() => setComplaining(undefined)}
+        />
+      )}
 
       {requesting && (
         <RegistrationRequestDialog

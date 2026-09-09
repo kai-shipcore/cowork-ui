@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
+import { fileFingerprint } from '@/shared/domain/revision-control';
 import { PageHeader } from '@/shared/components/page-header';
 import type { ProjectDesignDetails } from '@/shared/types/workbench';
 import { CURRENT_USER_ID } from '@/app/current-user';
@@ -13,7 +14,11 @@ import './parts.css';
 
 type SeatPosition = 'PASSENGER' | 'CENTER' | 'DRIVER';
 
-const SEAT_POSITIONS: readonly SeatPosition[] = ['PASSENGER', 'CENTER', 'DRIVER'];
+const SEAT_POSITIONS: readonly SeatPosition[] = [
+  'PASSENGER',
+  'CENTER',
+  'DRIVER',
+];
 const SEAT_POSITION_LABELS: Record<SeatPosition, string> = {
   PASSENGER: '조수석',
   CENTER: '중앙',
@@ -66,6 +71,8 @@ export function PartsPage() {
     'DRIVER' | 'PASSENGER' | 'CENTER' | 'UNIVERSAL'
   >('DRIVER');
   const [note, setNote] = useState('');
+  const [dxfFileName, setDxfFileName] = useState('');
+  const [dxfFingerprint, setDxfFingerprint] = useState('');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(params.get('part') ?? '');
   const [message, setMessage] = useState('');
@@ -109,7 +116,9 @@ export function PartsPage() {
     prefix &&
     clean(initial) &&
     (!custom || (clean(make) && clean(model))) &&
-    code,
+    code &&
+    dxfFileName &&
+    dxfFingerprint,
   );
   const active =
     parts.find((p) => p.id === selected) ??
@@ -147,6 +156,8 @@ export function PartsPage() {
             note: note.trim() || 'Initial version',
             createdAt: new Date().toISOString(),
             createdBy: CURRENT_USER_ID,
+            dxfFileName,
+            dxfFingerprint,
           },
         ],
       });
@@ -158,6 +169,8 @@ export function PartsPage() {
       setTab('list');
       setMessage('Part를 생성했습니다.');
       setNote('');
+      setDxfFileName('');
+      setDxfFingerprint('');
     } catch (error) {
       setMessage(String(error));
     }
@@ -397,6 +410,24 @@ export function PartsPage() {
               />
             </label>
             <label>
+              초기 DXF 파일
+              <input
+                required
+                type="file"
+                accept=".dxf"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) {
+                    setDxfFileName('');
+                    setDxfFingerprint('');
+                    return;
+                  }
+                  setDxfFileName(file.name);
+                  void fileFingerprint(file).then(setDxfFingerprint);
+                }}
+              />
+            </label>
+            <label>
               Part Name 미리보기
               <output className="part-name-preview">
                 {name || '필수 항목을 선택하세요'}
@@ -461,52 +492,61 @@ export function PartsPage() {
                   <article className="part-version" key={r.id}>
                     <strong>v{r.revisionNumber}</strong>
                     <p>{r.note}</p>
+                    {r.changeRequest && (
+                      <dl className="part-revision-change">
+                        <div>
+                          <dt>문제 출처</dt>
+                          <dd>{r.changeRequest.issueSource}</dd>
+                        </div>
+                        <div>
+                          <dt>문제 부위</dt>
+                          <dd>{r.changeRequest.issueArea}</dd>
+                        </div>
+                        <div>
+                          <dt>수정 지시</dt>
+                          <dd>{r.changeRequest.instruction}</dd>
+                        </div>
+                        <div>
+                          <dt>참고 이미지</dt>
+                          <dd>{r.changeRequest.referenceImageName}</dd>
+                        </div>
+                        <div>
+                          <dt>DXF</dt>
+                          <dd>
+                            {r.changeRequest.previousDxfFileName} →{' '}
+                            {r.changeRequest.newDxfFileName}
+                          </dd>
+                        </div>
+                      </dl>
+                    )}
+                    {r.executionVerifications?.map((verification) => (
+                      <div
+                        className="part-revision-verification"
+                        key={verification.sampleRequestItemId}
+                      >
+                        <strong>
+                          {verification.verdict === 'EXACT'
+                            ? '정확히 반영'
+                            : verification.verdict === 'PARTIAL'
+                              ? '일부 반영'
+                              : '전혀 미반영'}
+                        </strong>
+                        <span>{verification.note}</span>
+                        <small>
+                          {new Date(verification.verifiedAt).toLocaleString()} ·{' '}
+                          {verification.verifiedBy}
+                        </small>
+                      </div>
+                    ))}
                     <small>
                       {new Date(r.createdAt).toLocaleString()} · {r.createdBy}
                     </small>
                   </article>
                 ))}
-                <label>
-                  변경 내용
-                  <textarea
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                  />
-                </label>
-                <button
-                  disabled={!note.trim()}
-                  onClick={() => {
-                    try {
-                      saveLibraryPart({
-                        ...active,
-                        revisions: [
-                          ...active.revisions,
-                          {
-                            id: crypto.randomUUID(),
-                            revisionNumber:
-                              Math.max(
-                                ...active.revisions.map(
-                                  (r) => r.revisionNumber,
-                                ),
-                              ) + 1,
-                            note: note.trim(),
-                            createdBy: CURRENT_USER_ID,
-                            createdAt: new Date().toISOString(),
-                          },
-                        ],
-                      });
-                      setNote('');
-                      setMessage(
-                        '새 버전을 추가했습니다. 기존 프로젝트 적용 버전은 유지됩니다.',
-                      );
-                    } catch (error) {
-                      setMessage(String(error));
-                    }
-                  }}
-                >
-                  새 버전 추가
-                </button>
-                <p>프로젝트의 적용 버전은 자동 변경되지 않습니다.</p>
+                <p className="part-library-revision-note">
+                  새 Revision과 수정 요청은 프로젝트 상세의 Revision Control에서
+                  생성합니다. 검증 결과는 이 이력에 자동으로 연결됩니다.
+                </p>
               </>
             ) : (
               <p>Part를 선택하면 버전 이력을 확인할 수 있습니다.</p>

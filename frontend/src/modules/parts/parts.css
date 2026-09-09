@@ -254,6 +254,39 @@ button.parts-primary {
   padding: 14px 0;
   border-bottom: 1px solid #e0e7eb;
 }
+
+.part-revision-change {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.part-revision-change > div,
+.part-revision-verification {
+  display: grid;
+  gap: 2px;
+}
+
+.part-revision-change dt {
+  color: var(--wb-muted);
+  font-size: 11px;
+}
+
+.part-revision-verification {
+  margin: 8px 0;
+  border-left: 3px solid #0e7490;
+  background: #ecfeff;
+  padding: 8px 10px;
+}
+
+.part-library-revision-note {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f4f7fb;
+  color: #526174;
+  line-height: 1.5;
+}
 .parts-scope {
   display: grid;
   place-items: center;

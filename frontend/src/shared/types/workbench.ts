@@ -362,6 +362,11 @@ export interface SampleRequestItem {
   note?: string;
   sampleReceivedAt?: string;
   sampleShipmentId?: string;
+  revisionReflected?: 'EXACT' | 'PARTIAL' | 'NONE';
+  verificationNote?: string;
+  verifiedAt?: string;
+  verifiedBy?: string;
+  issueSource?: 'DESIGN' | 'FACTORY';
 }
 
 /** `sample_shipment` — a physical outbound that can carry many request lines. */
@@ -468,6 +473,36 @@ export interface ProjectDesignRevision {
   createdAt: string;
   sampleApprovedAt?: string;
   sampleApprovedBy?: string;
+  /** Content identity is used to block accidentally reusing the old DXF. */
+  dxfFileName?: string;
+  dxfFingerprint?: string;
+  changeRequest?: RevisionChangeRequest;
+  executionVerifications?: readonly RevisionExecutionVerification[];
+}
+
+export interface RevisionExecutionVerification {
+  sampleRequestItemId: string;
+  verdict: 'EXACT' | 'PARTIAL' | 'NONE';
+  note: string;
+  verifiedAt: string;
+  verifiedBy: string;
+  issueSource?: 'FACTORY';
+}
+
+export interface RevisionChangeRequest {
+  issueSource: string;
+  issueArea: string;
+  instruction: string;
+  referenceImageName: string;
+  referenceImageDataUrl?: string;
+  previousRevisionId: string;
+  previousDxfFileName: string;
+  previousDxfFingerprint: string;
+  newDxfFileName: string;
+  newDxfFingerprint: string;
+  designerConfirmed: true;
+  confirmedBy: string;
+  confirmedAt: string;
 }
 
 export type ProjectDesignDetails =
@@ -502,6 +537,8 @@ export interface ProjectSample {
   id: string;
   factory: string;
   items: number;
+  /** The exact part designs included in this request round. */
+  designIds?: readonly string[];
   round: number;
   status: 'REQUESTED' | 'SHIPPED' | 'ARRIVED' | 'APPROVED';
 }

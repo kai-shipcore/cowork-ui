@@ -168,22 +168,42 @@
   margin-top: 16px;
 }
 
+/* Label above control, bottom-aligned — matches the hunt work list filters. */
 .hunt-board-filters {
-  align-items: flex-end;
+  align-items: end;
   flex-wrap: wrap;
+  gap: 12px;
 }
 
 .hunt-date-filter {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  color: var(--wb-muted);
-  font-size: 10px;
-  font-weight: 700;
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .hunt-date-filter input {
   width: 170px;
+}
+
+.hunt-board-search {
+  flex: 1 1 260px;
+  max-width: 440px;
+}
+
+.hunt-board-search input {
+  width: 100%;
+}
+
+/* --wb-line is scoped to the workbench shell, which this page sits outside. */
+.hunt-date-filter select {
+  height: 36px;
+  min-width: 140px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: white;
+  color: inherit;
 }
 
 .segment-filters {
@@ -528,6 +548,29 @@
 .dialog-form-grid label button[role='combobox'] {
   width: 100%;
   background: white;
+}
+
+.dialog-form-grid .revision-instruction-textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 96px;
+  border: 1px solid var(--wb-line);
+  border-radius: 6px;
+  background: white;
+  padding: 10px 12px;
+  color: var(--wb-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.dialog-form-grid .revision-instruction-textarea:focus {
+  border-color: var(--wb-blue);
+  outline: 2px solid rgb(36 87 230 / 14%);
+  outline-offset: 0;
 }
 
 .year-range-fields {
@@ -1584,6 +1627,11 @@
   font-weight: 800;
 }
 
+/* Jumps the grid to a month. It moves the view, it does not filter visits. */
+.calendar-month-picker {
+  width: 150px;
+}
+
 .calendar-legend {
   display: flex;
   align-items: center;
@@ -2608,30 +2656,10 @@
   color: #047857;
 }
 
-.registry-note {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 12px;
-  border: 1px solid #a5f3fc;
-  border-radius: 11px;
-  background: #ecfeff;
-  padding: 12px 15px;
-}
-
-.registry-note p {
-  margin-top: 2px;
-  color: var(--wb-muted);
-  font-size: 11px;
-}
-.f-number-example,
 .f-number {
   color: #0e7490;
   font-family: Consolas, ui-monospace, monospace;
   font-weight: 800;
-}
-.f-number-example {
-  font-size: 20px;
 }
 .f-number {
   display: inline-flex;
@@ -3565,6 +3593,123 @@
   gap: 2px;
 }
 
+.revision-control,
+.revision-request-list,
+.factory-instruction-list {
+  display: grid;
+  gap: 12px;
+}
+
+.revision-metric-card .card-content,
+.revision-metric-card [class*='CardContent'] {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.revision-metric-card strong {
+  color: #0e7490;
+  font-size: 28px;
+}
+
+.revision-request-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+}
+
+.revision-request-row > div,
+.revision-verification > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.factory-instruction-list article,
+.revision-verification {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #bae6fd;
+  border-radius: 10px;
+  background: #f0f9ff;
+  padding: 14px;
+}
+
+.factory-instruction-list header,
+.revision-verdict-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.factory-instruction-list header {
+  justify-content: space-between;
+}
+
+.factory-instruction-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.factory-instruction-list dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.factory-instruction-list dl > div,
+.revision-previous-reference {
+  display: grid;
+  gap: 3px;
+}
+
+.factory-instruction-list dt,
+.revision-previous-reference span {
+  color: var(--wb-muted);
+  font-size: 11px;
+}
+
+.revision-reference-image {
+  display: block;
+  width: 160px;
+  max-height: 110px;
+  margin-bottom: 6px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.revision-verification textarea,
+.design-revision-fields textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.revision-file-error {
+  align-self: end;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.revision-designer-confirmation {
+  display: flex !important;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 8px !important;
+}
+
+@media (max-width: 760px) {
+  .revision-request-row,
+  .factory-instruction-list dl {
+    grid-template-columns: 1fr;
+  }
+}
+
 .design-specialized-summary {
   display: flex;
   gap: 6px;
@@ -3843,6 +3988,18 @@
   border-radius: 10px;
   background: #fbfcfe;
   padding: 13px 15px;
+}
+
+/* Confirmation line shown under a page header after a record is created. */
+.page-status-message {
+  margin-bottom: 12px;
+  border-left: 3px solid #0e7490;
+  border-radius: 0 6px 6px 0;
+  background: #ecfeff;
+  padding: 9px 12px;
+  color: #155e75;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .dialog-vehicle-summary > span {

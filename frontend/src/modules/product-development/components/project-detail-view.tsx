@@ -47,7 +47,7 @@ import {
   Plus,
   RectangleHorizontal,
 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { findUser, userName } from '@/shared/domain/app-user';
 import { ConfigChips } from '@/shared/domain/config-chips';
 import { designLabel, hasDesignIdentity } from '@/shared/domain/product-design';
@@ -57,6 +57,12 @@ import {
   projectGateScope,
   summarizeGroupStage,
 } from '@/shared/domain/project-stage';
+import {
+  canApproveRevisionSample,
+  fileFingerprint,
+  isChangedDxf,
+  revisionExecutionAccuracy,
+} from '@/shared/domain/revision-control';
 import { UserAvatar, UserPicker } from '@/shared/domain/user-picker';
 import { StatusBadge } from '@/shared/components/status-badge';
 import type {
@@ -64,12 +70,14 @@ import type {
   AppUser,
   ProjectAsset,
   ProjectDesign,
+  ProjectDesignRevision,
   ProjectDetailSnapshot,
   ProjectSample,
   ProjectStage,
   ProjectTask,
   ProjectTaskType,
   ProjectVisit,
+  SampleRequestItem,
   SeatCoverCode,
   SeatCoverPart,
   UniqueVehicle,
@@ -81,12 +89,14 @@ import type {
 import { importProjectParts } from '@/modules/parts/part-library';
 import { PartLinkDialog } from '@/modules/parts/part-link-dialog';
 import { CURRENT_USER_ID } from '@/app/current-user';
+import { SEED_SCAN_VISIT_DATE } from '@/app/workbench-mock-data';
 import { isLegacySeedActivity, useWorkbenchStore } from '@/app/workbench-store';
 
 const FIXED_DETAIL_TABS = [
   'overview',
   'shapes',
   'designs',
+  'revisions',
   'samples',
   'files',
   'tasks',
@@ -131,6 +141,8 @@ interface NewDesignInput {
   details: ProjectDesign['details'];
   revisionNote: string;
   revisionCreatedBy: string;
+  dxfFileName: string;
+  dxfFingerprint: string;
 }
 
 interface NewShapeInput {
@@ -183,8 +195,33 @@ function currentRevision(design: ProjectDesign) {
   );
 }
 
+function isRevisionSampleRequestable(
+  design: ProjectDesign,
+  sampleItems: readonly SampleRequestItem[],
+): boolean {
+  const revision = currentRevision(design);
+  if (!revision.changeRequest) return false;
+  const latest = sampleItems
+    .filter((item) => item.vehicleProductDesignRevisionId === revision.id)
+    .sort((left, right) => right.sampleRound - left.sampleRound)[0];
+  return (
+    !latest ||
+    latest.revisionReflected === 'PARTIAL' ||
+    latest.revisionReflected === 'NONE'
+  );
+}
+
 function isSampleApproved(design: ProjectDesign): boolean {
   return Boolean(currentRevision(design).sampleApprovedAt);
+}
+
+function fileDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener('load', () => resolve(String(reader.result)));
+    reader.addEventListener('error', () => reject(reader.error));
+    reader.readAsDataURL(file);
+  });
 }
 
 function zoneLabel(
@@ -334,7 +371,7 @@ function initialVisits(project: VehicleProjectGroup): readonly ProjectVisit[] {
       id: 'VS-01',
       type: 'SCAN',
       dealer: 'Galpin Ford',
-      date: '2026-08-28',
+      date: SEED_SCAN_VISIT_DATE,
       time: '10:00',
       vehicleProjectIds: project.zoneProjects
         .slice(0, 1)
@@ -385,15 +422,6 @@ function initialDesigns(
           createdBy: 'USR-JH',
           createdAt: '2026-08-20T09:00:00-07:00',
         },
-        {
-          id: 'REV-DS-001-2',
-          revisionNumber: 2,
-          note: '헤드레스트 곡률 수정',
-          createdBy: 'USR-JH',
-          createdAt: '2026-08-31T10:30:00-07:00',
-          sampleApprovedAt: '2026-08-31T15:00:00-07:00',
-          sampleApprovedBy: 'USR-KAI',
-        },
       ],
       fittingConfirmed: false,
     },
@@ -408,7 +436,6 @@ export function ProjectDetailView({
   onSelectZone,
   initialTab,
 }: ProjectDetailViewProps) {
-  const navigate = useNavigate();
   const [partParams, setPartParams] = useSearchParams();
   const [linkZone, setLinkZone] = useState<string>();
   const {
@@ -759,20 +786,46 @@ export function ProjectDetailView({
       return [
         ...otherProjects,
         ...samples.flatMap((sample) =>
-          designs.slice(0, Math.max(1, sample.items)).map((design, index) => ({
-            id: `SRI-${sample.id}-${index + 1}`,
-            sampleRequestId: sample.id,
-            vehicleProductDesignId: design.id,
-            vehicleProductDesignRevisionId: currentRevision(design).id,
-            sampleRound: sample.round,
-            priority: 'NORMAL' as const,
-            ...(sample.status === 'ARRIVED' || sample.status === 'APPROVED'
-              ? { sampleReceivedAt: new Date().toISOString() }
-              : {}),
-            ...(sample.status !== 'REQUESTED'
-              ? { sampleShipmentId: `SHIP-${sample.id}` }
-              : {}),
-          })),
+          (sample.designIds
+            ? designs.filter((design) => sample.designIds?.includes(design.id))
+            : sample.round > 1
+              ? designs.filter((design) =>
+                  Boolean(currentRevision(design).changeRequest),
+                )
+              : designs
+          )
+            .slice(0, Math.max(1, sample.items))
+            .map((design, index) => {
+              const itemId = `SRI-${sample.id}-${index + 1}`;
+              // A request line stays pinned to the revision it was raised for,
+              // so adding a Revision later does not rewrite earlier rounds.
+              const existing = current.find((item) => item.id === itemId);
+              return {
+                id: itemId,
+                sampleRequestId: sample.id,
+                vehicleProductDesignId: design.id,
+                vehicleProductDesignRevisionId:
+                  existing?.vehicleProductDesignRevisionId ??
+                  currentRevision(design).id,
+                sampleRound: sample.round,
+                priority: 'NORMAL' as const,
+                ...(existing?.revisionReflected
+                  ? {
+                      revisionReflected: existing.revisionReflected,
+                      verificationNote: existing.verificationNote,
+                      verifiedAt: existing.verifiedAt,
+                      verifiedBy: existing.verifiedBy,
+                      issueSource: existing.issueSource,
+                    }
+                  : {}),
+                ...(sample.status === 'ARRIVED' || sample.status === 'APPROVED'
+                  ? { sampleReceivedAt: new Date().toISOString() }
+                  : {}),
+                ...(sample.status !== 'REQUESTED'
+                  ? { sampleShipmentId: `SHIP-${sample.id}` }
+                  : {}),
+              };
+            }),
         ),
       ];
     });
@@ -876,14 +929,6 @@ export function ProjectDetailView({
       setLinkZone(zone ?? focusedZone.id);
       return;
     }
-    if (name === 'revision' && project.product === 'Seat Cover') {
-      const design = designs.find((item) => item.id === designId);
-      importProjectParts(designs, project.product);
-      navigate(
-        `/parts?${new URLSearchParams({ part: design?.libraryPartId ?? '', name: design?.name ?? '', returnTo: `/vehicle-projects?project=${project.id}&zone=${focusedZone.code}&tab=designs` })}`,
-      );
-      return;
-    }
     if (name === 'sample' && !canRequestSample) return;
     if (name === 'visit' && !canScheduleScan && !canScheduleFitting) return;
     setDialogZone(zone);
@@ -933,22 +978,23 @@ export function ProjectDetailView({
     };
     if (!focusedZone) return;
     const currentStage = focusedZone.currentStage;
-    const gateReady = focusScope.every(
-      (zone) => zone.currentStage === currentStage && individualGateReady(zone),
+    // Bundle members already past this stage (a partner that did not fail its
+    // fitting, for example) stay where they are.
+    const advancingZones = focusScope.filter(
+      (zone) => zone.currentStage === currentStage,
     );
-    if (!gateReady) return;
+    if (!advancingZones.every(individualGateReady)) return;
     const nextStage = pipeline[pipeline.indexOf(currentStage) + 1];
     if (!nextStage) return;
+    const advancingIds = new Set(advancingZones.map((zone) => zone.id));
     setZones((current) =>
       current.map((zone) =>
-        focusScopeIds.has(zone.id)
-          ? { ...zone, currentStage: nextStage }
-          : zone,
+        advancingIds.has(zone.id) ? { ...zone, currentStage: nextStage } : zone,
       ),
     );
     addActivity(
       `${currentStage} 완료`,
-      `${focusScope.map((zone) => zone.code).join(', ')} · ${nextStage} 단계로 이동`,
+      `${advancingZones.map((zone) => zone.code).join(', ')} · ${nextStage} 단계로 이동`,
     );
   }
 
@@ -1161,6 +1207,7 @@ export function ProjectDetailView({
           <TabsTrigger value="designs">
             {designLabel(project.product)}
           </TabsTrigger>
+          <TabsTrigger value="revisions">Revision Control</TabsTrigger>
           <TabsTrigger value="samples">Samples</TabsTrigger>
           <TabsTrigger value="files">Files</TabsTrigger>
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
@@ -1234,6 +1281,7 @@ export function ProjectDetailView({
               sampleEligibleProjectIds.includes(design.vehicleProjectId),
             )}
             samples={samples}
+            sampleItems={sharedSampleRequestItems}
             canRequestSample={canRequestSample}
             onRequest={() => openDialog('sample')}
             onAdvance={(sampleId) => {
@@ -1278,6 +1326,77 @@ export function ProjectDetailView({
                 `${designId} · approved by USR-KAI`,
               );
             }}
+            onVerifyRevision={(itemId, verdict, note) => {
+              const sampleItem = sharedSampleRequestItems.find(
+                (item) => item.id === itemId,
+              );
+              if (!sampleItem) return;
+              const verifiedAt = new Date().toISOString();
+              setSampleRequestItems((current) =>
+                current.map((item) =>
+                  item.id === itemId
+                    ? {
+                        ...item,
+                        revisionReflected: verdict,
+                        verificationNote: note,
+                        verifiedAt,
+                        verifiedBy: CURRENT_USER_ID,
+                        ...(verdict === 'EXACT'
+                          ? {}
+                          : { issueSource: 'FACTORY' as const }),
+                      }
+                    : item,
+                ),
+              );
+              const updatedDesigns = designs.map((design) =>
+                design.id === sampleItem.vehicleProductDesignId
+                  ? {
+                      ...design,
+                      revisions: design.revisions.map((revision) =>
+                        revision.id ===
+                        sampleItem.vehicleProductDesignRevisionId
+                          ? {
+                              ...revision,
+                              executionVerifications: [
+                                ...(
+                                  revision.executionVerifications ?? []
+                                ).filter(
+                                  (entry) =>
+                                    entry.sampleRequestItemId !== itemId,
+                                ),
+                                {
+                                  sampleRequestItemId: itemId,
+                                  verdict,
+                                  note,
+                                  verifiedAt,
+                                  verifiedBy: CURRENT_USER_ID,
+                                  ...(verdict === 'EXACT'
+                                    ? {}
+                                    : { issueSource: 'FACTORY' as const }),
+                                },
+                              ],
+                            }
+                          : revision,
+                      ),
+                    }
+                  : design,
+              );
+              setDesigns(updatedDesigns);
+              importProjectParts(updatedDesigns, project.product);
+              addActivity(
+                'Revision 반영 검증',
+                `${itemId} · ${verdict} · ${note}`,
+              );
+            }}
+          />
+        </TabsContent>
+        <TabsContent value="revisions">
+          <RevisionControlTab
+            designs={scopeDesigns}
+            sampleItems={sharedSampleRequestItems}
+            onRevision={(designId) =>
+              openDialog('revision', undefined, designId)
+            }
           />
         </TabsContent>
         <TabsContent value="files">
@@ -1426,10 +1545,33 @@ export function ProjectDetailView({
                       : zone,
                   ),
                 );
+              } else {
+                // A failed fitting sends only the zones on this visit back to
+                // Design for a Revision; a Floor Mat bundle partner keeps its
+                // stage.
+                setDesigns((current) =>
+                  current.map((design) =>
+                    visit.vehicleProjectIds.includes(design.vehicleProjectId)
+                      ? { ...design, fittingConfirmed: false }
+                      : design,
+                  ),
+                );
+                setZones((current) =>
+                  current.map((zone) =>
+                    visit.vehicleProjectIds.includes(zone.id) &&
+                    zone.currentStage === 'Fitting'
+                      ? { ...zone, currentStage: 'Design' }
+                      : zone,
+                  ),
+                );
               }
               addActivity(
-                `${visit.type} Visit 완료`,
-                `${visit.vehicleProjectIds.join(', ')} · ${visit.dealer}`,
+                visit.type === 'FITTING'
+                  ? `FITTING Visit 완료 · ${result ?? 'PASS'}`
+                  : `${visit.type} Visit 완료`,
+                result === 'FAIL'
+                  ? `${visit.vehicleProjectIds.join(', ')} · ${visit.dealer} · Design 단계로 되돌림 (Revision 재작업)`
+                  : `${visit.vehicleProjectIds.join(', ')} · ${visit.dealer}`,
               );
             }}
           />
@@ -1453,6 +1595,8 @@ export function ProjectDetailView({
             !zones.some((zone) => zone.productShape?.id === shape.id),
         )}
         designs={scopeDesigns}
+        samples={samples}
+        sampleItems={sharedSampleRequestItems}
         allDesigns={[
           ...Object.entries(projectDetails).flatMap(([id, detail]) =>
             id === project.id ? [] : detail.designs,
@@ -1507,6 +1651,8 @@ export function ProjectDetailView({
                 note: input.revisionNote,
                 createdBy: input.revisionCreatedBy,
                 createdAt: new Date().toISOString(),
+                dxfFileName: input.dxfFileName,
+                dxfFingerprint: input.dxfFingerprint,
               },
             ],
             fittingConfirmed: false,
@@ -1518,7 +1664,7 @@ export function ProjectDetailView({
           );
           closeDialog();
         }}
-        onRevision={(designId, note, createdBy) => {
+        onRevision={(designId, note, createdBy, changeRequest) => {
           if (!canCreateDesign) return;
           const design = designs.find((item) => item.id === designId);
           if (!design) return;
@@ -1536,6 +1682,9 @@ export function ProjectDetailView({
                         note,
                         createdBy,
                         createdAt: new Date().toISOString(),
+                        dxfFileName: changeRequest.newDxfFileName,
+                        dxfFingerprint: changeRequest.newDxfFingerprint,
+                        changeRequest,
                       },
                     ],
                     fittingConfirmed: false,
@@ -1544,8 +1693,31 @@ export function ProjectDetailView({
             ),
           );
           addActivity(
-            'Revision 추가',
-            `${designId} · Rev ${revisionNumber} · ${createdBy}`,
+            'Revision 수정 요청 확정',
+            `${design.name} · Rev ${revisionNumber} · ${changeRequest.issueArea} · 공장 지시서 생성`,
+          );
+          importProjectParts(
+            designs.map((item) =>
+              item.id === designId
+                ? {
+                    ...item,
+                    revisions: [
+                      ...item.revisions,
+                      {
+                        id: `REV-${designId}-${revisionNumber}`,
+                        revisionNumber,
+                        note,
+                        createdBy,
+                        createdAt: new Date().toISOString(),
+                        dxfFileName: changeRequest.newDxfFileName,
+                        dxfFingerprint: changeRequest.newDxfFingerprint,
+                        changeRequest,
+                      },
+                    ],
+                  }
+                : item,
+            ),
+            project.product,
           );
           closeDialog();
         }}
@@ -1606,15 +1778,24 @@ export function ProjectDetailView({
           );
           closeDialog();
         }}
-        onSample={(factory) => {
+        onSample={(factory, designIds) => {
           if (!canRequestSample) return;
-          const eligibleDesigns = scopeDesigns.filter((design) =>
-            sampleEligibleProjectIds.includes(design.vehicleProjectId),
+          const candidates = scopeDesigns.filter(
+            (design) =>
+              sampleEligibleProjectIds.includes(design.vehicleProjectId) &&
+              designIds.includes(design.id),
           );
+          const eligibleDesigns = samples.length
+            ? candidates.filter((design) =>
+                Boolean(currentRevision(design).changeRequest),
+              )
+            : candidates;
+          if (!eligibleDesigns.length) return;
           const sample: ProjectSample = {
             id: `SR-${project.id.replace(/\D/g, '')}-${String(samples.length + 1).padStart(2, '0')}`,
             factory,
             items: eligibleDesigns.length,
+            designIds: eligibleDesigns.map((design) => design.id),
             round: samples.length + 1,
             status: 'REQUESTED',
           };
@@ -2014,7 +2195,9 @@ function ProjectNextActionGuide({
   const fittingVisits = visits.filter((visit) => visit.type === 'FITTING');
   const completedFittingProjectIds = new Set(
     fittingVisits
-      .filter((visit) => visit.status === 'COMPLETED')
+      .filter(
+        (visit) => visit.status === 'COMPLETED' && visit.result !== 'FAIL',
+      )
       .flatMap((visit) => visit.vehicleProjectIds),
   );
   const bomReady =
@@ -2045,6 +2228,23 @@ function ProjectNextActionGuide({
   const allShapesApproved = stageZones.every(
     (zone) => zone.productShape?.status === 'ACTIVE',
   );
+  // Rework: the zone is back in Design because its last fitting failed. Until
+  // a new Revision exists, every current revision still carries the sample
+  // approval it earned before the failed fitting.
+  const stageDesigns = designs.filter((design) =>
+    stageZones.some((zone) => zone.id === design.vehicleProjectId),
+  );
+  const completedFittings = fittingVisits.filter(
+    (visit) =>
+      visit.status === 'COMPLETED' &&
+      visit.vehicleProjectIds.some((id) =>
+        stageZones.some((zone) => zone.id === id),
+      ),
+  );
+  const failedFitting =
+    completedFittings[completedFittings.length - 1]?.result === 'FAIL';
+  const revisionPending =
+    stageDesigns.length > 0 && stageDesigns.every(isSampleApproved);
 
   let guide: NextActionDefinition;
   switch (stage) {
@@ -2175,6 +2375,27 @@ function ProjectNextActionGuide({
           };
       break;
     case 'Design':
+      if (failedFitting) {
+        guide = {
+          title: '피팅 실패 — Revision을 추가하고 샘플을 다시 진행하세요',
+          description:
+            '마지막 FITTING Visit이 FAIL로 끝나 이 프로젝트만 Design 단계로 돌아왔습니다. 실패 원인을 반영한 Revision을 추가한 뒤 Design 단계를 완료하면 새 Revision으로 Sample을 다시 요청할 수 있습니다.',
+          steps: [
+            '실패 원인을 반영한 Revision 추가',
+            'Design 단계 완료 후 Sample 재요청·입고·승인',
+            '새 FITTING Task와 Visit으로 재피팅',
+          ],
+          linkLabel: 'Design / Parts에서 Revision 추가',
+          targetTab: 'designs',
+          primaryLabel: revisionPending
+            ? 'Revision 추가하기'
+            : 'Design 단계 완료 (재작업)',
+          primaryAction: revisionPending
+            ? () => onOpenTab('designs')
+            : onAdvance,
+        };
+        break;
+      }
       if (project.product !== 'Seat Cover') {
         const label = designLabel(project.product);
         guide = {
@@ -2921,12 +3142,233 @@ function DesignCard({
         )}
         {onRevision && (
           <Button size="sm" variant="outline" onClick={onRevision}>
-            {details.kind === 'SEAT_COVER'
-              ? 'Part 관리 · 버전 이력'
-              : '새 버전 추가'}
+            새 Revision 추가
           </Button>
         )}
       </div>
+    </div>
+  );
+}
+
+function RevisionControlTab({
+  designs,
+  sampleItems,
+  onRevision,
+}: {
+  designs: readonly ProjectDesign[];
+  sampleItems: readonly SampleRequestItem[];
+  onRevision: (designId: string) => void;
+}) {
+  const [copiedRevisionId, setCopiedRevisionId] = useState('');
+  const requests = designs.flatMap((design) =>
+    design.revisions.flatMap((revision) =>
+      revision.changeRequest
+        ? [{ design, revision, request: revision.changeRequest }]
+        : [],
+    ),
+  );
+  const revisedIds = new Set(requests.map(({ revision }) => revision.id));
+  const verified = sampleItems.filter(
+    (item) =>
+      revisedIds.has(item.vehicleProductDesignRevisionId) &&
+      item.revisionReflected,
+  );
+  const { exact, percentage: accuracy } = revisionExecutionAccuracy(verified);
+  return (
+    <div className="project-tab-stack revision-control">
+      <div className="detail-help-text">
+        부품별 수정 요청을 확정하고 공장 지시서를 생성한 뒤, 입고 시 지시 반영
+        여부를 장착 적합성과 별도로 검증합니다.
+      </div>
+      <Card className="detail-panel revision-metric-card">
+        <CardHeader>
+          <CardTitle>수정 반영 정확도</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <strong>{accuracy === undefined ? '측정 전' : `${accuracy}%`}</strong>
+          <span>
+            정확히 반영 {exact} / 검증된 수정 샘플 {verified.length}
+          </span>
+          <StatusBadge
+            label={
+              accuracy !== undefined && accuracy >= 95
+                ? '목표 달성 · 95% 이상'
+                : '목표 · 95% 이상'
+            }
+            tone={
+              accuracy !== undefined && accuracy >= 95 ? 'success' : 'warning'
+            }
+          />
+        </CardContent>
+      </Card>
+      <Card className="detail-panel">
+        <CardHeader>
+          <CardTitle>
+            부품별 수정 요청 <small>{requests.length}</small>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="revision-request-list">
+          {designs.map((design) => {
+            const revision = currentRevision(design);
+            return (
+              <div className="revision-request-row" key={design.id}>
+                <div>
+                  <strong>{design.name}</strong>
+                  <span>현재 Rev {revision.revisionNumber}</span>
+                </div>
+                {revision.changeRequest ? (
+                  <StatusBadge label="지시서 준비 완료" tone="success" />
+                ) : (
+                  <span className="muted-text">등록된 수정 요청 없음</span>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onRevision(design.id)}
+                >
+                  수정 요청 작성
+                </Button>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+      <Card className="detail-panel">
+        <CardHeader>
+          <CardTitle>
+            공장 수정 지시서 <small>변경 부품만 표시</small>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="factory-instruction-list">
+          {requests.length ? (
+            requests.map(({ design, revision, request }) => (
+              <article key={revision.id}>
+                <header>
+                  <strong>
+                    {design.name} · Rev {revision.revisionNumber}
+                  </strong>
+                  <div className="factory-instruction-actions">
+                    <StatusBadge label="발송용" tone="progress" />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const message = [
+                          `[수정 요청] ${design.name} · Rev ${revision.revisionNumber}`,
+                          `문제 출처: ${request.issueSource}`,
+                          `문제 부위: ${request.issueArea}`,
+                          `수정 지시: ${request.instruction}`,
+                          `참고 이미지: ${request.referenceImageName}`,
+                          `도면: ${request.previousDxfFileName} → ${request.newDxfFileName}`,
+                        ].join('\n');
+                        void navigator.clipboard.writeText(message).then(() => {
+                          setCopiedRevisionId(revision.id);
+                        });
+                      }}
+                    >
+                      {copiedRevisionId === revision.id
+                        ? '메시지 복사됨'
+                        : '지시 메시지 복사'}
+                    </Button>
+                  </div>
+                </header>
+                <dl>
+                  <div>
+                    <dt>문제 출처</dt>
+                    <dd>{request.issueSource}</dd>
+                  </div>
+                  <div>
+                    <dt>문제 부위</dt>
+                    <dd>{request.issueArea}</dd>
+                  </div>
+                  <div>
+                    <dt>수정 지시</dt>
+                    <dd>{request.instruction}</dd>
+                  </div>
+                  <div>
+                    <dt>문제 이미지</dt>
+                    <dd>
+                      {request.referenceImageDataUrl && (
+                        <img
+                          className="revision-reference-image"
+                          src={request.referenceImageDataUrl}
+                          alt={`${design.name} ${request.issueArea} 문제 참고`}
+                        />
+                      )}
+                      {request.referenceImageName}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>도면</dt>
+                    <dd>
+                      {request.previousDxfFileName} → {request.newDxfFileName}
+                    </dd>
+                  </div>
+                </dl>
+              </article>
+            ))
+          ) : (
+            <div className="empty-inline">완료된 수정 요청이 없습니다.</div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function RevisionVerification({
+  design,
+  item,
+  onVerify,
+}: {
+  design: ProjectDesign;
+  item: SampleRequestItem;
+  onVerify: (
+    itemId: string,
+    verdict: NonNullable<SampleRequestItem['revisionReflected']>,
+    note: string,
+  ) => void;
+}) {
+  const [note, setNote] = useState(item.verificationNote ?? '');
+  return (
+    <div className="revision-verification">
+      <div>
+        <strong>{design.name} · 수정 반영 검증</strong>
+        <span>장착 테스트 전에 공장 지시대로 제작됐는지 확인하세요.</span>
+      </div>
+      <textarea
+        aria-label={`${design.name} 수정 반영 검증 메모`}
+        placeholder="확인한 치수, 미반영 항목 등 검증 메모"
+        value={note}
+        onChange={(event) => setNote(event.target.value)}
+      />
+      <div className="revision-verdict-actions">
+        {(['EXACT', 'PARTIAL', 'NONE'] as const).map((verdict) => (
+          <Button
+            key={verdict}
+            size="sm"
+            variant={item.revisionReflected === verdict ? 'primary' : 'outline'}
+            disabled={!note.trim()}
+            onClick={() => onVerify(item.id, verdict, note.trim())}
+          >
+            {verdict === 'EXACT'
+              ? '정확히 반영'
+              : verdict === 'PARTIAL'
+                ? '일부 반영'
+                : '전혀 미반영'}
+          </Button>
+        ))}
+      </div>
+      {item.revisionReflected && (
+        <StatusBadge
+          label={
+            item.revisionReflected === 'EXACT'
+              ? '장착 테스트 진행 가능'
+              : '공장 실행 문제 · 별도 추적'
+          }
+          tone={item.revisionReflected === 'EXACT' ? 'success' : 'danger'}
+        />
+      )}
     </div>
   );
 }
@@ -2935,28 +3377,84 @@ interface SamplesTabProps {
   product: VehicleProjectGroup['product'];
   designs: readonly ProjectDesign[];
   samples: readonly ProjectSample[];
+  /** Request lines, each pinned to the revision its round was raised for. */
+  sampleItems: readonly SampleRequestItem[];
   canRequestSample: boolean;
   onRequest: () => void;
   onAdvance: (sampleId: string) => void;
   onApproveDesign: (designId: string) => void;
+  onVerifyRevision: (
+    itemId: string,
+    verdict: NonNullable<SampleRequestItem['revisionReflected']>,
+    note: string,
+  ) => void;
 }
 
 function SamplesTab({
   product,
   designs,
   samples,
+  sampleItems,
   canRequestSample,
   onRequest,
   onAdvance,
   onApproveDesign,
+  onVerifyRevision,
 }: SamplesTabProps) {
   const arrived = samples.some((sample) =>
     ['ARRIVED', 'APPROVED'].includes(sample.status),
   );
+  // Approval is per revision: a Rev 3 can only be approved once a sample that
+  // was actually made from Rev 3 has been received.
+  const isRevisionArrived = (design: ProjectDesign) =>
+    sampleItems.some(
+      (item) =>
+        item.vehicleProductDesignRevisionId === currentRevision(design).id &&
+        canApproveRevisionSample(currentRevision(design), item),
+    );
+  const requestedRevisionNumber = (
+    sample: ProjectSample,
+    design: ProjectDesign,
+  ) => {
+    const revisionId = sampleItems.find(
+      (item) =>
+        item.sampleRequestId === sample.id &&
+        item.vehicleProductDesignId === design.id,
+    )?.vehicleProductDesignRevisionId;
+    return (
+      design.revisions.find((revision) => revision.id === revisionId)
+        ?.revisionNumber ?? currentRevision(design).revisionNumber
+    );
+  };
+  const designsOfSample = (sample: ProjectSample) => {
+    const designIds = new Set(
+      sampleItems
+        .filter((item) => item.sampleRequestId === sample.id)
+        .map((item) => item.vehicleProductDesignId),
+    );
+    return designs.filter((design) => designIds.has(design.id));
+  };
+  const canApproveRequest = (sample: ProjectSample) =>
+    sampleItems
+      .filter((item) => item.sampleRequestId === sample.id)
+      .every((item) => {
+        const design = designs.find(
+          (candidate) => candidate.id === item.vehicleProductDesignId,
+        );
+        const revision = design?.revisions.find(
+          (candidate) => candidate.id === item.vehicleProductDesignRevisionId,
+        );
+        return canApproveRevisionSample(revision, item);
+      });
   const gatePassed =
     canRequestSample &&
     arrived &&
     (product === 'Floor Mat' || designs.every(isSampleApproved));
+  const requestableDesigns = samples.length
+    ? designs.filter((design) =>
+        isRevisionSampleRequestable(design, sampleItems),
+      )
+    : designs;
   return (
     <div className="project-tab-stack">
       <div className="detail-help-text">
@@ -2979,11 +3477,13 @@ function SamplesTab({
             size="sm"
             variant="primary"
             onClick={onRequest}
-            disabled={!designs.length || !canRequestSample}
+            disabled={!requestableDesigns.length || !canRequestSample}
             title={
-              canRequestSample
-                ? undefined
-                : '작업 대상 Zone 또는 Bundle의 Design Gate를 먼저 완료하세요.'
+              !canRequestSample
+                ? '작업 대상 Zone 또는 Bundle의 Design Gate를 먼저 완료하세요.'
+                : samples.length && !requestableDesigns.length
+                  ? '두 번째 이후 샘플은 수정 요청이 완료된 부품이 있어야 합니다.'
+                  : undefined
             }
           >
             <Plus /> Sample Request
@@ -3020,7 +3520,15 @@ function SamplesTab({
               <Button
                 size="sm"
                 variant="outline"
-                disabled={!canRequestSample}
+                disabled={
+                  !canRequestSample ||
+                  (sample.status === 'ARRIVED' && !canApproveRequest(sample))
+                }
+                title={
+                  sample.status === 'ARRIVED' && !canApproveRequest(sample)
+                    ? '수정된 모든 부품이 정확히 반영됨으로 검증되어야 요청을 승인할 수 있습니다.'
+                    : undefined
+                }
                 onClick={() => onAdvance(sample.id)}
               >
                 {sample.status === 'REQUESTED'
@@ -3033,14 +3541,34 @@ function SamplesTab({
           </CardHeader>
           <CardContent>
             <div className="sample-items">
-              {designs.map((design) => (
+              {designsOfSample(sample).map((design) => (
                 <div key={design.id}>
                   <strong>{design.name}</strong>
-                  <span>Rev {currentRevision(design).revisionNumber}</span>
+                  <span>Rev {requestedRevisionNumber(sample, design)}</span>
                   <span>Round {sample.round}</span>
                 </div>
               ))}
             </div>
+            {sample.status === 'ARRIVED' &&
+              sampleItems
+                .filter((item) => item.sampleRequestId === sample.id)
+                .map((item) => {
+                  const design = designs.find(
+                    (candidate) => candidate.id === item.vehicleProductDesignId,
+                  );
+                  const revision = design?.revisions.find(
+                    (candidate) =>
+                      candidate.id === item.vehicleProductDesignRevisionId,
+                  );
+                  return design && revision?.changeRequest ? (
+                    <RevisionVerification
+                      key={item.id}
+                      design={design}
+                      item={item}
+                      onVerify={onVerifyRevision}
+                    />
+                  ) : null;
+                })}
           </CardContent>
         </Card>
       ))}
@@ -3075,7 +3603,12 @@ function SamplesTab({
                     <Button
                       size="sm"
                       variant="primary"
-                      disabled={!arrived || !canRequestSample}
+                      disabled={!isRevisionArrived(design) || !canRequestSample}
+                      title={
+                        isRevisionArrived(design)
+                          ? undefined
+                          : `Rev ${currentRevision(design).revisionNumber}로 만든 샘플이 입고되어야 승인할 수 있습니다.`
+                      }
                       onClick={() => onApproveDesign(design.id)}
                     >
                       Approve Rev {currentRevision(design).revisionNumber}
@@ -3657,6 +4190,8 @@ interface ProjectDialogProps {
   assets: readonly ProjectAsset[];
   shapeLibrary: readonly VehicleProductShape[];
   designs: readonly ProjectDesign[];
+  samples: readonly ProjectSample[];
+  sampleItems: readonly SampleRequestItem[];
   tasks: readonly ProjectTask[];
   canRequestSample: boolean;
   canScheduleScan: boolean;
@@ -3672,7 +4207,12 @@ interface ProjectDialogProps {
   onCreateShape: (zoneId: string, input: NewShapeInput) => void;
   onAdoptShape: (zoneId: string, shape: VehicleProductShape) => void;
   onDesign: (input: NewDesignInput) => void;
-  onRevision: (designId: string, note: string, createdBy: string) => void;
+  onRevision: (
+    designId: string,
+    note: string,
+    createdBy: string,
+    changeRequest: NonNullable<ProjectDesignRevision['changeRequest']>,
+  ) => void;
   onTask: (
     zone: string,
     title: string,
@@ -3687,7 +4227,7 @@ interface ProjectDialogProps {
     vehicleProjectIds: readonly string[],
     taskIds: readonly string[],
   ) => void;
-  onSample: (factory: string) => void;
+  onSample: (factory: string, designIds: readonly string[]) => void;
   onFile: (name: string, type: ProjectAsset['type']) => void;
   onConfiguration: (
     title: string,
@@ -3709,6 +4249,8 @@ function ProjectDialog({
   assets,
   shapeLibrary,
   designs,
+  samples,
+  sampleItems,
   tasks,
   canRequestSample,
   canScheduleScan,
@@ -3768,6 +4310,19 @@ function ProjectDialog({
         : '최초 패턴',
   );
   const [revisionCreatedBy, setRevisionCreatedBy] = useState('USR-JH');
+  const [initialDxfName, setInitialDxfName] = useState('');
+  const [initialDxfFingerprint, setInitialDxfFingerprint] = useState('');
+  const [revisionIssueSource, setRevisionIssueSource] =
+    useState('1차 샘플 장착 테스트');
+  const [revisionIssueArea, setRevisionIssueArea] = useState('');
+  const [revisionInstruction, setRevisionInstruction] = useState('');
+  const [revisionImageName, setRevisionImageName] = useState('');
+  const [revisionImageDataUrl, setRevisionImageDataUrl] = useState('');
+  const [baselineDxfName, setBaselineDxfName] = useState('');
+  const [baselineDxfFingerprint, setBaselineDxfFingerprint] = useState('');
+  const [newDxfName, setNewDxfName] = useState('');
+  const [newDxfFingerprint, setNewDxfFingerprint] = useState('');
+  const [designerConfirmed, setDesignerConfirmed] = useState(false);
   const [seatCoverPartId, setSeatCoverPartId] = useState('PART-FRONT-HEADREST');
   const [seatCoverCodeId, setSeatCoverCodeId] = useState('SCC-BUCKET-01');
   const [seatSide, setSeatSide] = useState<
@@ -3782,6 +4337,14 @@ function ProjectDialog({
   const [selectedTaskIds, setSelectedTaskIds] = useState<readonly string[]>([]);
   const [factory, setFactory] =
     useState<(typeof FACTORIES)[number]>('Tianhong');
+  const sampleCandidates = designs.filter(
+    (design) =>
+      sampleEligibleProjectIds.includes(design.vehicleProjectId) &&
+      (!samples.length || isRevisionSampleRequestable(design, sampleItems)),
+  );
+  const [selectedSampleDesignIds, setSelectedSampleDesignIds] = useState<
+    readonly string[]
+  >(sampleCandidates.map((design) => design.id));
   const [fileName, setFileName] = useState(
     project.stage === '3D Model' ? 'vehicle_3d_model.obj' : 'RAV4_scan_v2.stl',
   );
@@ -3817,6 +4380,31 @@ function ProjectDialog({
     );
   const designNameExists = allDesigns.some(
     (item) => item.name.toLowerCase() === designName.trim().toLowerCase(),
+  );
+  const revisionDesign = designs.find((design) => design.id === dialogDesignId);
+  const previousRevision = revisionDesign
+    ? currentRevision(revisionDesign)
+    : undefined;
+  const previousDxfName = previousRevision?.dxfFileName ?? baselineDxfName;
+  const previousDxfFingerprint =
+    previousRevision?.dxfFingerprint ?? baselineDxfFingerprint;
+  const revisionFilesAreSame = Boolean(
+    previousDxfFingerprint &&
+    newDxfFingerprint &&
+    !isChangedDxf(previousDxfFingerprint, newDxfFingerprint),
+  );
+  const revisionRequestValid = Boolean(
+    revisionIssueSource.trim() &&
+    revisionIssueArea.trim() &&
+    revisionInstruction.trim() &&
+    revisionImageName &&
+    previousRevision &&
+    previousDxfName &&
+    previousDxfFingerprint &&
+    newDxfName &&
+    newDxfFingerprint &&
+    !revisionFilesAreSame &&
+    designerConfirmed,
   );
   const visitEligibleProjectIds =
     visitType === 'SCAN' ? scanEligibleProjectIds : fittingEligibleProjectIds;
@@ -3889,7 +4477,9 @@ function ProjectDialog({
         designIdentityExists ||
         designNameExists ||
         !designName.trim() ||
-        !revisionNote.trim()
+        !revisionNote.trim() ||
+        !initialDxfName ||
+        !initialDxfFingerprint
       )
         return;
       const zoneProject = zones.find((item) => item.id === effectiveZone);
@@ -3929,9 +4519,28 @@ function ProjectDialog({
         details,
         revisionNote: revisionNote.trim(),
         revisionCreatedBy,
+        dxfFileName: initialDxfName,
+        dxfFingerprint: initialDxfFingerprint,
       });
     } else if (dialog === 'revision' && dialogDesignId) {
-      onRevision(dialogDesignId, revisionNote.trim(), revisionCreatedBy);
+      if (!previousRevision || !revisionRequestValid) return;
+      onRevision(dialogDesignId, revisionNote.trim(), revisionCreatedBy, {
+        issueSource: revisionIssueSource.trim(),
+        issueArea: revisionIssueArea.trim(),
+        instruction: revisionInstruction.trim(),
+        referenceImageName: revisionImageName,
+        ...(revisionImageDataUrl
+          ? { referenceImageDataUrl: revisionImageDataUrl }
+          : {}),
+        previousRevisionId: previousRevision.id,
+        previousDxfFileName: previousDxfName,
+        previousDxfFingerprint,
+        newDxfFileName: newDxfName,
+        newDxfFingerprint,
+        designerConfirmed: true,
+        confirmedBy: revisionCreatedBy,
+        confirmedAt: new Date().toISOString(),
+      });
     } else if (dialog === 'task') {
       onTask(effectiveZone, title.trim(), type, assignee);
     } else if (dialog === 'visit') {
@@ -3944,7 +4553,7 @@ function ProjectDialog({
         selectedTaskIds,
       );
     } else if (dialog === 'sample') {
-      onSample(factory);
+      onSample(factory, selectedSampleDesignIds);
     } else if (dialog === 'file') {
       onFile(fileName.trim(), fileType);
     } else if (dialog === 'new-configuration') {
@@ -4449,6 +5058,23 @@ function ProjectDialog({
                     onChange={(event) => setRevisionNote(event.target.value)}
                   />
                 </label>
+                <label>
+                  Revision 1 DXF
+                  <Input
+                    type="file"
+                    accept=".dxf"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (!file) {
+                        setInitialDxfName('');
+                        setInitialDxfFingerprint('');
+                        return;
+                      }
+                      setInitialDxfName(file.name);
+                      void fileFingerprint(file).then(setInitialDxfFingerprint);
+                    }}
+                  />
+                </label>
               </fieldset>
             </div>
           )}
@@ -4497,10 +5123,125 @@ function ProjectDialog({
                     placeholder="변경 사유를 입력하세요"
                   />
                 </label>
+                <label>
+                  문제 출처
+                  <Input
+                    value={revisionIssueSource}
+                    onChange={(event) =>
+                      setRevisionIssueSource(event.target.value)
+                    }
+                    placeholder="예: 1차 샘플 장착 테스트"
+                  />
+                </label>
+                <label>
+                  문제 부위
+                  <Input
+                    value={revisionIssueArea}
+                    onChange={(event) =>
+                      setRevisionIssueArea(event.target.value)
+                    }
+                    placeholder="예: 등받이 하단"
+                  />
+                </label>
+                <label className="full-width">
+                  수정 설명
+                  <textarea
+                    className="revision-instruction-textarea"
+                    value={revisionInstruction}
+                    onChange={(event) =>
+                      setRevisionInstruction(event.target.value)
+                    }
+                    placeholder="무엇을 어디에서 얼마나 변경할지 입력하세요. 예: 표시된 하단 패턴 길이를 10mm 늘림"
+                  />
+                </label>
+                <label>
+                  참고 이미지
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (!file) {
+                        setRevisionImageName('');
+                        setRevisionImageDataUrl('');
+                        return;
+                      }
+                      setRevisionImageName(file.name);
+                      void fileDataUrl(file).then(setRevisionImageDataUrl);
+                    }}
+                  />
+                </label>
+                <div className="revision-previous-reference">
+                  <span>이전 버전 · 자동 연결</span>
+                  <strong>
+                    {previousRevision
+                      ? `Rev ${previousRevision.revisionNumber}`
+                      : '—'}
+                  </strong>
+                  <small>
+                    {previousRevision?.dxfFileName ??
+                      '기준 DXF 정보가 없어 아래에서 한 번 등록해야 합니다.'}
+                  </small>
+                </div>
+                {previousRevision && !previousRevision.dxfFingerprint && (
+                  <label>
+                    이전 버전 기준 DXF
+                    <Input
+                      type="file"
+                      accept=".dxf"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (!file) {
+                          setBaselineDxfName('');
+                          setBaselineDxfFingerprint('');
+                          return;
+                        }
+                        setBaselineDxfName(file.name);
+                        void fileFingerprint(file).then(
+                          setBaselineDxfFingerprint,
+                        );
+                      }}
+                    />
+                  </label>
+                )}
+                <label>
+                  새 DXF 파일
+                  <Input
+                    type="file"
+                    accept=".dxf"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (!file) {
+                        setNewDxfName('');
+                        setNewDxfFingerprint('');
+                        return;
+                      }
+                      setNewDxfName(file.name);
+                      void fileFingerprint(file).then(setNewDxfFingerprint);
+                    }}
+                  />
+                </label>
+                {revisionFilesAreSame && (
+                  <p className="revision-file-error" role="alert">
+                    이전 버전과 동일한 DXF입니다. 실제로 수정한 새 파일을
+                    선택하세요.
+                  </p>
+                )}
+                <label className="revision-designer-confirmation full-width">
+                  <Checkbox
+                    checked={designerConfirmed}
+                    onCheckedChange={(checked) =>
+                      setDesignerConfirmed(Boolean(checked))
+                    }
+                  />
+                  수정 설명, 참고 이미지와 새 DXF가 일치함을 디자이너가
+                  확인했습니다.
+                </label>
               </div>
               <div className="dialog-note">
-                새 Revision은 미승인 상태로 생성됩니다. Sample 입고 후 승인자와
-                승인 시각이 기록됩니다.
+                필수 정보가 모두 확인되면 변경된 부품의 공장 수정 지시서가 자동
+                생성됩니다. 새 Revision은 Sample 입고 및 수정 반영 검증 전까지
+                미승인 상태입니다.
               </div>
             </div>
           )}
@@ -4729,19 +5470,31 @@ function ProjectDialog({
               </label>
               <div className="sample-dialog-items">
                 <strong>Items — 현재 revision · design별 다음 round</strong>
-                {designs
-                  .filter((design) =>
-                    sampleEligibleProjectIds.includes(design.vehicleProjectId),
-                  )
-                  .map((design) => (
-                    <label key={design.id}>
-                      <Checkbox defaultChecked />
-                      <span>
-                        {design.name} · Rev{' '}
-                        {currentRevision(design).revisionNumber} · Round 1
-                      </span>
-                    </label>
-                  ))}
+                {sampleCandidates.map((design) => (
+                  <label key={design.id}>
+                    <Checkbox
+                      checked={selectedSampleDesignIds.includes(design.id)}
+                      onCheckedChange={(checked) =>
+                        setSelectedSampleDesignIds((current) =>
+                          checked
+                            ? [...current, design.id]
+                            : current.filter((id) => id !== design.id),
+                        )
+                      }
+                    />
+                    <span>
+                      {design.name} · Rev{' '}
+                      {currentRevision(design).revisionNumber} · Round{' '}
+                      {samples.length + 1}
+                    </span>
+                  </label>
+                ))}
+                {!sampleCandidates.length && (
+                  <p className="empty-inline">
+                    요청할 수정 부품이 없습니다. 새 수정 요청을 작성하거나
+                    일부·미반영 판정된 부품을 확인하세요.
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -4819,12 +5572,16 @@ function ProjectDialog({
                   designNameExists ||
                   !designName.trim() ||
                   !revisionNote.trim() ||
+                  !initialDxfName ||
+                  !initialDxfFingerprint ||
                   Number(designQuantity) < 1)) ||
-              (dialog === 'revision' && !revisionNote.trim()) ||
+              (dialog === 'revision' &&
+                (!revisionNote.trim() || !revisionRequestValid)) ||
               (dialog === 'task' && !title.trim()) ||
               (dialog === 'visit' &&
                 (!visitGateUnlocked || !selectedTaskIds.length)) ||
-              (dialog === 'sample' && !canRequestSample) ||
+              (dialog === 'sample' &&
+                (!canRequestSample || !selectedSampleDesignIds.length)) ||
               (dialog === 'file' && !fileName.trim())
             }
           >

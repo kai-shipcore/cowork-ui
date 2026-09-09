@@ -3,12 +3,12 @@ import { useLocation } from 'react-router-dom';
 import { useMenu } from '@/shared/hooks/use-menu';
 import { LayoutProvider } from './components/context';
 import { Wrapper } from './components/wrapper';
-import { MENU_SIDEBAR_MAIN } from './navigation';
+import { MENU_SIDEBAR_ALL } from './navigation';
 
 export function Layout() {
   const { pathname } = useLocation();
   const { getCurrentItem } = useMenu(pathname);
-  const item = getCurrentItem(MENU_SIDEBAR_MAIN);
+  const item = getCurrentItem(MENU_SIDEBAR_ALL);
 
   return (
     <>

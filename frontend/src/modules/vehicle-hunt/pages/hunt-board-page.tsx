@@ -88,7 +88,6 @@ export function HuntBoardPage() {
   const [selectedDay, setSelectedDay] = useState<number>();
   const [selectedVisitId, setSelectedVisitId] = useState<string>();
   const [filterQuery, setFilterQuery] = useState('');
-  const [filterDate, setFilterDate] = useState('');
   const [calendarDealer, setCalendarDealer] = useState('');
   const [calendarAssignee, setCalendarAssignee] = useState('');
   const [dealerQuery, setDealerQuery] = useState('');
@@ -121,7 +120,6 @@ export function HuntBoardPage() {
       `${visit.vehicle} ${visit.projectGroupId} ${visit.dealer} ${visitAssigneeNames(visit)}`
         .toLowerCase()
         .includes(normalizedQuery)) &&
-    (!filterDate || visit.date === filterDate) &&
     (!calendarDealer || visit.dealer === calendarDealer) &&
     (!calendarAssignee ||
       tasksOfGroup(visit.projectGroupId).some(
@@ -357,32 +355,16 @@ export function HuntBoardPage() {
 
         <TabsContent value="calendar" className="hunt-tab-content">
           <div className="workbench-filters hunt-board-filters">
-            <div className="search-field">
-              <Search aria-hidden="true" />
+            <label className="hunt-date-filter hunt-board-search">
+              Visit 검색
               <Input
-                aria-label="차량명 또는 Project ID 검색"
-                placeholder="Vehicle / Project ID 검색"
+                placeholder="차량명 · 프로젝트 ID 검색"
                 value={filterQuery}
                 onChange={(event) => setFilterQuery(event.target.value)}
               />
-            </div>
-            <label className="hunt-date-filter">
-              <span>Visit Date</span>
-              <Input
-                aria-label="Visit 날짜 필터"
-                type="date"
-                value={filterDate}
-                onChange={(event) => {
-                  setFilterDate(event.target.value);
-                  if (event.target.value)
-                    setCalendarMonth(
-                      new Date(`${event.target.value}T12:00:00`),
-                    );
-                }}
-              />
             </label>
             <label className="hunt-date-filter">
-              <span>딜러</span>
+              딜러
               <select
                 value={calendarDealer}
                 onChange={(e) => setCalendarDealer(e.target.value)}
@@ -396,7 +378,7 @@ export function HuntBoardPage() {
               </select>
             </label>
             <label className="hunt-date-filter">
-              <span>담당자</span>
+              담당자
               <select
                 value={calendarAssignee}
                 onChange={(e) => setCalendarAssignee(e.target.value)}
@@ -409,16 +391,12 @@ export function HuntBoardPage() {
                 ))}
               </select>
             </label>
-            {(filterQuery ||
-              filterDate ||
-              calendarDealer ||
-              calendarAssignee) && (
+            {(filterQuery || calendarDealer || calendarAssignee) && (
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => {
                   setFilterQuery('');
-                  setFilterDate('');
                   setCalendarDealer('');
                   setCalendarAssignee('');
                 }}
@@ -457,6 +435,32 @@ export function HuntBoardPage() {
               }}
             >
               다음 달 →
+            </Button>
+            <Input
+              className="calendar-month-picker"
+              aria-label="표시할 월 선택"
+              type="month"
+              value={calendarMonthKey}
+              onChange={(event) => {
+                const [year, month] = event.target.value.split('-').map(Number);
+                if (!year || !month) return;
+                setSelectedDay(undefined);
+                setCalendarMonth(new Date(year, month - 1, 1));
+              }}
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={
+                calendarYear === TODAY.year &&
+                calendarMonthNumber === TODAY.month
+              }
+              onClick={() => {
+                setSelectedDay(undefined);
+                setCalendarMonth(new Date(TODAY.year, TODAY.month - 1, 1));
+              }}
+            >
+              오늘
             </Button>
             <div className="calendar-legend">
               <span className="calendar-legend-item">

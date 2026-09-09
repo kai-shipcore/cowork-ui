@@ -9,7 +9,7 @@ import {
 } from '@coverland-engineering/ui/breadcrumb';
 import { Link, useLocation } from 'react-router-dom';
 import { useMenu } from '@/shared/hooks/use-menu';
-import { MENU_SIDEBAR_MAIN, type MenuItem } from '@/app/layout/navigation';
+import { MENU_SIDEBAR_ALL, type MenuItem } from '@/app/layout/navigation';
 
 export interface ToolbarHeadingProps {
   title?: string | ReactNode;
@@ -31,7 +31,7 @@ function ToolbarActions({ children }: { children?: ReactNode }) {
 function ToolbarBreadcrumbs() {
   const { pathname } = useLocation();
   const { getBreadcrumb } = useMenu(pathname);
-  const items: MenuItem[] = getBreadcrumb(MENU_SIDEBAR_MAIN);
+  const items: MenuItem[] = getBreadcrumb(MENU_SIDEBAR_ALL);
 
   if (items.length === 0) {
     return null;
@@ -50,11 +50,10 @@ function ToolbarBreadcrumbs() {
 
           return (
             <Fragment key={index}>
-              {index !== items.length - 1 && (
-                <BreadcrumbSeparator className="text-xs text-muted-foreground">
-                  /
-                </BreadcrumbSeparator>
-              )}
+              {/* Every item follows something — "Home", or the item before it. */}
+              <BreadcrumbSeparator className="text-xs text-muted-foreground">
+                /
+              </BreadcrumbSeparator>
               <BreadcrumbItem>
                 {!isLast ? (
                   <BreadcrumbLink asChild>
@@ -83,7 +82,7 @@ function ToolbarHeading({ children }: { children: ReactNode }) {
 function ToolbarPageTitle({ children }: { children?: string }) {
   const { pathname } = useLocation();
   const { getCurrentItem } = useMenu(pathname);
-  const item = getCurrentItem(MENU_SIDEBAR_MAIN);
+  const item = getCurrentItem(MENU_SIDEBAR_ALL);
 
   return (
     <h1 className="text-base font-medium leading-none text-foreground">

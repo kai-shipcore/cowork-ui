@@ -62,14 +62,11 @@ export function importProjectParts(
   product: ProductType,
 ) {
   for (const design of designs) {
-    if (
-      snapshot().some(
-        (part) => part.name.toLowerCase() === design.name.toLowerCase(),
-      )
-    )
-      continue;
+    const existing = snapshot().find(
+      (part) => part.name.toLowerCase() === design.name.toLowerCase(),
+    );
     saveLibraryPart({
-      id: crypto.randomUUID(),
+      id: existing?.id ?? crypto.randomUUID(),
       name: design.name,
       product,
       type:
@@ -77,13 +74,7 @@ export function importProjectParts(
           ? design.details.category
           : product,
       details: design.details,
-      revisions: design.revisions.map((revision) => ({
-        id: revision.id,
-        revisionNumber: revision.revisionNumber,
-        note: revision.note,
-        createdBy: revision.createdBy,
-        createdAt: revision.createdAt,
-      })),
+      revisions: design.revisions.map((revision) => ({ ...revision })),
     });
   }
 }

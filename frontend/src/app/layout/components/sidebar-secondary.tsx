@@ -11,9 +11,9 @@ export function SidebarSecondary() {
       <SidebarSearch />
       <SidebarPrimaryMenu />
       <Separator className="my-2.5" />
-      <SidebarWorkspacesMenu />
-      <Separator className="my-2.5" />
       <SidebarResourcesMenu />
+      <Separator className="my-2.5" />
+      <SidebarWorkspacesMenu />
       <Separator className="my-2.5" />
     </ScrollArea>
   );

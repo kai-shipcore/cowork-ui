@@ -6,7 +6,7 @@ import {
   type LibraryPart,
 } from './part-library';
 
-test('library rejects duplicate names and preserves project version snapshots', () => {
+test('library rejects duplicate names and syncs project revision history', () => {
   const data = new Map<string, string>();
   Object.defineProperty(globalThis, 'localStorage', {
     configurable: true,
@@ -75,7 +75,7 @@ test('library rejects duplicate names and preserves project version snapshots', 
   assert.equal(stored.length, 2);
   assert.equal(
     stored.find((p) => p.name === 'Legacy')?.revisions[0].sampleApprovedAt,
-    undefined,
+    '2026-09-08',
   );
   assert.equal(stored.find((p) => p.id === part.id)?.revisions.length, 2);
 });

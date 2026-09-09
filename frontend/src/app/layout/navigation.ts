@@ -8,20 +8,13 @@ import {
   ChartLine,
   ClipboardList,
   Cog,
-  Download,
-  FileChartLine,
   FolderKanban,
   Grid,
   Handshake,
-  Megaphone,
-  Newspaper,
   Package,
   PackageCheck,
   Palette,
   Search,
-  SquareActivity,
-  UserRoundCog,
-  Users,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
@@ -53,22 +46,6 @@ export const MENU_SIDEBAR_MAIN: MenuConfig = [
         title: 'Home',
         path: '#',
         icon: Bolt,
-      },
-      {
-        title: 'Updates',
-        path: ROUTES.dashboard,
-        icon: Users,
-      },
-      {
-        title: 'Inbox',
-        path: '#',
-        icon: UserRoundCog,
-      },
-      {
-        title: 'Clients',
-        path: '#',
-        icon: Cog,
-        badge: 'Beta',
       },
       {
         title: 'My Tasks',
@@ -116,16 +93,6 @@ export const MENU_SIDEBAR_MAIN: MenuConfig = [
         path: ROUTES.productRegistrations,
         icon: PackageCheck,
       },
-      {
-        title: 'Vehicle Options',
-        path: ROUTES.vehicleOptions,
-        icon: Cog,
-      },
-      {
-        title: 'Reference Data',
-        path: ROUTES.referenceData,
-        icon: Palette,
-      },
     ],
   },
 ];
@@ -135,35 +102,14 @@ export const MENU_SIDEBAR_RESOURCES: MenuConfig = [
     title: 'Resources',
     children: [
       {
-        title: 'About Coverland',
-        path: '#',
-        icon: Download,
+        title: 'Vehicle Options',
+        path: ROUTES.vehicleOptions,
+        icon: Cog,
       },
       {
-        title: 'Advertise',
-        path: '#',
-        icon: FileChartLine,
-        badge: 'Pro',
-      },
-      {
-        title: 'Help',
-        path: '#',
-        icon: SquareActivity,
-      },
-      {
-        title: 'Blog',
-        path: '#',
-        icon: Newspaper,
-      },
-      {
-        title: 'Careers',
-        path: '#',
-        icon: Briefcase,
-      },
-      {
-        title: 'Press',
-        path: '#',
-        icon: Megaphone,
+        title: 'Reference Data',
+        path: ROUTES.referenceData,
+        icon: Palette,
       },
     ],
   },
@@ -196,6 +142,11 @@ export const MENU_SIDEBAR_WORKSPACES: MenuConfig = [
       },
     ],
   },
+];
+
+export const MENU_SIDEBAR_ALL: MenuConfig = [
+  ...MENU_SIDEBAR_MAIN,
+  ...MENU_SIDEBAR_RESOURCES,
 ];
 
 export const MENU_TOOLBAR: MenuConfig = [
