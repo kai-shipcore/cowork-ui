@@ -21,6 +21,10 @@ import {
 import { Check, PackageCheck, Search, Trash2, X } from 'lucide-react';
 import { userName } from '@/shared/domain/app-user';
 import { PageHeader } from '@/shared/components/page-header';
+import {
+  useWorkbenchPagination,
+  WorkbenchPagination,
+} from '@/shared/components/workbench-pagination';
 import { StatusBadge } from '@/shared/components/status-badge';
 import type {
   MasterProductSku,
@@ -73,6 +77,11 @@ export function ProductRegistrationsPage() {
   const pendingCount = registrations.filter(
     (registration) => registration.approvedAt === undefined,
   ).length;
+  const {
+    pageItems: pagedRegistrations,
+    pagination,
+    setPagination,
+  } = useWorkbenchPagination(visibleRegistrations, `${query}|${filter}`);
 
   /** Approval is per registration; every item goes ACTIVE together. */
   function approve(registration: VehicleProductRegistration): void {
@@ -238,7 +247,7 @@ export function ProductRegistrationsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visibleRegistrations.map((registration) => {
+              {pagedRegistrations.map((registration) => {
                 const items = itemsOf(registration.id);
                 const isPending = registration.approvedAt === undefined;
                 return (
@@ -285,6 +294,12 @@ export function ProductRegistrationsPage() {
               })}
             </TableBody>
           </Table>
+          <WorkbenchPagination
+            recordCount={visibleRegistrations.length}
+            pagination={pagination}
+            onPaginationChange={setPagination}
+            itemLabel="registrations"
+          />
         </Card>
       ) : (
         <div className="empty-state">

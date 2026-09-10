@@ -20,6 +20,10 @@ import {
 import { PackageCheck, Search, X } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/shared/components/page-header';
+import {
+  useWorkbenchPagination,
+  WorkbenchPagination,
+} from '@/shared/components/workbench-pagination';
 import { StatusBadge } from '@/shared/components/status-badge';
 import { PRODUCT_TYPES } from '@/shared/types/workbench';
 import type {
@@ -94,6 +98,11 @@ export function ProductCatalogPage() {
   );
   const hasActiveFilter =
     normalizedQuery.length > 0 || productType !== 'ALL' || status !== 'ALL';
+  const {
+    pageItems: pagedProducts,
+    pagination,
+    setPagination,
+  } = useWorkbenchPagination(visible, `${query}|${productType}|${status}`);
 
   const materialOf = (product: MasterProduct) =>
     productMaterials.find((item) => item.id === product.productMaterialId);
@@ -325,7 +334,7 @@ export function ProductCatalogPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visible.map((product) => {
+              {pagedProducts.map((product) => {
                 const packaging = currentPackaging(product);
                 return (
                   <TableRow
@@ -382,6 +391,12 @@ export function ProductCatalogPage() {
               })}
             </TableBody>
           </Table>
+          <WorkbenchPagination
+            recordCount={visible.length}
+            pagination={pagination}
+            onPaginationChange={setPagination}
+            itemLabel="products"
+          />
         </Card>
       ) : (
         <div className="empty-state">

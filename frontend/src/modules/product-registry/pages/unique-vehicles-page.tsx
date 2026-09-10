@@ -13,6 +13,10 @@ import {
 import { Search } from 'lucide-react';
 import { ConfigChips } from '@/shared/domain/config-chips';
 import { PageHeader } from '@/shared/components/page-header';
+import {
+  useWorkbenchPagination,
+  WorkbenchPagination,
+} from '@/shared/components/workbench-pagination';
 import { StatusBadge } from '@/shared/components/status-badge';
 import { PRODUCT_TYPES } from '@/shared/types/workbench';
 import type {
@@ -64,6 +68,11 @@ export function UniqueVehiclesPage() {
   );
 
   const registeredSkus = masterProducts.map((product) => product.sku);
+  const {
+    pageItems: pagedVehicles,
+    pagination,
+    setPagination,
+  } = useWorkbenchPagination(visibleVehicles, query);
 
   function productTypeIdFor(vehicle: UniqueVehicle) {
     return (
@@ -236,7 +245,7 @@ export function UniqueVehiclesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {visibleVehicles.map((vehicle) => (
+            {pagedVehicles.map((vehicle) => (
               <TableRow key={vehicle.fNumber}>
                 <TableCell>
                   <span className="f-number">{vehicle.fNumber}</span>
@@ -319,6 +328,12 @@ export function UniqueVehiclesPage() {
             ))}
           </TableBody>
         </Table>
+        <WorkbenchPagination
+          recordCount={visibleVehicles.length}
+          pagination={pagination}
+          onPaginationChange={setPagination}
+          itemLabel="vehicles"
+        />
       </Card>
 
       {complaining && (

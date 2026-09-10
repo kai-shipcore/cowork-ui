@@ -261,9 +261,17 @@ export function VehicleResearchPage() {
             : undefined
         }
         actions={
-          <Button variant="primary" onClick={() => setDialogOpen(true)}>
-            <Plus /> 차량 등록
-          </Button>
+          <>
+            <Button variant="primary" onClick={() => setDialogOpen(true)}>
+              <Plus /> 차량 등록
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate(ROUTES.vehicleOptions)}
+            >
+              차량 옵션 관리
+            </Button>
+          </>
         }
       />
 
@@ -552,7 +560,7 @@ export function VehicleResearchPage() {
             </div>
             <div className="dialog-note">
               등록 후 제품 적용에 영향을 주는 Configuration 옵션을 추가할 수
-              있습니다. 이 단계에서는 F#이 발급되지 않습니다.
+              있습니다.
             </div>
           </DialogBody>
           <DialogFooter>
@@ -653,7 +661,6 @@ export function VehicleResearchPage() {
             </Button>
           </DialogBody>
           <DialogFooter className="configuration-dialog-footer">
-            <span>이 단계에서는 F#이 발급되지 않습니다</span>
             <Button
               variant="outline"
               onClick={() => setConfigurationDialogOpen(false)}
