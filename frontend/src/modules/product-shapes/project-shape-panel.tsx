@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
 import { Checkbox } from '@coverland-engineering/ui/checkbox';
 import { Input } from '@coverland-engineering/ui/input';
+import { format } from 'date-fns';
 import { Link } from 'react-router';
+import { UserPicker } from '@/shared/domain/user-picker';
 import type {
   ProjectDesign,
   ProjectSizeReview,
@@ -55,7 +57,9 @@ export function ProjectShapePanel({
   const [note, setNote] = useState('');
   const [checked, setChecked] = useState(false);
   const [replacing, setReplacing] = useState(false);
-  const [meetingAt, setMeetingAt] = useState('');
+  const [meetingAt, setMeetingAt] = useState(() =>
+    format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+  );
   const [attendees, setAttendees] = useState({
     designer: '',
     scan: '',
@@ -63,16 +67,19 @@ export function ProjectShapePanel({
     manual: '',
   });
   const participants = [
-    `PM / Director: ${reviewer}`,
-    `Pattern Designer: ${attendees.designer}`,
-    `Scan Team: ${attendees.scan}`,
-    `Coordinator: ${attendees.coordinator}`,
-    `Manual Design: ${attendees.manual}`,
+    `PM / Director: ${appUsers.find((user) => user.id === reviewer)?.name ?? reviewer}`,
+    `Pattern Designer: ${appUsers.find((user) => user.id === attendees.designer)?.name ?? ''}`,
+    `Scan Team: ${appUsers.find((user) => user.id === attendees.scan)?.name ?? ''}`,
+    `Coordinator: ${appUsers.find((user) => user.id === attendees.coordinator)?.name ?? ''}`,
+    `Manual Design: ${appUsers.find((user) => user.id === attendees.manual)?.name ?? ''}`,
   ];
+  const activeUsers = appUsers.filter((user) => user.status === 'ACTIVE');
   const meetingReady = Boolean(
     meetingAt &&
     Number.isFinite(Date.parse(meetingAt)) &&
-    Object.values(attendees).every((name) => name.trim()) &&
+    Object.values(attendees).every((id) =>
+      activeUsers.some((user) => user.id === id),
+    ) &&
     Date.parse(meetingAt) >=
       Math.floor(
         Date.parse(zone.productionHandoff?.completedAt ?? '') / 60000,
@@ -85,6 +92,15 @@ export function ProjectShapePanel({
   const [affectedDesignIds, setAffectedDesignIds] = useState<readonly string[]>(
     [],
   );
+  const [beforeTest, setBeforeTest] = useState<{
+    meetingAt: string;
+    attendees: typeof attendees;
+    reviewer: string;
+    blueprint: string;
+    note: string;
+    checked: boolean;
+    affectedDesignIds: readonly string[];
+  }>();
   const canRequestChanges =
     zone.currentStage === 'Approved' &&
     zone.productionHandoff &&
@@ -113,14 +129,69 @@ export function ProjectShapePanel({
     appUsers.some((user) => user.id === reviewer && user.status === 'ACTIVE');
   const linkAllowed =
     reviewed && (!shape || replacing) && zone.currentStage === 'Approved';
+
+  function toggleTestInput(enabled: boolean): void {
+    if (!enabled && beforeTest) {
+      setMeetingAt(beforeTest.meetingAt);
+      setAttendees(beforeTest.attendees);
+      setReviewer(beforeTest.reviewer);
+      setBlueprint(beforeTest.blueprint);
+      setNote(beforeTest.note);
+      setChecked(beforeTest.checked);
+      setAffectedDesignIds(beforeTest.affectedDesignIds);
+      setBeforeTest(undefined);
+      return;
+    }
+    if (!enabled || !activeUsers.length) return;
+    setBeforeTest({
+      meetingAt,
+      attendees,
+      reviewer,
+      blueprint,
+      note,
+      checked,
+      affectedDesignIds,
+    });
+    const handoffTime = Date.parse(zone.productionHandoff?.completedAt ?? '');
+    setMeetingAt(
+      format(
+        new Date(
+          Math.max(Date.now(), Number.isFinite(handoffTime) ? handoffTime : 0),
+        ),
+        "yyyy-MM-dd'T'HH:mm",
+      ),
+    );
+    setAttendees({
+      designer: activeUsers.some((user) => user.id === attendees.designer)
+        ? attendees.designer
+        : (activeUsers[1] ?? activeUsers[0]).id,
+      scan: activeUsers.some((user) => user.id === attendees.scan)
+        ? attendees.scan
+        : (activeUsers[2] ?? activeUsers[0]).id,
+      coordinator: activeUsers.some((user) => user.id === attendees.coordinator)
+        ? attendees.coordinator
+        : (activeUsers[3] ?? activeUsers[0]).id,
+      manual: activeUsers.some((user) => user.id === attendees.manual)
+        ? attendees.manual
+        : (activeUsers[4] ?? activeUsers[0]).id,
+    });
+    setReviewer(
+      activeUsers.some((user) => user.id === reviewer)
+        ? reviewer
+        : activeUsers[0].id,
+    );
+    setBlueprint(blueprint.trim() || `[TEST] ${zone.id} 최종 Blueprint`);
+    setNote(note.trim() || '[TEST] Shape 검토 입력 및 승인 흐름 테스트');
+    setChecked(true);
+    if (rejectionType === 'PATTERN' && !affectedDesignIds.length) {
+      setAffectedDesignIds(parts.map((part) => part.id));
+    }
+  }
   return (
-    <div className="shape-management">
+    <div className="shape-management project-shape-panel">
       <div className="shape-info">
         <strong>Shape · {zone.code}</strong>
-        <p>
-          양산 인계 완료 → Stage 14 검토·승인 → Stage 15 Shape 발급·연결 → Stage
-          16 구성 등록
-        </p>
+        <p>Handoff 완료 → 검토·승인 → Shape 발급·연결 → 구성 등록</p>
         <p>
           스캔·3D 모델·패턴 작업에는 Shape가 필요하지 않습니다. 기존 Shape를
           재사용해도 이 프로젝트의 피팅과 검토는 필요합니다.
@@ -128,7 +199,7 @@ export function ProjectShapePanel({
         <Link to="/product-shapes">전체 Shape 관리 →</Link>
         {zone.productionHandoff && (
           <p>
-            양산 인계: {zone.productionHandoff.completedAt.slice(0, 10)} ·{' '}
+            Handoff: {zone.productionHandoff.completedAt.slice(0, 10)} ·{' '}
             {zone.productionHandoff.reference}
           </p>
         )}
@@ -172,8 +243,8 @@ export function ProjectShapePanel({
           </ul>
         )}
       </section>
-      <section className="shape-section">
-        <h3>Stage 14 · Shape 검토 회의 및 구두 승인</h3>
+      <section className="shape-section shape-review-section">
+        <h3>Shape 검토 회의 및 구두 승인</h3>
         <p>
           참석 대상: PM / Director, Pattern Designer, Scan Team, Coordinator,
           Manual Design 담당자
@@ -210,13 +281,23 @@ export function ProjectShapePanel({
                 검토하세요. 기존 Shape 연결은 유지됩니다.
               </p>
             )}
-            <div className="dialog-form-grid">
+            <div className="shape-review-fields">
               <label>
                 회의 일시 *
                 <Input
                   type="datetime-local"
                   value={meetingAt}
                   onChange={(event) => setMeetingAt(event.target.value)}
+                />
+              </label>
+              <label>
+                검토 책임자 (PM / Director) *
+                <UserPicker
+                  users={activeUsers}
+                  value={appUsers.find((user) => user.id === reviewer)}
+                  label="검토 책임자 (PM / Director)"
+                  placeholder="검토 책임자 검색·선택"
+                  onChange={(userId) => setReviewer(userId ?? '')}
                 />
               </label>
               {(
@@ -229,40 +310,27 @@ export function ProjectShapePanel({
               ).map(([key, label]) => (
                 <label key={key}>
                   {label} 참석자 *
-                  <Input
-                    value={attendees[key]}
-                    onChange={(event) =>
+                  <UserPicker
+                    users={activeUsers}
+                    value={appUsers.find((user) => user.id === attendees[key])}
+                    label={`${label} 참석자`}
+                    onChange={(userId) =>
                       setAttendees((current) => ({
                         ...current,
-                        [key]: event.target.value,
+                        [key]: userId ?? '',
                       }))
                     }
-                    placeholder="실제 참석자 이름"
+                    placeholder="참석자 검색·선택"
                   />
                 </label>
               ))}
-              <label>
+              <label className="full-width">
                 최종 Blueprint 참조 *
                 <Input
                   value={blueprint}
                   onChange={(event) => setBlueprint(event.target.value)}
                   placeholder="최종 Blueprint 파일명, NAS 경로 또는 문서 링크"
                 />
-              </label>
-              <label>
-                검토 책임자 (PM / Director) *
-                <select
-                  value={reviewer}
-                  onChange={(event) => setReviewer(event.target.value)}
-                >
-                  {appUsers
-                    .filter((user) => user.status === 'ACTIVE')
-                    .map((user) => (
-                      <option value={user.id} key={user.id}>
-                        {user.name}
-                      </option>
-                    ))}
-                </select>
               </label>
               <label className="full-width">
                 검토 메모
@@ -273,94 +341,110 @@ export function ProjectShapePanel({
                 />
               </label>
             </div>
-            <label className="shape-check">
-              <Checkbox
-                checked={checked}
-                onCheckedChange={(value) => setChecked(value === true)}
-              />
-              회의에서 책임자가 피팅 결과·최종 Parts 목록·Blueprint를 검토하고
-              Shape 발급 또는 재사용을 구두 승인했음을 기록합니다.
-            </label>
-            <Button
-              variant="primary"
-              disabled={!reviewAllowed}
-              onClick={() => {
-                if (!reviewAllowed) return;
-                onReview({
-                  meetingAt,
-                  participants,
-                  approvalMethod: 'VERBAL',
-                  outcome: 'APPROVED',
-                  reviewedBy: reviewer,
-                  reviewedAt: new Date().toISOString(),
-                  blueprintReference: blueprint.trim(),
-                  note: note.trim(),
-                  evidenceKey: sizeReviewEvidence(zone.id, designs, visits),
-                });
-              }}
-            >
-              검토 승인 기록
-            </Button>
-            <label>
-              반려 처리
-              <select
-                value={rejectionType}
-                onChange={(event) =>
-                  setRejectionType(event.target.value as 'DOCUMENT' | 'PATTERN')
-                }
+            <div className="shape-review-approval">
+              {import.meta.env.DEV && (
+                <label className="shape-check shrink-0">
+                  <Checkbox
+                    checked={beforeTest !== undefined}
+                    disabled={!activeUsers.length}
+                    onCheckedChange={(value) => toggleTestInput(value === true)}
+                  />
+                  테스트용 일괄 입력
+                </label>
+              )}
+              <label className="shape-check">
+                <Checkbox
+                  checked={checked}
+                  onCheckedChange={(value) => setChecked(value === true)}
+                />
+                회의에서 책임자가 피팅 결과·최종 Parts 목록·Blueprint를 검토하고
+                Shape 발급 또는 재사용을 구두 승인했음을 기록합니다.
+              </label>
+              <Button
+                variant="primary"
+                disabled={!reviewAllowed}
+                onClick={() => {
+                  if (!reviewAllowed) return;
+                  onReview({
+                    meetingAt,
+                    participants,
+                    approvalMethod: 'VERBAL',
+                    outcome: 'APPROVED',
+                    reviewedBy: reviewer,
+                    reviewedAt: new Date().toISOString(),
+                    blueprintReference: blueprint.trim(),
+                    note: note.trim(),
+                    evidenceKey: sizeReviewEvidence(zone.id, designs, visits),
+                  });
+                }}
               >
-                <option value="DOCUMENT">문서 보완 후 재검토</option>
-                <option value="PATTERN">
-                  패턴 재작업 · Stage 7 새 샘플 요청으로 복귀
-                </option>
-              </select>
-            </label>
-            {rejectionType === 'PATTERN' && (
-              <div>
-                <p>
-                  수정할 Part를 선택하세요. 해당 Part는 새 Revision과 새 샘플이
-                  필요하며 프로젝트 전체를 다시 피팅·인계합니다.
-                </p>
-                {parts.map((part) => (
-                  <label className="shape-check" key={part.id}>
-                    <Checkbox
-                      checked={affectedDesignIds.includes(part.id)}
-                      onCheckedChange={(value) =>
-                        setAffectedDesignIds((current) =>
-                          value === true
-                            ? [...current, part.id]
-                            : current.filter((id) => id !== part.id),
-                        )
-                      }
-                    />
-                    {part.name}
-                  </label>
-                ))}
-              </div>
-            )}
-            <Button
-              variant="outline"
-              disabled={!canRequestChanges}
-              onClick={() => {
-                if (!canRequestChanges) return;
-                onReview({
-                  meetingAt,
-                  participants,
-                  rejectionType,
-                  affectedDesignIds:
-                    rejectionType === 'PATTERN' ? affectedDesignIds : [],
-                  outcome: 'REJECTED',
-                  reviewedBy: reviewer,
-                  reviewedAt: new Date().toISOString(),
-                  blueprintReference: blueprint.trim(),
-                  note: note.trim(),
-                  evidenceKey: sizeReviewEvidence(zone.id, designs, visits),
-                });
-                setChecked(false);
-              }}
-            >
-              반려 기록 (사유 메모 필수)
-            </Button>
+                검토 승인 기록
+              </Button>
+            </div>
+            <div className="shape-review-rejection">
+              <label className="shape-review-rejection-type">
+                반려 처리
+                <select
+                  value={rejectionType}
+                  onChange={(event) =>
+                    setRejectionType(
+                      event.target.value as 'DOCUMENT' | 'PATTERN',
+                    )
+                  }
+                >
+                  <option value="DOCUMENT">문서 보완 후 재검토</option>
+                  <option value="PATTERN">
+                    패턴 재작업 · 새 샘플 요청으로 복귀
+                  </option>
+                </select>
+              </label>
+              {rejectionType === 'PATTERN' && (
+                <div className="shape-review-rejection-parts">
+                  <p>
+                    수정할 Part를 선택하세요. 해당 Part는 새 Revision과 새
+                    샘플이 필요하며 프로젝트 전체를 다시 피팅·인계합니다.
+                  </p>
+                  {parts.map((part) => (
+                    <label className="shape-check" key={part.id}>
+                      <Checkbox
+                        checked={affectedDesignIds.includes(part.id)}
+                        onCheckedChange={(value) =>
+                          setAffectedDesignIds((current) =>
+                            value === true
+                              ? [...current, part.id]
+                              : current.filter((id) => id !== part.id),
+                          )
+                        }
+                      />
+                      {part.name}
+                    </label>
+                  ))}
+                </div>
+              )}
+              <Button
+                variant="outline"
+                disabled={!canRequestChanges}
+                onClick={() => {
+                  if (!canRequestChanges) return;
+                  onReview({
+                    meetingAt,
+                    participants,
+                    rejectionType,
+                    affectedDesignIds:
+                      rejectionType === 'PATTERN' ? affectedDesignIds : [],
+                    outcome: 'REJECTED',
+                    reviewedBy: reviewer,
+                    reviewedAt: new Date().toISOString(),
+                    blueprintReference: blueprint.trim(),
+                    note: note.trim(),
+                    evidenceKey: sizeReviewEvidence(zone.id, designs, visits),
+                  });
+                  setChecked(false);
+                }}
+              >
+                반려 기록 (사유 메모 필수)
+              </Button>
+            </div>
             <p className="muted-text">
               인계 이후의 회의 일시, 참석자, 필수 자료, 검토 책임자, 확인 체크를
               모두 입력해야 기록할 수 있습니다. 현재 화면은 실무 승인 결과를
@@ -370,7 +454,7 @@ export function ProjectShapePanel({
         )}
       </section>
       <section className="shape-section">
-        <h3>Stage 15 · 최종 Shape 발급 · 연결</h3>
+        <h3>최종 Shape 발급 · 연결</h3>
         {shape ? (
           <div className="shape-success">
             <strong>
@@ -402,8 +486,7 @@ export function ProjectShapePanel({
               </div>
             )}
             <p>
-              발급 후 ‘발급된 Shape’에서 Stage 16 Part 구성과 Blueprint를
-              등록하세요.
+              발급 후 ‘발급된 Shape’에서 Part 구성과 Blueprint를 등록하세요.
             </p>
           </div>
         ) : (
@@ -481,7 +564,7 @@ export function ProjectShapePanel({
               {review.outcome === 'APPROVED'
                 ? '구두 승인'
                 : review.rejectionType === 'PATTERN'
-                  ? '패턴 반려 → Stage 7'
+                  ? '패턴 반려 → 새 샘플 요청'
                   : '문서 보완'}{' '}
               · {review.note} · Blueprint: {review.blueprintReference}
             </p>

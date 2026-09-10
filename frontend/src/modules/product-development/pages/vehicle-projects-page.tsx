@@ -395,7 +395,7 @@ export function VehicleProjectsPage() {
   return (
     <section>
       <PageHeader
-        description="차량·제품별 Zone 개발 프로젝트 · 패턴 → 샘플 → 피팅 → 양산 인계로 개발 완료 · 이후 Shape 메뉴에서 검토·발급"
+        description="차량·제품별 Zone 개발 프로젝트 · 패턴 → 샘플 → 피팅 → Handoff로 개발 완료 · 이후 Shape 메뉴에서 검토·발급"
         tables={
           import.meta.env.DEV
             ? [
@@ -809,7 +809,7 @@ export function VehicleProjectsPage() {
                   })}
                 </div>
                 <div className="dialog-note wizard-rule-note">
-                  <strong>양산 인계 시 프로젝트 개발이 완료됩니다.</strong>{' '}
+                  <strong>Handoff 시 프로젝트 개발이 완료됩니다.</strong>{' '}
                   Part·샘플·피팅과 인계를 마친 후 Shape 메뉴에서 최종 검토·승인,
                   발급 및 구성 등록을 진행하세요. 담당자는 생성되는 각 Zone
                   프로젝트에 적용됩니다.
@@ -879,7 +879,7 @@ export function VehicleProjectsPage() {
                 <div className="wizard-fnumber-note full-width">
                   <strong>Shape — 개발 완료 후 발급</strong>
                   <span>
-                    프로젝트 번호는 자동 생성됩니다. 공식 Shape는 양산 인계 후
+                    프로젝트 번호는 자동 생성됩니다. 공식 Shape는 Handoff 후
                     별도 검토·승인을 거쳐 발급합니다.
                   </span>
                 </div>

@@ -28,8 +28,31 @@ export function handoffChecklistErrors(value: HandoffChecklist): string[] {
   if (!value.projectNumberConfirmed)
     errors.push('인계 대상 프로젝트 번호를 확인하세요.');
   if (!value.approvalConfirmed || !value.approvedBy.trim())
-    errors.push('양산 인계 승인 담당자와 승인 여부를 확인하세요.');
+    errors.push('Handoff 승인 담당자와 승인 여부를 확인하세요.');
   return errors;
+}
+
+/** Fills the local test checklist without submitting a handoff. */
+export function fillTestHandoffChecklist(
+  value: HandoffChecklist,
+  approverName: string,
+): HandoffChecklist {
+  return {
+    ...value,
+    documents: Object.fromEntries(
+      HANDOFF_DOCUMENTS.map(([id, label]) => [
+        id,
+        {
+          reference: value.documents[id]?.reference.trim() || `[TEST] ${label}`,
+          confirmed: true,
+        },
+      ]),
+    ),
+    vehicleConfirmed: true,
+    projectNumberConfirmed: true,
+    approvedBy: value.approvedBy || approverName,
+    approvalConfirmed: true,
+  };
 }
 
 export function prepareHandoffChecklist(

@@ -25,7 +25,15 @@ import {
   TableHeader,
   TableRow,
 } from '@coverland-engineering/ui/table';
-import { Plus, Search, X } from 'lucide-react';
+import {
+  CarFront,
+  ChevronDown,
+  ChevronRight,
+  Plus,
+  Search,
+  Truck,
+  X,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { ConfigChips } from '@/shared/domain/config-chips';
@@ -82,6 +90,9 @@ export function VehicleResearchPage() {
         ]),
     );
   const [query, setQuery] = useState('');
+  const [collapsedVehicles, setCollapsedVehicles] = useState<
+    ReadonlySet<string>
+  >(new Set());
   const [status, setStatus] = useState('ALL');
   const [product, setProduct] = useState('ALL');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -150,6 +161,18 @@ export function VehicleResearchPage() {
     setConfigurationVehicle(configuration);
     setCriteria(INITIAL_CRITERIA);
     setConfigurationDialogOpen(true);
+  }
+
+  function toggleVehicle(vehicle: string): void {
+    setCollapsedVehicles((current) => {
+      const next = new Set(current);
+      if (next.has(vehicle)) {
+        next.delete(vehicle);
+      } else {
+        next.add(vehicle);
+      }
+      return next;
+    });
   }
 
   function updateCriterionTitle(criterionId: number, title: string): void {
@@ -281,139 +304,178 @@ export function VehicleResearchPage() {
       </div>
 
       <div className="research-vehicle-list">
-        {pagedVehicleGroups.map((group) => {
-          const vehicle = vehicleParts(group.vehicle);
-          return (
-            <Card className="research-vehicle-card" key={group.vehicle}>
-              <div className="research-vehicle-header">
-                <div>
-                  <h2>{vehicle.name}</h2>
-                  <span>
-                    {vehicle.years} · {group.vehicleClass}
-                  </span>
-                  <small>{group.configurations.length} Configurations</small>
-                </div>
-                <Button
-                  size="sm"
-                  variant="dashed"
-                  onClick={() =>
-                    openConfigurationDialog(group.configurations[0])
-                  }
-                >
-                  <Plus /> Configuration
-                </Button>
-              </div>
-              <CardTable>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="research-configuration-column">
-                        Configuration
-                      </TableHead>
-                      <TableHead className="research-status-column">
-                        Research
-                      </TableHead>
-                      <TableHead>Development</TableHead>
+        <Card className="research-vehicle-card">
+          <CardTable>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="research-configuration-column">
+                    Configuration
+                  </TableHead>
+                  <TableHead className="research-status-column">
+                    Status
+                  </TableHead>
+                  <TableHead>Development</TableHead>
+                </TableRow>
+              </TableHeader>
+              {pagedVehicleGroups.map((group) => {
+                const vehicle = vehicleParts(group.vehicle);
+                const collapsed = collapsedVehicles.has(group.vehicle);
+                return (
+                  <TableBody key={group.vehicle}>
+                    <TableRow className="research-vehicle-group-row">
+                      <TableCell colSpan={3}>
+                        <div className="research-vehicle-header">
+                          <div>
+                            <h2>
+                              <button
+                                type="button"
+                                className="research-vehicle-toggle"
+                                aria-expanded={!collapsed}
+                                aria-label={`${vehicle.name} configurations ${collapsed ? 'expand' : 'collapse'}`}
+                                onClick={() => toggleVehicle(group.vehicle)}
+                              >
+                                {collapsed ? (
+                                  <ChevronRight aria-hidden="true" />
+                                ) : (
+                                  <ChevronDown aria-hidden="true" />
+                                )}
+                                <span
+                                  className="research-vehicle-icon"
+                                  aria-hidden="true"
+                                >
+                                  {group.vehicleClass === 'Truck' ? (
+                                    <Truck />
+                                  ) : (
+                                    <CarFront />
+                                  )}
+                                </span>
+                                {vehicle.name}
+                              </button>
+                            </h2>
+                            <span>
+                              {vehicle.years} · {group.vehicleClass}
+                            </span>
+                            <small>
+                              {group.configurations.length} Configurations
+                            </small>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="dashed"
+                            onClick={() =>
+                              openConfigurationDialog(group.configurations[0])
+                            }
+                          >
+                            <Plus /> Configuration
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {group.configurations.map((configuration) => {
-                      const linkedProjects = configuration.projectGroupIds.map(
-                        (projectId) => ({
-                          id: projectId,
-                          project: projects.find(
-                            (project) => project.id === projectId,
-                          ),
-                        }),
-                      );
-                      return (
-                        <TableRow key={configuration.id}>
-                          <TableCell>
-                            <strong className="configuration-id">
-                              {configuration.id}
-                            </strong>
-                            <ConfigChips options={configuration.options} />
-                          </TableCell>
-                          <TableCell>
-                            <StatusBadge
-                              label={
-                                configuration.researchStatus === 'COMPLETE'
-                                  ? 'COMPLETE'
-                                  : 'RESEARCHING'
-                              }
-                              tone={
-                                configuration.researchStatus === 'COMPLETE'
-                                  ? 'success'
-                                  : 'progress'
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            {linkedProjects.length ? (
-                              <div className="development-project-list">
-                                {linkedProjects.map(({ id, project }) => (
-                                  <button
-                                    type="button"
-                                    className="development-project-card"
-                                    key={id}
+                    {!collapsed &&
+                      group.configurations.map((configuration) => {
+                        const linkedProjects =
+                          configuration.projectGroupIds.map((projectId) => ({
+                            id: projectId,
+                            project: projects.find(
+                              (project) => project.id === projectId,
+                            ),
+                          }));
+                        return (
+                          <TableRow key={configuration.id}>
+                            <TableCell className="research-configuration-cell">
+                              <ConfigChips options={configuration.options} />
+                            </TableCell>
+                            <TableCell>
+                              <StatusBadge
+                                label={
+                                  configuration.researchStatus === 'COMPLETE'
+                                    ? 'COMPLETE'
+                                    : 'RESEARCHING'
+                                }
+                                tone={
+                                  configuration.researchStatus === 'COMPLETE'
+                                    ? 'success'
+                                    : 'progress'
+                                }
+                              />
+                            </TableCell>
+                            <TableCell>
+                              {linkedProjects.length ? (
+                                <div className="development-project-list">
+                                  {linkedProjects.map(({ id, project }) => (
+                                    <button
+                                      type="button"
+                                      className="development-project-card"
+                                      key={id}
+                                      onClick={() =>
+                                        navigate(
+                                          `${ROUTES.vehicleProjects}?project=${encodeURIComponent(id)}`,
+                                        )
+                                      }
+                                    >
+                                      <span>
+                                        <strong>
+                                          {project?.product ?? 'Development'}
+                                        </strong>
+                                        <small>{id}</small>
+                                      </span>
+                                      <StatusBadge
+                                        label={project?.stage ?? 'PROJECT'}
+                                        tone="progress"
+                                      />
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : configuration.researchStatus ===
+                                'COMPLETE' ? (
+                                <div className="development-empty-state">
+                                  <span>No development yet</span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
                                     onClick={() =>
                                       navigate(
-                                        `${ROUTES.vehicleProjects}?project=${encodeURIComponent(id)}`,
+                                        `${ROUTES.vehicleProjects}?new=1&configuration=${encodeURIComponent(configuration.id)}`,
                                       )
                                     }
                                   >
-                                    <span>
-                                      <strong>
-                                        {project?.product ?? 'Development'}
-                                      </strong>
-                                      <small>{id}</small>
-                                    </span>
-                                    <StatusBadge
-                                      label={project?.stage ?? 'PROJECT'}
-                                      tone="progress"
-                                    />
-                                  </button>
-                                ))}
-                              </div>
-                            ) : configuration.researchStatus === 'COMPLETE' ? (
-                              <div className="development-empty-state">
-                                <span>No development yet</span>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    navigate(
-                                      `${ROUTES.vehicleProjects}?new=1&configuration=${encodeURIComponent(configuration.id)}`,
-                                    )
-                                  }
-                                >
-                                  <Plus /> Start Development
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="development-locked-state">
-                                <span>Available after Research Complete</span>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    completeResearch(configuration)
-                                  }
-                                >
-                                  Research Complete
-                                </Button>
-                              </div>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                                    <Plus /> Start Development
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="development-locked-state">
+                                  <span>Available after Research Complete</span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                      completeResearch(configuration)
+                                    }
+                                  >
+                                    Research Complete
+                                  </Button>
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                   </TableBody>
-                </Table>
-              </CardTable>
-            </Card>
-          );
-        })}
+                );
+              })}
+              {pagedVehicleGroups.length === 0 && (
+                <TableBody>
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center">
+                      No matching vehicles found.
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              )}
+            </Table>
+          </CardTable>
+        </Card>
         <WorkbenchPagination
           recordCount={vehicleGroups.length}
           pagination={pagination}

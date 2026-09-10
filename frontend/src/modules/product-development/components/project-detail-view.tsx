@@ -103,6 +103,7 @@ import { SEED_SCAN_VISIT_DATE } from '@/app/workbench-mock-data';
 import { isLegacySeedActivity, useWorkbenchStore } from '@/app/workbench-store';
 import {
   emptyHandoffChecklist,
+  fillTestHandoffChecklist,
   HANDOFF_DOCUMENTS,
   handoffChecklistErrors,
   prepareHandoffChecklist,
@@ -1615,7 +1616,7 @@ export function ProjectDetailView({
                 : zone,
             ),
           );
-          addActivity('양산 인계 완료 · 개발 완료', reference);
+          addActivity('Handoff 완료 · 개발 완료', reference);
           closeDialog();
         }}
       />
@@ -1769,7 +1770,7 @@ const SEAT_COVER_STAGE_LABELS: Partial<Record<ProjectStage, string>> = {
   Design: 'Pattern',
   Sample: 'Sample',
   Fitting: 'Fitting / 인계 준비',
-  Approved: '양산 인계 · 개발 완료',
+  Approved: 'Handoff · 개발 완료',
 };
 
 const FLOOR_MAT_STAGE_LABELS: Partial<Record<ProjectStage, string>> = {
@@ -1789,7 +1790,7 @@ function ProjectProgressRail({
       ? SEAT_COVER_STAGE_LABELS
       : product === 'Floor Mat'
         ? FLOOR_MAT_STAGE_LABELS
-        : { Fitting: 'Fitting / 인계 준비', Approved: '양산 인계 · 개발 완료' };
+        : { Fitting: 'Fitting / 인계 준비', Approved: 'Handoff · 개발 완료' };
   const stageIndex = Math.max(0, pipeline.indexOf(stage));
   const isRework =
     reworkSamples.length > 0 && stageIndex < pipeline.indexOf('Sample');
@@ -2188,16 +2189,16 @@ function ProjectNextActionGuide({
       guide = {
         title:
           fittingReady && sampleReady
-            ? '양산 인계를 완료하면 개발이 종료됩니다'
+            ? 'Handoff를 완료하면 개발이 종료됩니다'
             : '현재 샘플·피팅 결과를 확인하세요',
         description:
           '최종 패턴, 피팅 결과와 생산 자료를 인계하고 완료를 기록하세요. Shape 검토·발급은 개발 완료 후 Shape 메뉴에서 별도로 진행합니다.',
-        steps: ['샘플·피팅 완료', '양산 인계', '개발 완료'],
+        steps: ['샘플·피팅 완료', 'Handoff', '개발 완료'],
         linkLabel: '피팅 결과 확인',
         targetTab: 'visits',
         primaryLabel:
           fittingReady && sampleReady
-            ? '양산 인계 완료 기록'
+            ? 'Handoff 완료 기록'
             : '미완료 작업 확인',
         primaryAction:
           fittingReady && sampleReady
@@ -2214,16 +2215,16 @@ function ProjectNextActionGuide({
     case 'Approved':
       guide = {
         title: stageZones.every((zone) => zone.productionHandoff)
-          ? '양산 인계 완료 · 개발 완료'
-          : '이전 완료 프로젝트 · 양산 인계 확인 필요',
+          ? 'Handoff 완료 · 개발 완료'
+          : '이전 완료 프로젝트 · Handoff 확인 필요',
         description:
           '후속 검토 회의, Shape 발급과 구성 등록은 Shape 메뉴에서 진행합니다. 기존 완료 데이터는 인계 기록을 확인한 후 검토할 수 있습니다.',
         steps: ['개발 완료', 'Shape 검토·발급', 'Part 구성·Blueprint 등록'],
-        linkLabel: '양산 인계 이력 확인',
+        linkLabel: 'Handoff 이력 확인',
         targetTab: 'activity',
         primaryLabel: stageZones.every((zone) => zone.productionHandoff)
           ? 'Shape 메뉴에서 후속 작업 진행'
-          : '양산 인계 확인 기록',
+          : 'Handoff 확인 기록',
         primaryAction: stageZones.every((zone) => zone.productionHandoff)
           ? onOpenShape
           : onPromote,
@@ -3539,6 +3540,7 @@ function ProjectDialog({
   const [handoffValue, setHandoffValue] = useState<HandoffChecklist>(
     () => handoffDraft ?? emptyHandoffChecklist(),
   );
+  const [handoffBeforeTest, setHandoffBeforeTest] = useState<HandoffChecklist>();
   const [zone, setZone] = useState(
     dialogZone ??
       (dialog === 'design' ? designEligibleProjectIds[0] : undefined) ??
@@ -3682,7 +3684,7 @@ function ProjectDialog({
     visit: 'Schedule Visit',
     sample: 'Sample Request',
     file: 'Add File Reference',
-    promote: '양산 인계 완료 기록',
+    promote: 'Handoff 완료 기록',
   };
 
   function submit(): void {
@@ -4585,10 +4587,11 @@ function ProjectDialog({
                 </div>
               )}
               <div className="dialog-note">
-                Stage 13 · 생산 담당자에게 최종 자료를 인계한 뒤 개발 완료를
+                생산 담당자에게 최종 자료를 인계한 뒤 개발 완료를
                 기록합니다. Shape 발급은 후속 프로세스입니다.
               </div>
               <HandoffChecklistForm
+                users={users}
                 value={handoffValue}
                 onChange={(value) => {
                   setHandoffValue(value);
@@ -4602,6 +4605,22 @@ function ProjectDialog({
           )}
         </DialogBody>
         <DialogFooter>
+          {import.meta.env.DEV && dialog === 'promote' && (
+            <label className="mr-auto flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={handoffBeforeTest !== undefined}
+                onCheckedChange={(checked) => {
+                  const next = checked === true
+                    ? fillTestHandoffChecklist(handoffValue, users[0]?.name ?? '')
+                    : handoffBeforeTest ?? handoffValue;
+                  setHandoffBeforeTest(checked === true ? handoffValue : undefined);
+                  setHandoffValue(next);
+                  onHandoffDraft(next);
+                }}
+              />
+              테스트용 일괄 입력
+            </label>
+          )}
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
@@ -4647,7 +4666,7 @@ function ProjectDialog({
                       ? 'Create Request'
                       : dialog === 'file'
                         ? 'Add Reference'
-                        : '양산 인계 완료 · 개발 완료'}
+                        : 'Handoff 완료 · 개발 완료'}
           </Button>
         </DialogFooter>
       </DialogContent>

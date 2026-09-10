@@ -4,6 +4,10 @@ import { Input } from '@coverland-engineering/ui/input';
 import { Link, useSearchParams } from 'react-router';
 import { PageHeader } from '@/shared/components/page-header';
 import {
+  useWorkbenchPagination,
+  WorkbenchPagination,
+} from '@/shared/components/workbench-pagination';
+import {
   PRODUCT_TYPES,
   type VehicleProductShape,
 } from '@/shared/types/workbench';
@@ -43,6 +47,11 @@ export function ProductShapesPage() {
       (status === 'ALL' || shape.status === status) &&
       `${shape.name} ${shape.id}`.toLowerCase().includes(query.toLowerCase()),
   );
+  const {
+    pageItems: pagedShapes,
+    pagination,
+    setPagination,
+  } = useWorkbenchPagination(filtered, `${view}|${query}|${product}|${status}`);
   return (
     <section className="shape-management">
       <PageHeader
@@ -63,7 +72,7 @@ export function ProductShapesPage() {
           variant={view === 'review' ? 'primary' : 'outline'}
           onClick={() => setParams({ view: 'review' })}
         >
-          검토 대기
+          검토·발급 대기
         </Button>
         <Button
           variant={view === 'issued' ? 'primary' : 'outline'}
@@ -77,9 +86,9 @@ export function ProductShapesPage() {
       ) : (
         <>
           <div className="shape-info">
-            <strong>Stage 15 발급된 Shape · Stage 16 구성 등록</strong>
+            <strong>발급된 Shape · 구성 등록</strong>
             <p>
-              프로젝트 양산 인계 → 검토·승인 → Shape 발급 → Part 구성·Blueprint
+              프로젝트 Handoff → 검토·승인 → Shape 발급 → Part 구성·Blueprint
               등록
             </p>
             <p>
@@ -134,7 +143,7 @@ export function ProductShapesPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((shape) => {
+                {pagedShapes.map((shape) => {
                   const usage = shapeUsage(shape.id, projects);
                   return (
                     <tr key={shape.id}>
@@ -215,6 +224,12 @@ export function ProductShapesPage() {
               </tbody>
             </table>
           </div>
+          <WorkbenchPagination
+            recordCount={filtered.length}
+            pagination={pagination}
+            onPaginationChange={setPagination}
+            itemLabel="shapes"
+          />
           {compositionId &&
             shapes.find((shape) => shape.id === compositionId) && (
               <ShapeCompositionEditor

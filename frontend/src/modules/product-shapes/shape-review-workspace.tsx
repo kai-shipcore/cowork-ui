@@ -40,20 +40,13 @@ export function ShapeReviewWorkspace() {
   });
   return (
     <div className="shape-management">
-      <div className="shape-info">
-        <strong>Stage 14 · 양산 인계 후 최종 검토</strong>
-        <p>
-          양산 인계 완료 → 검토 회의·구두 승인 → Stage 15 Shape 발급 → Stage 16
-          Part 구성·Blueprint 등록
-        </p>
-      </div>
       <div className="shape-table-scroll">
         <table className="shape-table">
           <thead>
             <tr>
               <th>프로젝트 / Zone</th>
               <th>후속 상태</th>
-              <th>양산 인계</th>
+              <th>Handoff</th>
               <th>작업</th>
             </tr>
           </thead>
@@ -81,15 +74,23 @@ export function ShapeReviewWorkspace() {
                   <button
                     type="button"
                     className="project-next-action-link"
+                    aria-expanded={selected?.zone.id === zone.id}
                     onClick={() =>
-                      setParams({
-                        view: 'review',
-                        project: project.id,
-                        zone: zone.id,
+                      setParams((current) => {
+                        const next = new URLSearchParams(current);
+                        next.set('view', 'review');
+                        if (selected?.zone.id === zone.id) {
+                          next.delete('project');
+                          next.delete('zone');
+                        } else {
+                          next.set('project', project.id);
+                          next.set('zone', zone.id);
+                        }
+                        return next;
                       })
                     }
                   >
-                    검토 열기 →
+                    {selected?.zone.id === zone.id ? '검토 닫기 ↑' : '검토 열기 →'}
                   </button>
                 </td>
               </tr>
@@ -98,7 +99,7 @@ export function ShapeReviewWorkspace() {
               <tr>
                 <td colSpan={4}>
                   현재 검토·발급 대기 항목이 없습니다. 신규 개발은 프로젝트에서
-                  양산 인계를 먼저 완료하세요.
+                  Handoff를 먼저 완료하세요.
                 </td>
               </tr>
             )}
@@ -144,7 +145,7 @@ export function ShapeReviewWorkspace() {
                         title:
                           review.outcome === 'APPROVED'
                             ? 'Shape 검토 구두 승인'
-                            : `Shape 반려 · ${review.rejectionType === 'PATTERN' ? 'Stage 7 재작업' : '문서 보완'}`,
+                            : `Shape 반려 · ${review.rejectionType === 'PATTERN' ? '패턴 재작업' : '문서 보완'}`,
                         detail: `${selected.zone.code} · ${review.reviewedBy} · ${review.note}`,
                       },
                       ...next.activity,

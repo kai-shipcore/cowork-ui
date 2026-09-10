@@ -297,7 +297,7 @@ test('a verbal review needs its meeting participants and a current handoff', () 
   );
 });
 
-test('Stage 16 is complete only for all approved parts and a Blueprint linked to the issued Shape', () => {
+test('is complete only for all approved parts and a Blueprint linked to the issued Shape', () => {
   const linkedDetail = {
     ...reviewedDetail,
     zones: [{ ...reviewed, productShapeId: shape.id }],

@@ -75,7 +75,7 @@ export const MENU_SIDEBAR_MAIN: MenuConfig = [
         icon: CalendarDays,
       },
       {
-        title: 'Samples',
+        title: 'Sample Tracker',
         path: ROUTES.samples,
         icon: Package,
       },
@@ -85,14 +85,14 @@ export const MENU_SIDEBAR_MAIN: MenuConfig = [
         icon: CarFront,
       },
       {
-        title: 'Product Catalog',
-        path: ROUTES.products,
-        icon: Grid,
-      },
-      {
         title: 'Product Registrations',
         path: ROUTES.productRegistrations,
         icon: PackageCheck,
+      },
+      {
+        title: 'Product Catalog',
+        path: ROUTES.products,
+        icon: Grid,
       },
     ],
   },

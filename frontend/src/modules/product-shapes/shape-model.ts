@@ -194,14 +194,14 @@ export function sizeReviewBlockers(
   const errors: string[] = [];
   if (zone.currentStage !== 'Approved' || !zone.productionHandoff)
     errors.push(
-      '프로젝트에서 양산 인계를 완료해야 Shape 검토를 시작할 수 있습니다.',
+      '프로젝트에서 Handoff를 완료해야 Shape 검토를 시작할 수 있습니다.',
     );
   else if (
     zone.productionHandoff.evidenceKey !==
     sizeReviewEvidence(zone.id, designs, visits)
   )
     errors.push(
-      '양산 인계 후 Part 또는 피팅 자료가 변경되었습니다. 프로젝트에서 다시 인계하세요.',
+      'Handoff 후 Part 또는 피팅 자료가 변경되었습니다. 프로젝트에서 다시 인계하세요.',
     );
   if (!latestFittingPassed(zone.id, visits))
     errors.push(
