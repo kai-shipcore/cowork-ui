@@ -342,16 +342,14 @@ export function ProjectShapePanel({
               </label>
             </div>
             <div className="shape-review-approval">
-              {import.meta.env.DEV && (
-                <label className="shape-check shrink-0">
-                  <Checkbox
-                    checked={beforeTest !== undefined}
-                    disabled={!activeUsers.length}
-                    onCheckedChange={(value) => toggleTestInput(value === true)}
-                  />
-                  테스트용 일괄 입력
-                </label>
-              )}
+              <label className="shape-check shrink-0">
+                <Checkbox
+                  checked={beforeTest !== undefined}
+                  disabled={!activeUsers.length}
+                  onCheckedChange={(value) => toggleTestInput(value === true)}
+                />
+                테스트용 일괄 입력
+              </label>
               <label className="shape-check">
                 <Checkbox
                   checked={checked}

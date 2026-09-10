@@ -4605,7 +4605,7 @@ function ProjectDialog({
           )}
         </DialogBody>
         <DialogFooter>
-          {import.meta.env.DEV && dialog === 'promote' && (
+          {dialog === 'promote' && (
             <label className="mr-auto flex items-center gap-2 text-sm">
               <Checkbox
                 checked={handoffBeforeTest !== undefined}
