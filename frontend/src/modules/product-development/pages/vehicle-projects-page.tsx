@@ -401,6 +401,8 @@ export function VehicleProjectsPage() {
             ? [
                 { name: 'vehicle_project_group' },
                 { name: 'vehicle_project' },
+                { name: 'vehicle_project_stage_template' },
+                { name: 'vehicle_project_stage' },
                 { name: 'vehicle_zone' },
                 { name: 'vehicle_product_shape' },
                 { name: 'project_x_product_design_item' },
@@ -510,9 +512,6 @@ export function VehicleProjectsPage() {
                                 : 'neutral'
                             }
                           />
-                          <small>
-                            Information only · work gates use Zone / Bundle
-                          </small>
                         </div>
                       </div>
                     </TableCell>

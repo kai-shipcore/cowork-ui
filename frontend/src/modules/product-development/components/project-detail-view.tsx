@@ -70,6 +70,7 @@ import {
   revisionExecutionAccuracy,
 } from '@/shared/domain/revision-control';
 import { UserAvatar, UserPicker } from '@/shared/domain/user-picker';
+import { PageTables, type TableRef } from '@/shared/components/page-header';
 import { StatusBadge } from '@/shared/components/status-badge';
 import type {
   ProjectActivityItem as ActivityItem,
@@ -169,6 +170,30 @@ const DEALERS = [
   'LA Auto Partner',
 ] as const;
 const FACTORIES = ['Tianhong', 'Ningbo Ruixin', 'Qingdao TX'] as const;
+/** Tables the zone project detail reads or writes, grouped by tab. */
+const DETAIL_TABLES: readonly TableRef[] = [
+  { name: 'vehicle_project_group' },
+  { name: 'vehicle_project' },
+  { name: 'vehicle_project_stage_template' },
+  { name: 'vehicle_project_stage' },
+  { name: 'vehicle_zone' },
+  { name: 'vehicle_product_shape' },
+  { name: 'app_user' },
+  { name: 'field_visit' },
+  { name: 'field_visit_x_vehicle_project' },
+  { name: 'dealership' },
+  { name: 'project_x_product_design_item' },
+  { name: 'vehicle_product_design' },
+  { name: 'vehicle_product_design_revision' },
+  { name: 'seat_cover_design' },
+  { name: 'seat_cover_part' },
+  { name: 'seat_cover_code' },
+  { name: 'sample_request' },
+  { name: 'sample_request_item' },
+  { name: 'sample_shipment' },
+  { name: 'asset' },
+  { name: 'activity' },
+];
 const DESIGNERS = [
   { id: 'USR-JH', name: 'JH' },
   { id: 'USR-KAI', name: 'Kai' },
@@ -1022,10 +1047,10 @@ export function ProjectDetailView({
         project={project}
         zone={focusedZone}
         zones={zones}
-        fNumber={fNumber}
         manager={findUser(activeUsers, focusedZone.managerId)}
         onSelectZone={onSelectZone}
         onNewConfiguration={() => openDialog('new-configuration')}
+        tables={import.meta.env.DEV ? DETAIL_TABLES : undefined}
       />
       <ProjectProgressRail
         product={project.product}
@@ -1630,21 +1655,22 @@ interface ProjectHeaderProps {
   zone: ZoneProject;
   /** Every zone project of the same group, for switching between them. */
   zones: readonly ZoneProject[];
-  fNumber?: string;
   /** `manager_id` lives on `vehicle_project`, so this is the zone's manager. */
   manager?: AppUser;
   onSelectZone: (zoneCode: string) => void;
   onNewConfiguration: () => void;
+  /** Developer aid; pass only in development. */
+  tables?: readonly TableRef[];
 }
 
 function ProjectHeader({
   project,
   zone,
   zones,
-  fNumber,
   manager,
   onSelectZone,
   onNewConfiguration,
+  tables,
 }: ProjectHeaderProps) {
   const ProductIcon =
     project.product === 'Seat Cover'
@@ -1705,12 +1731,6 @@ function ProjectHeader({
             <strong>{project.id}</strong>
           </div>
           <div>
-            <span>F-Number</span>
-            <strong className={fNumber ? 'assigned-f-number' : 'not-assigned'}>
-              {fNumber ?? 'Not Assigned'}
-            </strong>
-          </div>
-          <div>
             <span>Created</span>
             <strong>{project.created}</strong>
           </div>
@@ -1749,6 +1769,7 @@ function ProjectHeader({
             ))}
           </div>
         )}
+        {tables && <PageTables tables={tables} />}
       </CardContent>
     </Card>
   );
@@ -2869,6 +2890,28 @@ interface SamplesTabProps {
   ) => void;
 }
 
+const SAMPLE_STATUS_GROUPS = [
+  {
+    status: 'REQUESTED',
+    emoji: '📤',
+    label: 'Sent',
+    description: '요청 전송 · 공장 발송 대기',
+  },
+  {
+    status: 'SHIPPED',
+    emoji: '🚚',
+    label: 'In Transit',
+    description: '배송 중 · 도착 확인 대기',
+  },
+  {
+    status: 'ARRIVED',
+    emoji: '📦',
+    label: 'Arrived',
+    description: '도착 · 검증 및 요청 승인 대기',
+  },
+  { status: 'APPROVED', emoji: '✅', label: 'Approved', description: '요청 승인 완료' },
+] as const;
+
 function SamplesTab({
   sampleGate,
   onResolveGate,
@@ -2978,80 +3021,119 @@ function SamplesTab({
           )}
         </CardContent>
       </Card>
-      {samples.map((sample) => (
-        <Card className="detail-panel" key={sample.id}>
-          <CardHeader>
-            <CardTitle>
-              {sample.id} · {sample.factory}
-            </CardTitle>
-            <StatusBadge
-              label={sample.status}
-              tone={
-                sample.status === 'APPROVED'
-                  ? 'success'
-                  : sample.status === 'ARRIVED'
-                    ? 'purple'
-                    : sample.status === 'SHIPPED'
-                      ? 'warning'
-                      : 'progress'
-              }
-            />
-            {sample.status !== 'APPROVED' && (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={
-                  !canRequestSample ||
-                  (sample.status === 'ARRIVED' && !canApproveRequest(sample))
-                }
-                title={
-                  sample.status === 'ARRIVED' && !canApproveRequest(sample)
-                    ? '수정된 모든 부품이 정확히 반영됨으로 검증되어야 요청을 승인할 수 있습니다.'
-                    : undefined
-                }
-                onClick={() => onAdvance(sample.id)}
-              >
-                {sample.status === 'REQUESTED'
-                  ? 'Mark Shipped'
-                  : sample.status === 'SHIPPED'
-                    ? 'Mark Arrived'
-                    : 'Approve Request'}
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent>
-            <div className="sample-items">
-              {designsOfSample(sample).map((design) => (
-                <div key={design.id}>
-                  <strong>{design.name}</strong>
-                  <span>Rev {requestedRevisionNumber(sample, design)}</span>
-                  <span>Round {sample.round}</span>
-                </div>
-              ))}
-            </div>
-            {sample.status === 'ARRIVED' &&
-              sampleItems
-                .filter((item) => item.sampleRequestId === sample.id)
-                .map((item) => {
-                  const design = designs.find(
-                    (candidate) => candidate.id === item.vehicleProductDesignId,
-                  );
-                  const revision = design?.revisions.find(
-                    (candidate) =>
-                      candidate.id === item.vehicleProductDesignRevisionId,
-                  );
-                  return design && revision?.changeRequest ? (
-                    <RevisionVerification
-                      key={item.id}
-                      design={design}
-                      item={item}
-                      onVerify={onVerifyRevision}
-                    />
-                  ) : null;
-                })}
-          </CardContent>
-        </Card>
-      ))}
+      <div className="sample-status-groups">
+        {SAMPLE_STATUS_GROUPS.map((group) => {
+          const groupedSamples = samples.filter(
+            (sample) => sample.status === group.status,
+          );
+          return (
+            <details
+              className="sample-status-group"
+              key={group.status}
+              data-status={group.status}
+              open
+            >
+              <summary>
+                <span className="sample-status-heading">
+                  <span aria-hidden="true" className="text-lg leading-none">{group.emoji}</span>
+                  <strong>{group.label}</strong>
+                  <span className="sample-status-count">
+                    {groupedSamples.length}
+                  </span>
+                  <small>{group.description}</small>
+                </span>
+              </summary>
+              <div className="sample-status-content">
+                {!groupedSamples.length && (
+                  <p className="sample-status-empty">
+                    이 상태의 샘플이 없습니다.
+                  </p>
+                )}
+                {groupedSamples.map((sample) => (
+                  <Card className="detail-panel" key={sample.id}>
+                    <CardHeader>
+                      <CardTitle>
+                        {sample.id} · {sample.factory}
+                      </CardTitle>
+                      <StatusBadge
+                        label={group.label}
+                        tone={
+                          sample.status === 'APPROVED'
+                            ? 'success'
+                            : sample.status === 'ARRIVED'
+                              ? 'purple'
+                              : sample.status === 'SHIPPED'
+                                ? 'warning'
+                                : 'progress'
+                        }
+                      />
+                      {sample.status !== 'APPROVED' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={
+                            !canRequestSample ||
+                            (sample.status === 'ARRIVED' &&
+                              !canApproveRequest(sample))
+                          }
+                          title={
+                            sample.status === 'ARRIVED' &&
+                            !canApproveRequest(sample)
+                              ? '수정된 모든 부품이 정확히 반영됨으로 검증되어야 요청을 승인할 수 있습니다.'
+                              : undefined
+                          }
+                          onClick={() => onAdvance(sample.id)}
+                        >
+                          {sample.status === 'REQUESTED'
+                            ? 'Mark Shipped'
+                            : sample.status === 'SHIPPED'
+                              ? 'Mark Arrived'
+                              : 'Approve Request'}
+                        </Button>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <div className="sample-items">
+                        {designsOfSample(sample).map((design) => (
+                          <div key={design.id}>
+                            <strong>{design.name}</strong>
+                            <span>
+                              Rev {requestedRevisionNumber(sample, design)}
+                            </span>
+                            <span>Round {sample.round}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {sample.status === 'ARRIVED' &&
+                        sampleItems
+                          .filter((item) => item.sampleRequestId === sample.id)
+                          .map((item) => {
+                            const design = designs.find(
+                              (candidate) =>
+                                candidate.id === item.vehicleProductDesignId,
+                            );
+                            const revision = design?.revisions.find(
+                              (candidate) =>
+                                candidate.id ===
+                                item.vehicleProductDesignRevisionId,
+                            );
+                            return design && revision?.changeRequest ? (
+                              <RevisionVerification
+                                key={item.id}
+                                design={design}
+                                item={item}
+                                onVerify={onVerifyRevision}
+                              />
+                            ) : null;
+                          })}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </details>
+          );
+        })}
+      </div>
       {product !== 'Floor Mat' && (
         <Card className="detail-panel">
           <CardHeader>
@@ -3540,7 +3622,8 @@ function ProjectDialog({
   const [handoffValue, setHandoffValue] = useState<HandoffChecklist>(
     () => handoffDraft ?? emptyHandoffChecklist(),
   );
-  const [handoffBeforeTest, setHandoffBeforeTest] = useState<HandoffChecklist>();
+  const [handoffBeforeTest, setHandoffBeforeTest] =
+    useState<HandoffChecklist>();
   const [zone, setZone] = useState(
     dialogZone ??
       (dialog === 'design' ? designEligibleProjectIds[0] : undefined) ??
@@ -4587,8 +4670,8 @@ function ProjectDialog({
                 </div>
               )}
               <div className="dialog-note">
-                생산 담당자에게 최종 자료를 인계한 뒤 개발 완료를
-                기록합니다. Shape 발급은 후속 프로세스입니다.
+                생산 담당자에게 최종 자료를 인계한 뒤 개발 완료를 기록합니다.
+                Shape 발급은 후속 프로세스입니다.
               </div>
               <HandoffChecklistForm
                 users={users}
@@ -4610,10 +4693,16 @@ function ProjectDialog({
               <Checkbox
                 checked={handoffBeforeTest !== undefined}
                 onCheckedChange={(checked) => {
-                  const next = checked === true
-                    ? fillTestHandoffChecklist(handoffValue, users[0]?.name ?? '')
-                    : handoffBeforeTest ?? handoffValue;
-                  setHandoffBeforeTest(checked === true ? handoffValue : undefined);
+                  const next =
+                    checked === true
+                      ? fillTestHandoffChecklist(
+                          handoffValue,
+                          users[0]?.name ?? '',
+                        )
+                      : (handoffBeforeTest ?? handoffValue);
+                  setHandoffBeforeTest(
+                    checked === true ? handoffValue : undefined,
+                  );
                   setHandoffValue(next);
                   onHandoffDraft(next);
                 }}

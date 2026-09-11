@@ -281,7 +281,6 @@ export function HuntBoardPage() {
                 { name: 'field_visit_x_vehicle_project' },
                 { name: 'dealership' },
                 { name: 'vehicle_project' },
-                { name: 'vehicle_project_task' },
               ]
             : undefined
         }

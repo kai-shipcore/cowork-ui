@@ -73,6 +73,7 @@ import {
   VEHICLE_ZONES,
   VISITS,
 } from './workbench-mock-data';
+import workbenchSeed from './workbench-seed.json';
 
 const STORAGE_KEY = 'coverland-rd-workbench-v1';
 
@@ -150,7 +151,8 @@ interface WorkbenchStore extends WorkbenchState {
   resetWorkbench: () => void;
 }
 
-function initialState(): WorkbenchState {
+/** Hand-written reference data; fills any collection the seed snapshot lacks. */
+function baselineState(): WorkbenchState {
   return {
     configurations: VEHICLE_CONFIGURATIONS,
     projects: VEHICLE_PROJECTS,
@@ -375,18 +377,43 @@ export function isLegacySeedActivity(item: ProjectActivityItem): boolean {
   );
 }
 
+/**
+ * Default state: a snapshot captured from a working browser session on
+ * 2026-09-11 (`workbench-seed.json`). It is normalized the same way a stored
+ * snapshot is, so shape changes only need a migration in one place.
+ */
+function initialState(): WorkbenchState {
+  // JSON imports carry no literal types, so the seed is typed as a stored
+  // snapshot and normalized by migrateState like one.
+  return migrateState(
+    workbenchSeed as unknown as Partial<WorkbenchState>,
+    baselineState(),
+  );
+}
+
 function loadState(): WorkbenchState {
   const fallback = initialState();
   try {
     const serialized = localStorage.getItem(STORAGE_KEY);
     if (!serialized) return fallback;
-    const stored = JSON.parse(serialized) as Partial<WorkbenchState>;
-    const initialConfigurationIds = new Set(
-      fallback.configurations.map((configuration) => configuration.id),
+    return migrateState(
+      JSON.parse(serialized) as Partial<WorkbenchState>,
+      fallback,
     );
-    const configurations = (
-      stored.configurations ?? fallback.configurations
-    ).map((configuration) => {
+  } catch {
+    return fallback;
+  }
+}
+
+function migrateState(
+  stored: Partial<WorkbenchState>,
+  fallback: WorkbenchState,
+): WorkbenchState {
+  const initialConfigurationIds = new Set(
+    fallback.configurations.map((configuration) => configuration.id),
+  );
+  const configurations = (stored.configurations ?? fallback.configurations).map(
+    (configuration) => {
       const legacy = configuration as LegacyVehicleConfiguration;
       const migrated = {
         ...configuration,
@@ -397,294 +424,284 @@ function loadState(): WorkbenchState {
         configuration.researchStatus === 'RESEARCHING'
         ? { ...migrated, researchStatus: 'COMPLETE' as const }
         : migrated;
-    });
-    const projects = (stored.projects ?? fallback.projects).map((project) =>
-      migrateProject(project as LegacyVehicleProject),
-    );
-    const projectById = new Map(
-      projects.map((project) => [project.id, project]),
-    );
-    const visits = (stored.visits ?? fallback.visits).map((visit) => {
-      const legacy = visit as LegacyVisit;
-      const projectGroupId = visit.projectGroupId || legacy.project || '';
-      const group = projectById.get(projectGroupId);
-      const legacyZoneCodes = legacy.zones ?? [];
-      return {
-        ...visit,
-        staffIds: migrateVisitStaff(
-          visit,
-          stored.projectDetails?.[projectGroupId]?.tasks ?? [],
-        ),
-        projectGroupId,
-        vehicleProjectIds: visit.vehicleProjectIds?.length
-          ? visit.vehicleProjectIds
-          : (group?.zoneProjects ?? [])
-              .filter((project) => legacyZoneCodes.includes(project.code))
-              .map((project) => project.id),
-      };
-    });
-    const projectDetails = Object.fromEntries(
-      Object.entries(stored.projectDetails ?? {}).map(([projectId, detail]) => {
-        const group = projectById.get(projectId);
-        const zoneByCode = new Map(
-          group?.zoneProjects.map((zoneProject) => [
-            zoneProject.code,
-            zoneProject,
-          ]),
-        );
-        const zoneById = new Map(
-          group?.zoneProjects.map((zoneProject) => [
-            zoneProject.id,
-            zoneProject,
-          ]),
-        );
-        return [
-          projectId,
-          {
-            ...detail,
-            zones: detail.zones.map((zone) => {
-              const legacy = zone as LegacyZoneProject;
-              const vehicleProject =
-                zoneById.get(zone.id) ?? zoneByCode.get(zone.code);
-              const productShape = migrateZoneShape(
-                legacy,
-                vehicleProject?.productTypeId ?? group?.productTypeId ?? '',
-              );
-              return {
-                ...vehicleProject,
-                ...removeLegacyAdoption(legacy),
-                ...(productShape
-                  ? {
-                      productShape,
-                      productShapeId: productShape.id,
-                      shape: productShape.name,
-                    }
-                  : {}),
-              } as ZoneProject;
-            }),
-            tasks: (detail.tasks ?? []).map((task) => {
-              const legacy = task as LegacyProjectTask;
-              const status: ProjectTask['status'] =
-                legacy.status === 'PENDING'
-                  ? 'OPEN'
-                  : legacy.status === 'IN PROGRESS'
-                    ? 'ACCEPTED'
-                    : legacy.status === 'COMPLETED'
-                      ? 'DONE'
-                      : legacy.status;
-              return {
-                ...task,
-                status,
-                vehicleProjectId:
-                  task.vehicleProjectId ||
-                  zoneByCode.get(legacy.zone ?? '')?.id ||
-                  '',
-                ...(legacy.assignedTo && !legacy.assignedAt
-                  ? { assignedAt: legacy.created }
-                  : {}),
-                ...(['DONE', 'FAILED', 'CANCELLED'].includes(status) &&
-                !legacy.closedAt
-                  ? { closedAt: legacy.created }
-                  : {}),
-              };
-            }),
-            visits: detail.visits.map((visit) => {
-              const legacy = visit as LegacyProjectVisit;
-              return {
-                ...visit,
-                staffIds: migrateVisitStaff(visit, detail.tasks ?? []),
-                vehicleProjectIds: visit.vehicleProjectIds?.length
-                  ? visit.vehicleProjectIds
-                  : (legacy.zones ?? [])
-                      .map((code) => zoneByCode.get(code)?.id)
-                      .filter((id): id is string => Boolean(id)),
-              };
-            }),
-            designs: detail.designs.map((design) => {
-              const legacy = design as LegacyProjectDesign;
-              const vehicleProjectId =
-                design.vehicleProjectId ||
+    },
+  );
+  const projects = (stored.projects ?? fallback.projects).map((project) =>
+    migrateProject(project as LegacyVehicleProject),
+  );
+  const projectById = new Map(projects.map((project) => [project.id, project]));
+  const visits = (stored.visits ?? fallback.visits).map((visit) => {
+    const legacy = visit as LegacyVisit;
+    const projectGroupId = visit.projectGroupId || legacy.project || '';
+    const group = projectById.get(projectGroupId);
+    const legacyZoneCodes = legacy.zones ?? [];
+    return {
+      ...visit,
+      staffIds: migrateVisitStaff(
+        visit,
+        stored.projectDetails?.[projectGroupId]?.tasks ?? [],
+      ),
+      projectGroupId,
+      vehicleProjectIds: visit.vehicleProjectIds?.length
+        ? visit.vehicleProjectIds
+        : (group?.zoneProjects ?? [])
+            .filter((project) => legacyZoneCodes.includes(project.code))
+            .map((project) => project.id),
+    };
+  });
+  const projectDetails = Object.fromEntries(
+    Object.entries(stored.projectDetails ?? {}).map(([projectId, detail]) => {
+      const group = projectById.get(projectId);
+      const zoneByCode = new Map(
+        group?.zoneProjects.map((zoneProject) => [
+          zoneProject.code,
+          zoneProject,
+        ]),
+      );
+      const zoneById = new Map(
+        group?.zoneProjects.map((zoneProject) => [zoneProject.id, zoneProject]),
+      );
+      return [
+        projectId,
+        {
+          ...detail,
+          zones: detail.zones.map((zone) => {
+            const legacy = zone as LegacyZoneProject;
+            const vehicleProject =
+              zoneById.get(zone.id) ?? zoneByCode.get(zone.code);
+            const productShape = migrateZoneShape(
+              legacy,
+              vehicleProject?.productTypeId ?? group?.productTypeId ?? '',
+            );
+            return {
+              ...vehicleProject,
+              ...removeLegacyAdoption(legacy),
+              ...(productShape
+                ? {
+                    productShape,
+                    productShapeId: productShape.id,
+                    shape: productShape.name,
+                  }
+                : {}),
+            } as ZoneProject;
+          }),
+          tasks: (detail.tasks ?? []).map((task) => {
+            const legacy = task as LegacyProjectTask;
+            const status: ProjectTask['status'] =
+              legacy.status === 'PENDING'
+                ? 'OPEN'
+                : legacy.status === 'IN PROGRESS'
+                  ? 'ACCEPTED'
+                  : legacy.status === 'COMPLETED'
+                    ? 'DONE'
+                    : legacy.status;
+            return {
+              ...task,
+              status,
+              vehicleProjectId:
+                task.vehicleProjectId ||
                 zoneByCode.get(legacy.zone ?? '')?.id ||
-                '';
-              const vehicleProject = zoneById.get(vehicleProjectId);
-              const details =
-                legacy.details ??
-                (group?.product === 'Seat Cover'
+                '',
+              ...(legacy.assignedTo && !legacy.assignedAt
+                ? { assignedAt: legacy.created }
+                : {}),
+              ...(['DONE', 'FAILED', 'CANCELLED'].includes(status) &&
+              !legacy.closedAt
+                ? { closedAt: legacy.created }
+                : {}),
+            };
+          }),
+          visits: detail.visits.map((visit) => {
+            const legacy = visit as LegacyProjectVisit;
+            return {
+              ...visit,
+              staffIds: migrateVisitStaff(visit, detail.tasks ?? []),
+              vehicleProjectIds: visit.vehicleProjectIds?.length
+                ? visit.vehicleProjectIds
+                : (legacy.zones ?? [])
+                    .map((code) => zoneByCode.get(code)?.id)
+                    .filter((id): id is string => Boolean(id)),
+            };
+          }),
+          designs: detail.designs.map((design) => {
+            const legacy = design as LegacyProjectDesign;
+            const vehicleProjectId =
+              design.vehicleProjectId ||
+              zoneByCode.get(legacy.zone ?? '')?.id ||
+              '';
+            const vehicleProject = zoneById.get(vehicleProjectId);
+            const details =
+              legacy.details ??
+              (group?.product === 'Seat Cover'
+                ? {
+                    kind: 'SEAT_COVER' as const,
+                    vehicleResearchId: group.vehicleResearchId,
+                    seatCoverPartId: 'PART-LEGACY',
+                    seatCoverCodeId: 'SCC-LEGACY',
+                    partName: legacy.part ?? 'Legacy Part',
+                    category: 'OTHER',
+                    side: 'UNIVERSAL' as const,
+                    isForMiddleSeat: false,
+                    isCustom: true,
+                    designedBy: 'USR-JH',
+                  }
+                : group?.product === 'Car Cover'
                   ? {
-                      kind: 'SEAT_COVER' as const,
+                      kind: 'CAR_COVER' as const,
                       vehicleResearchId: group.vehicleResearchId,
-                      seatCoverPartId: 'PART-LEGACY',
-                      seatCoverCodeId: 'SCC-LEGACY',
-                      partName: legacy.part ?? 'Legacy Part',
-                      category: 'OTHER',
-                      side: 'UNIVERSAL' as const,
-                      isForMiddleSeat: false,
-                      isCustom: true,
                       designedBy: 'USR-JH',
                     }
-                  : group?.product === 'Car Cover'
-                    ? {
-                        kind: 'CAR_COVER' as const,
-                        vehicleResearchId: group.vehicleResearchId,
-                        designedBy: 'USR-JH',
-                      }
-                    : {
-                        kind: 'FLOOR_MAT' as const,
-                        vehicleResearchId: group?.vehicleResearchId ?? '',
-                        vehicleZoneId: vehicleProject?.zoneId ?? '',
-                      });
-              const revisions = legacy.revisions?.length
-                ? legacy.revisions
-                : [
-                    {
-                      id: `REV-${design.id}-${legacy.revision ?? 1}`,
-                      revisionNumber: legacy.revision ?? 1,
-                      note: legacy.note ?? 'Legacy revision',
-                      createdBy: 'USR-JH',
-                      createdAt: '2026-08-31T10:30:00-07:00',
-                      ...(legacy.sampleApproved
-                        ? {
-                            sampleApprovedAt: '2026-08-31T15:00:00-07:00',
-                            sampleApprovedBy: 'USR-KAI',
-                          }
-                        : {}),
-                    },
-                  ];
-              return {
-                ...design,
-                productTypeId:
-                  legacy.productTypeId ?? group?.productTypeId ?? '',
-                vehicleProjectId,
-                status: legacy.status ?? 'ACTIVE',
-                details,
-                revisions,
-              };
-            }),
-            activity: detail.activity.filter(
-              (item) => !isLegacySeedActivity(item),
-            ),
-          },
-        ];
-      }),
-    );
-    const storedSampleRequests =
-      stored.sampleRequests ?? fallback.sampleRequests;
-    const sampleRequests = storedSampleRequests.map((request) => {
-      const legacy = request as LegacySampleRequest;
-      return {
-        id: request.id,
-        projectGroupId: request.projectGroupId || legacy.project || '',
-        vehicle: request.vehicle,
-        product: request.product,
-        factory: request.factory,
-        ...(request.note ? { note: request.note } : {}),
-        ...(request.sentAt
-          ? {
-              sentAt: request.sentAt,
-              ...(request.sentBy ? { sentBy: request.sentBy } : {}),
-            }
-          : legacy.status && legacy.status !== 'REQUESTED'
-            ? {
-                sentAt: legacy.requestedAt ?? new Date().toISOString(),
-                sentBy: 'USR-KAI',
-              }
-            : {}),
-        createdAt:
-          request.createdAt ?? legacy.requestedAt ?? new Date().toISOString(),
-      } satisfies SampleRequest;
-    });
-    const sampleShipments =
-      stored.sampleShipments ??
-      storedSampleRequests.flatMap((request) => {
-        const legacy = request as LegacySampleRequest;
-        if (!legacy.tracking || legacy.tracking === '—') return [];
-        return [
-          {
-            id: `SHIP-${request.id}`,
-            factory: request.factory,
-            ...(legacy.status !== 'REQUESTED'
-              ? { shippedAt: legacy.requestedAt ?? new Date().toISOString() }
-              : {}),
-            ...(legacy.status === 'ARRIVED' || legacy.status === 'APPROVED'
-              ? { arrivedAt: legacy.requestedAt ?? new Date().toISOString() }
-              : {}),
-            shipmentReference: legacy.tracking,
-          } satisfies SampleShipment,
-        ];
-      });
-    const sampleRequestItems =
-      stored.sampleRequestItems ??
-      storedSampleRequests.flatMap((request) => {
-        const legacy = request as LegacySampleRequest;
-        return Array.from({ length: legacy.items ?? 1 }, (_, index) => ({
-          id: `SRI-${request.id}-${index + 1}`,
-          sampleRequestId: request.id,
-          vehicleProductDesignId: `DESIGN-${request.id}-${index + 1}`,
-          vehicleProductDesignRevisionId: `REV-${request.id}-${index + 1}-${legacy.round ?? 1}`,
-          sampleRound: legacy.round ?? 1,
-          priority: 'NORMAL' as const,
-          ...(legacy.status === 'ARRIVED' || legacy.status === 'APPROVED'
-            ? {
-                sampleReceivedAt:
-                  legacy.requestedAt ?? new Date().toISOString(),
-              }
-            : {}),
-          ...(legacy.tracking && legacy.tracking !== '—'
-            ? { sampleShipmentId: `SHIP-${request.id}` }
-            : {}),
-        }));
-      });
-    return {
-      configurations,
-      projects,
-      visits,
-      dealers: stored.dealers ?? fallback.dealers,
-      complaints: stored.complaints ?? fallback.complaints,
-      // Reference data was added after the first snapshots were written, so a
-      // stored state can be missing these collections entirely.
-      productColors: stored.productColors ?? fallback.productColors,
-      productMaterials: stored.productMaterials ?? fallback.productMaterials,
-      vehicleProductShapes: collectShapes(
-        stored.vehicleProductShapes ?? fallback.vehicleProductShapes,
-        projects,
-        projectDetails,
-        stored.shapeCatalogVersion !== 1,
-      ),
-      shapeCatalogVersion: 1,
-      appUsers: stored.appUsers ?? fallback.appUsers,
-      vehicleZones: stored.vehicleZones ?? fallback.vehicleZones,
-      vehicleOptionKeys: stored.vehicleOptionKeys ?? fallback.vehicleOptionKeys,
-      vehicleOptionValues:
-        stored.vehicleOptionValues ?? fallback.vehicleOptionValues,
-      seatCoverParts: stored.seatCoverParts ?? fallback.seatCoverParts,
-      seatCoverCodes: stored.seatCoverCodes ?? fallback.seatCoverCodes,
-      seatCoverCodeOptionValues:
-        stored.seatCoverCodeOptionValues ?? fallback.seatCoverCodeOptionValues,
-      masterProducts: stored.masterProducts ?? fallback.masterProducts,
-      masterProductSkus: stored.masterProductSkus ?? fallback.masterProductSkus,
-      masterProductPackagings:
-        stored.masterProductPackagings ?? fallback.masterProductPackagings,
-      registrations: stored.registrations ?? fallback.registrations,
-      registrationItems: stored.registrationItems ?? fallback.registrationItems,
-      sampleRequests,
-      sampleRequestItems,
-      sampleShipments,
-      uniqueVehicles: (stored.uniqueVehicles ?? fallback.uniqueVehicles).map(
-        (vehicle) => {
-          const legacy = vehicle as LegacyUniqueVehicle;
-          return {
-            ...vehicle,
-            vehicleResearchId:
-              vehicle.vehicleResearchId || legacy.configurationId || '',
-            projectGroupId: vehicle.projectGroupId || legacy.project || '',
-          };
+                  : {
+                      kind: 'FLOOR_MAT' as const,
+                      vehicleResearchId: group?.vehicleResearchId ?? '',
+                      vehicleZoneId: vehicleProject?.zoneId ?? '',
+                    });
+            const revisions = legacy.revisions?.length
+              ? legacy.revisions
+              : [
+                  {
+                    id: `REV-${design.id}-${legacy.revision ?? 1}`,
+                    revisionNumber: legacy.revision ?? 1,
+                    note: legacy.note ?? 'Legacy revision',
+                    createdBy: 'USR-JH',
+                    createdAt: '2026-08-31T10:30:00-07:00',
+                    ...(legacy.sampleApproved
+                      ? {
+                          sampleApprovedAt: '2026-08-31T15:00:00-07:00',
+                          sampleApprovedBy: 'USR-KAI',
+                        }
+                      : {}),
+                  },
+                ];
+            return {
+              ...design,
+              productTypeId: legacy.productTypeId ?? group?.productTypeId ?? '',
+              vehicleProjectId,
+              status: legacy.status ?? 'ACTIVE',
+              details,
+              revisions,
+            };
+          }),
+          activity: detail.activity.filter(
+            (item) => !isLegacySeedActivity(item),
+          ),
         },
-      ),
+      ];
+    }),
+  );
+  const storedSampleRequests = stored.sampleRequests ?? fallback.sampleRequests;
+  const sampleRequests = storedSampleRequests.map((request) => {
+    const legacy = request as LegacySampleRequest;
+    return {
+      id: request.id,
+      projectGroupId: request.projectGroupId || legacy.project || '',
+      vehicle: request.vehicle,
+      product: request.product,
+      factory: request.factory,
+      ...(request.note ? { note: request.note } : {}),
+      ...(request.sentAt
+        ? {
+            sentAt: request.sentAt,
+            ...(request.sentBy ? { sentBy: request.sentBy } : {}),
+          }
+        : legacy.status && legacy.status !== 'REQUESTED'
+          ? {
+              sentAt: legacy.requestedAt ?? new Date().toISOString(),
+              sentBy: 'USR-KAI',
+            }
+          : {}),
+      createdAt:
+        request.createdAt ?? legacy.requestedAt ?? new Date().toISOString(),
+    } satisfies SampleRequest;
+  });
+  const sampleShipments =
+    stored.sampleShipments ??
+    storedSampleRequests.flatMap((request) => {
+      const legacy = request as LegacySampleRequest;
+      if (!legacy.tracking || legacy.tracking === '—') return [];
+      return [
+        {
+          id: `SHIP-${request.id}`,
+          factory: request.factory,
+          ...(legacy.status !== 'REQUESTED'
+            ? { shippedAt: legacy.requestedAt ?? new Date().toISOString() }
+            : {}),
+          ...(legacy.status === 'ARRIVED' || legacy.status === 'APPROVED'
+            ? { arrivedAt: legacy.requestedAt ?? new Date().toISOString() }
+            : {}),
+          shipmentReference: legacy.tracking,
+        } satisfies SampleShipment,
+      ];
+    });
+  const sampleRequestItems =
+    stored.sampleRequestItems ??
+    storedSampleRequests.flatMap((request) => {
+      const legacy = request as LegacySampleRequest;
+      return Array.from({ length: legacy.items ?? 1 }, (_, index) => ({
+        id: `SRI-${request.id}-${index + 1}`,
+        sampleRequestId: request.id,
+        vehicleProductDesignId: `DESIGN-${request.id}-${index + 1}`,
+        vehicleProductDesignRevisionId: `REV-${request.id}-${index + 1}-${legacy.round ?? 1}`,
+        sampleRound: legacy.round ?? 1,
+        priority: 'NORMAL' as const,
+        ...(legacy.status === 'ARRIVED' || legacy.status === 'APPROVED'
+          ? {
+              sampleReceivedAt: legacy.requestedAt ?? new Date().toISOString(),
+            }
+          : {}),
+        ...(legacy.tracking && legacy.tracking !== '—'
+          ? { sampleShipmentId: `SHIP-${request.id}` }
+          : {}),
+      }));
+    });
+  return {
+    configurations,
+    projects,
+    visits,
+    dealers: stored.dealers ?? fallback.dealers,
+    complaints: stored.complaints ?? fallback.complaints,
+    // Reference data was added after the first snapshots were written, so a
+    // stored state can be missing these collections entirely.
+    productColors: stored.productColors ?? fallback.productColors,
+    productMaterials: stored.productMaterials ?? fallback.productMaterials,
+    vehicleProductShapes: collectShapes(
+      stored.vehicleProductShapes ?? fallback.vehicleProductShapes,
+      projects,
       projectDetails,
-    };
-  } catch {
-    return fallback;
-  }
+      stored.shapeCatalogVersion !== 1,
+    ),
+    shapeCatalogVersion: 1,
+    appUsers: stored.appUsers ?? fallback.appUsers,
+    vehicleZones: stored.vehicleZones ?? fallback.vehicleZones,
+    vehicleOptionKeys: stored.vehicleOptionKeys ?? fallback.vehicleOptionKeys,
+    vehicleOptionValues:
+      stored.vehicleOptionValues ?? fallback.vehicleOptionValues,
+    seatCoverParts: stored.seatCoverParts ?? fallback.seatCoverParts,
+    seatCoverCodes: stored.seatCoverCodes ?? fallback.seatCoverCodes,
+    seatCoverCodeOptionValues:
+      stored.seatCoverCodeOptionValues ?? fallback.seatCoverCodeOptionValues,
+    masterProducts: stored.masterProducts ?? fallback.masterProducts,
+    masterProductSkus: stored.masterProductSkus ?? fallback.masterProductSkus,
+    masterProductPackagings:
+      stored.masterProductPackagings ?? fallback.masterProductPackagings,
+    registrations: stored.registrations ?? fallback.registrations,
+    registrationItems: stored.registrationItems ?? fallback.registrationItems,
+    sampleRequests,
+    sampleRequestItems,
+    sampleShipments,
+    uniqueVehicles: (stored.uniqueVehicles ?? fallback.uniqueVehicles).map(
+      (vehicle) => {
+        const legacy = vehicle as LegacyUniqueVehicle;
+        return {
+          ...vehicle,
+          vehicleResearchId:
+            vehicle.vehicleResearchId || legacy.configurationId || '',
+          projectGroupId: vehicle.projectGroupId || legacy.project || '',
+        };
+      },
+    ),
+    projectDetails,
+  };
 }
 
 function resolveState<T>(value: SetStateAction<T>, current: T): T {

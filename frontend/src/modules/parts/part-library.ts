@@ -5,6 +5,7 @@ import type {
   ProjectDesignDetails,
   ProjectDesignRevision,
 } from '@/shared/types/workbench';
+import partLibrarySeed from './part-library-seed.json';
 
 export interface LibraryPart {
   id: string;
@@ -15,10 +16,12 @@ export interface LibraryPart {
   revisions: readonly ProjectDesignRevision[];
 }
 const KEY = 'coverland-part-library-v1';
+/** Parts captured with the workbench seed snapshot; used until the browser saves its own. */
+const SEED = JSON.stringify(partLibrarySeed);
 let raw = '';
 let cached: readonly LibraryPart[] = [];
 function snapshot() {
-  const next = localStorage.getItem(KEY) ?? '[]';
+  const next = localStorage.getItem(KEY) ?? SEED;
   if (next !== raw) {
     raw = next;
     try {

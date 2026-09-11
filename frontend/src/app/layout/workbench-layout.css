@@ -1587,6 +1587,103 @@
   gap: 8px;
 }
 
+.sample-status-groups {
+  display: grid;
+  gap: 16px;
+}
+
+.sample-status-group {
+  --sample-accent: #4968c4;
+  border: 1px solid var(--wb-line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.sample-status-group[data-status='SHIPPED'] {
+  --sample-accent: #a56a11;
+}
+
+.sample-status-group[data-status='ARRIVED'] {
+  --sample-accent: #8052c7;
+}
+
+.sample-status-group[data-status='APPROVED'] {
+  --sample-accent: #24856b;
+}
+
+.sample-status-group > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-left: 3px solid var(--sample-accent);
+  background: #f8fafc;
+  cursor: pointer;
+  list-style: none;
+}
+
+.sample-status-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.sample-status-group > summary::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-right: 2px solid var(--wb-muted);
+  border-bottom: 2px solid var(--wb-muted);
+  transform: rotate(-45deg);
+}
+
+.sample-status-group[open] > summary::before {
+  transform: rotate(45deg);
+}
+
+.sample-status-group > summary:focus-visible {
+  outline: 2px solid var(--sample-accent);
+  outline-offset: -3px;
+}
+
+.sample-status-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.sample-status-heading small {
+  color: var(--wb-muted);
+  font-size: 12px;
+}
+
+.sample-status-count {
+  min-width: 24px;
+  border: 1px solid var(--wb-line);
+  border-radius: 6px;
+  padding: 1px 6px;
+  background: white;
+  color: var(--sample-accent);
+  font-size: 12px;
+  text-align: center;
+}
+
+.sample-status-content {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-top: 1px solid var(--wb-line);
+}
+
+.sample-status-empty {
+  margin: 0;
+  padding: 4px 2px;
+  color: var(--wb-muted);
+  font-size: 12px;
+}
+
 .development-project-card {
   display: flex;
   flex-shrink: 0;
@@ -2854,10 +2951,6 @@
   color: #94a3b8;
   font-family: inherit;
   font-weight: 600;
-}
-
-.project-group-identifiers .assigned-f-number {
-  color: #0e7490;
 }
 
 .project-group-heading .project-detail-breadcrumb {
