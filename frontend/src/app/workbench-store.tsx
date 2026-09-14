@@ -197,6 +197,11 @@ interface LegacyVehicleProject extends VehicleProjectGroup {
   zones?: readonly string[];
 }
 
+interface LegacySampleShipment extends SampleShipment {
+  /** Renamed to externalReference to match `sample_shipment.external_reference`. */
+  shipmentReference?: string;
+}
+
 interface LegacyVisit extends Omit<Visit, 'taskIds'> {
   /** Legacy single staff member. */
   assignee?: string;
@@ -614,7 +619,7 @@ function migrateState(
         request.createdAt ?? legacy.requestedAt ?? new Date().toISOString(),
     } satisfies SampleRequest;
   });
-  const sampleShipments =
+  const sampleShipments = (
     stored.sampleShipments ??
     storedSampleRequests.flatMap((request) => {
       const legacy = request as LegacySampleRequest;
@@ -629,10 +634,16 @@ function migrateState(
           ...(legacy.status === 'ARRIVED' || legacy.status === 'APPROVED'
             ? { arrivedAt: legacy.requestedAt ?? new Date().toISOString() }
             : {}),
-          shipmentReference: legacy.tracking,
+          externalReference: legacy.tracking,
         } satisfies SampleShipment,
       ];
-    });
+    })
+  ).map((shipment) => {
+    const { shipmentReference, ...rest } = shipment as LegacySampleShipment;
+    return shipmentReference && !rest.externalReference
+      ? { ...rest, externalReference: shipmentReference }
+      : rest;
+  });
   const sampleRequestItems =
     stored.sampleRequestItems ??
     storedSampleRequests.flatMap((request) => {

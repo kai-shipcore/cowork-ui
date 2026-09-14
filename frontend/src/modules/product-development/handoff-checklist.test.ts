@@ -29,7 +29,11 @@ test('test fill completes required fields without mutating the original draft', 
   assert.deepEqual(handoffChecklistErrors(filled), []);
   assert.equal(filled.approvedBy, 'Kai');
   assert.equal(filled.evidenceKey, 'current-evidence');
-  assert.ok(Object.values(filled.documents).every((item) => item.reference.startsWith('[TEST]')));
+  assert.ok(
+    Object.values(filled.documents).every((item) =>
+      item.reference.startsWith('[TEST]'),
+    ),
+  );
   assert.deepEqual(draft.documents, {});
   assert.equal(draft.approvalConfirmed, false);
 });

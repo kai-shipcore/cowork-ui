@@ -122,8 +122,8 @@ export function HandoffChecklistForm({
         인계 대상 프로젝트 번호 확인 · {projectId}
       </label>
       <p className="muted-text">
-        공식 Shape 번호는 인계 후 검토·승인을 거쳐 발급합니다.
-        여기서는 프로젝트 번호를 확인합니다.
+        공식 Shape 번호는 인계 후 검토·승인을 거쳐 발급합니다. 여기서는 프로젝트
+        번호를 확인합니다.
       </p>
       <label>
         Handoff 승인 담당자

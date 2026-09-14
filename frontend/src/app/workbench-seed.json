@@ -2030,7 +2030,7 @@
       "shippedAt": "2026-08-08T09:00:00-07:00",
       "expectedArrivalDate": "2026-08-14",
       "arrivedAt": "2026-08-13T15:20:00-07:00",
-      "shipmentReference": "SF-284910573"
+      "externalReference": "SF-284910573"
     },
     {
       "id": "SHIP-500",
@@ -2038,48 +2038,48 @@
       "sampleReadyAt": "2026-08-14T10:00:00-07:00",
       "shippedAt": "2026-08-15T09:00:00-07:00",
       "expectedArrivalDate": "2026-08-24",
-      "shipmentReference": "UPS-1Z38W049"
+      "externalReference": "UPS-1Z38W049"
     },
     {
       "id": "SHIP-SR-00124-01",
       "factory": "Tianhong",
       "shippedAt": "2026-09-11T20:10:13.286Z",
       "arrivedAt": "2026-09-11T20:10:13.286Z",
-      "shipmentReference": "TRACK-SR-00124-01"
+      "externalReference": "TRACK-SR-00124-01"
     },
     {
       "id": "SHIP-SR-00124-02",
       "factory": "Tianhong",
       "shippedAt": "2026-09-11T20:10:13.286Z",
       "arrivedAt": "2026-09-11T20:10:13.286Z",
-      "shipmentReference": "TRACK-SR-00124-02"
+      "externalReference": "TRACK-SR-00124-02"
     },
     {
       "id": "SHIP-SR-1039",
       "factory": "Ningbo Ruixin",
       "shippedAt": "2026-09-11T21:19:37.950Z",
       "arrivedAt": "2026-09-11T21:19:37.950Z",
-      "shipmentReference": "TRACK-SR-1039"
+      "externalReference": "TRACK-SR-1039"
     },
     {
       "id": "SHIP-SR-1041",
       "factory": "Ningbo Ruixin",
       "shippedAt": "2026-09-11T21:19:37.950Z",
-      "shipmentReference": "TRACK-SR-1041"
+      "externalReference": "TRACK-SR-1041"
     },
     {
       "id": "SHIP-SR-1040",
       "factory": "Qingdao TX",
       "shippedAt": "2026-09-11T21:23:18.372Z",
       "arrivedAt": "2026-09-11T21:23:18.372Z",
-      "shipmentReference": "TRACK-SR-1040"
+      "externalReference": "TRACK-SR-1040"
     },
     {
       "id": "SHIP-SR-00118-02",
       "factory": "Tianhong",
       "shippedAt": "2026-09-11T21:23:18.372Z",
       "arrivedAt": "2026-09-11T21:23:18.372Z",
-      "shipmentReference": "TRACK-SR-00118-02"
+      "externalReference": "TRACK-SR-00118-02"
     }
   ],
   "uniqueVehicles": [

@@ -26,7 +26,7 @@ interface WorkbenchPaginationProps {
 export function useWorkbenchPagination<T>(
   items: readonly T[],
   resetKey: string,
-  initialPageSize = 5,
+  initialPageSize = 10,
 ) {
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,

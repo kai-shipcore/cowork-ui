@@ -857,7 +857,7 @@ export const SAMPLE_SHIPMENTS: readonly SampleShipment[] = [
     shippedAt: '2026-08-08T09:00:00-07:00',
     expectedArrivalDate: '2026-08-14',
     arrivedAt: '2026-08-13T15:20:00-07:00',
-    shipmentReference: 'SF-284910573',
+    externalReference: 'SF-284910573',
   },
   {
     id: 'SHIP-500',
@@ -865,7 +865,7 @@ export const SAMPLE_SHIPMENTS: readonly SampleShipment[] = [
     sampleReadyAt: '2026-08-14T10:00:00-07:00',
     shippedAt: '2026-08-15T09:00:00-07:00',
     expectedArrivalDate: '2026-08-24',
-    shipmentReference: 'UPS-1Z38W049',
+    externalReference: 'UPS-1Z38W049',
   },
 ];
 

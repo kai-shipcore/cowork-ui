@@ -1,5 +1,4 @@
 .parts-workspace {
-  padding: 24px;
   color: #183247;
 }
 .parts-title {
@@ -17,8 +16,8 @@
   color: #708291;
   margin-top: 8px;
 }
-.parts-workspace button,
-.parts-form button,
+/* Legacy controls of the generator only; the list uses the shared UI kit. */
+.parts-generator button,
 .parts-tabs button {
   border: 1px solid #d4dfe5;
   border-radius: 7px;
@@ -26,7 +25,7 @@
   cursor: pointer;
   background: white;
 }
-.parts-workspace button:disabled {
+.parts-generator button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
@@ -35,7 +34,7 @@
   gap: 8px;
   margin: 14px 0;
 }
-.parts-workspace button[aria-pressed='true'],
+.parts-generator button[aria-pressed='true'],
 .parts-tabs button[aria-pressed='true'] {
   background: #eaf4ff;
   border-color: #2563eb;
@@ -58,18 +57,15 @@
   padding: 20px;
   background: #f8fafb;
 }
-.parts-workspace label,
-.parts-form label {
+.parts-generator label {
   display: grid;
   gap: 6px;
   font-size: 12px;
   color: #647789;
 }
-.parts-workspace input,
-.parts-workspace select,
-.parts-workspace textarea,
-.parts-form input,
-.parts-form select {
+.parts-generator input,
+.parts-generator select,
+.parts-generator textarea {
   width: 100%;
   padding: 10px;
   border: 1px solid #cdd8df;
@@ -227,32 +223,34 @@ button.parts-primary {
   padding: 10px 16px;
   border-radius: 6px;
 }
-.parts-list-layout {
+.parts-list {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  gap: 14px;
 }
-.parts-list-layout aside {
-  padding: 24px;
-  background: white;
-  border: 1px solid #dce4e9;
-  border-radius: 10px;
-}
-.part-list-row {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  text-align: left;
-  width: 100%;
-  margin-top: 10px;
-}
-.part-list-row span {
+.part-name {
+  font-family: Consolas, ui-monospace, monospace;
   font-size: 12px;
-  color: #718192;
+  font-weight: 700;
+  color: #183247;
+}
+.part-history-panel > [data-slot='card-content'] {
+  padding: 4px 16px 14px;
 }
 .part-version {
-  padding: 14px 0;
+  padding: 12px 0;
   border-bottom: 1px solid #e0e7eb;
+}
+.part-version:last-of-type {
+  border-bottom: 0;
+}
+.part-version > strong {
+  color: #1857ce;
+}
+.part-version > p {
+  margin: 2px 0 4px;
+}
+.part-version > small {
+  color: #718192;
 }
 
 .part-revision-change {
@@ -296,14 +294,10 @@ button.parts-primary {
   font-size: 28px;
 }
 @media (max-width: 900px) {
-  .parts-generator,
-  .parts-list-layout {
+  .parts-generator {
     grid-template-columns: 1fr;
   }
   .seat-diagram {
     gap: 12px;
-  }
-  .parts-workspace {
-    padding: 12px;
   }
 }

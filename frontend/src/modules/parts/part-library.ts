@@ -60,6 +60,11 @@ export function saveLibraryPart(part: LibraryPart) {
   );
   window.dispatchEvent(new Event('part-library-change'));
 }
+/** Drops the browser's parts so the seed library shows again (Reset Mock Data). */
+export function resetPartLibrary(): void {
+  localStorage.removeItem(KEY);
+  window.dispatchEvent(new Event('part-library-change'));
+}
 export function importProjectParts(
   designs: readonly ProjectDesign[],
   product: ProductType,

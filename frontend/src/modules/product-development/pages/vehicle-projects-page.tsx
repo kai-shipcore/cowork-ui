@@ -52,6 +52,7 @@ import type {
   VehicleProjectGroup,
   VehicleZoneProject,
 } from '@/shared/types/workbench';
+import { resetPartLibrary } from '@/modules/parts/part-library';
 import { VEHICLE_CONFIGURATIONS as INITIAL_CONFIGURATIONS } from '@/app/workbench-mock-data';
 import { useWorkbenchStore } from '@/app/workbench-store';
 import { ProjectDetailBoundary } from '../components/project-detail-boundary';
@@ -415,7 +416,13 @@ export function VehicleProjectsPage() {
         }
         actions={
           <>
-            <Button variant="outline" onClick={resetWorkbench}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                resetWorkbench();
+                resetPartLibrary();
+              }}
+            >
               Reset Mock Data
             </Button>
             <Button variant="primary" onClick={openWizard}>

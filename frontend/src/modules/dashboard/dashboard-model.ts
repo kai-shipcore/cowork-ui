@@ -1,3 +1,4 @@
+import { ROUTES } from '@/constants/routes';
 import type {
   AppUser,
   ProjectDetailSnapshot,
@@ -12,7 +13,6 @@ import type {
   VehicleZoneProject,
   Visit,
 } from '@/shared/types/workbench';
-import { ROUTES } from '@/constants/routes';
 
 /** A received sample with no fitting booked for this long is a warning. */
 export const SAMPLE_FITTING_WAIT_DAYS = 7;
@@ -202,8 +202,7 @@ function isOrphanVisit(visit: Visit, input: DashboardInput): boolean {
     (configuration) => configuration.id === project.vehicleResearchId,
   );
   if (!hasConfiguration) return true;
-  const zones =
-    input.projectDetails[project.id]?.zones ?? project.zoneProjects;
+  const zones = input.projectDetails[project.id]?.zones ?? project.zoneProjects;
   const targets = zones.filter((zone) =>
     visit.vehicleProjectIds.includes(zone.id),
   );
@@ -223,58 +222,56 @@ function arrivals(input: DashboardInput): ArrivalItem[] {
   const requestById = new Map(
     input.sampleRequests.map((request) => [request.id, request] as const),
   );
-  const dated = input.sampleShipments.flatMap(
-    (shipment): DatedArrival[] => {
-      const items = input.sampleRequestItems.filter(
-        (item) => item.sampleShipmentId === shipment.id,
-      );
-      const request = items[0]
-        ? requestById.get(items[0].sampleRequestId)
-        : undefined;
-      if (!request) return [];
-      const round = Math.max(...items.map((item) => item.sampleRound));
-      const title = `${request.vehicle} · ${round}차`;
-      const detail = `${request.product} · ${shipment.factory}`;
-      const isRepeatSample = round >= REPEAT_SAMPLE_ROUND;
-      if (shipment.arrivedAt) {
-        const age = daysBetween(shipment.arrivedAt, input.today);
-        if (age < 0 || age > ARRIVAL_WINDOW_DAYS) return [];
-        const verified = items.every((item) => Boolean(item.verifiedAt));
-        return [
-          {
-            sortKey: shipment.arrivedAt.slice(0, 10),
-            item: {
-              id: shipment.id,
-              title,
-              detail,
-              dateLabel: '도착 완료',
-              status: verified ? '검증 완료' : '검증 대기',
-              tone: verified ? 'success' : 'warning',
-              isRepeatSample,
-            },
-          },
-        ];
-      }
-      if (!shipment.shippedAt) return [];
-      const expected = shipment.expectedArrivalDate;
-      const daysOut = expected ? daysBetween(input.today, expected) : 0;
-      if (daysOut > ARRIVAL_WINDOW_DAYS) return [];
+  const dated = input.sampleShipments.flatMap((shipment): DatedArrival[] => {
+    const items = input.sampleRequestItems.filter(
+      (item) => item.sampleShipmentId === shipment.id,
+    );
+    const request = items[0]
+      ? requestById.get(items[0].sampleRequestId)
+      : undefined;
+    if (!request) return [];
+    const round = Math.max(...items.map((item) => item.sampleRound));
+    const title = `${request.vehicle} · ${round}차`;
+    const detail = `${request.product} · ${shipment.factory}`;
+    const isRepeatSample = round >= REPEAT_SAMPLE_ROUND;
+    if (shipment.arrivedAt) {
+      const age = daysBetween(shipment.arrivedAt, input.today);
+      if (age < 0 || age > ARRIVAL_WINDOW_DAYS) return [];
+      const verified = items.every((item) => Boolean(item.verifiedAt));
       return [
         {
-          sortKey: expected ?? '9999',
+          sortKey: shipment.arrivedAt.slice(0, 10),
           item: {
             id: shipment.id,
             title,
             detail,
-            dateLabel: expected ? formatMonthDay(expected) : '도착일 미정',
-            status: daysOut < 0 ? '지연' : '운송 중',
-            tone: daysOut < 0 ? 'danger' : 'neutral',
+            dateLabel: '도착 완료',
+            status: verified ? '검증 완료' : '검증 대기',
+            tone: verified ? 'success' : 'warning',
             isRepeatSample,
           },
         },
       ];
-    },
-  );
+    }
+    if (!shipment.shippedAt) return [];
+    const expected = shipment.expectedArrivalDate;
+    const daysOut = expected ? daysBetween(input.today, expected) : 0;
+    if (daysOut > ARRIVAL_WINDOW_DAYS) return [];
+    return [
+      {
+        sortKey: expected ?? '9999',
+        item: {
+          id: shipment.id,
+          title,
+          detail,
+          dateLabel: expected ? formatMonthDay(expected) : '도착일 미정',
+          status: daysOut < 0 ? '지연' : '운송 중',
+          tone: daysOut < 0 ? 'danger' : 'neutral',
+          isRepeatSample,
+        },
+      },
+    ];
+  });
   return dated
     .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
     .map((entry) => entry.item);
@@ -317,8 +314,7 @@ export function summarizeDashboard(input: DashboardInput): DashboardSummary {
     isOrphanVisit(visit, input),
   );
   const unassignedVisits = scheduledVisits.filter(
-    (visit) =>
-      !orphanVisits.includes(visit) && !(visit.staffIds?.length ?? 0),
+    (visit) => !orphanVisits.includes(visit) && !(visit.staffIds?.length ?? 0),
   );
   const handoffPending = zones.filter(
     (zone) =>

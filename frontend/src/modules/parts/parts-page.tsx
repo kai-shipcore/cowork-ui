@@ -1,7 +1,35 @@
 import { useEffect, useState } from 'react';
+import { Button } from '@coverland-engineering/ui/button';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@coverland-engineering/ui/card';
+import { Input } from '@coverland-engineering/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@coverland-engineering/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@coverland-engineering/ui/table';
+import { History, Search, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { fileFingerprint } from '@/shared/domain/revision-control';
 import { PageHeader } from '@/shared/components/page-header';
+import {
+  useWorkbenchPagination,
+  WorkbenchPagination,
+} from '@/shared/components/workbench-pagination';
 import type { ProjectDesignDetails } from '@/shared/types/workbench';
 import { CURRENT_USER_ID } from '@/app/current-user';
 import { useWorkbenchStore } from '@/app/workbench-store';
@@ -9,6 +37,7 @@ import {
   importProjectParts,
   saveLibraryPart,
   usePartLibrary,
+  type LibraryPart,
 } from './part-library';
 import './parts.css';
 
@@ -37,6 +66,10 @@ interface SeatPiece {
   centerLabel?: string;
   /** Armrest and leg support exist only on the driver / passenger seats. */
   sideOnly?: boolean;
+}
+
+function latestRevision(part: LibraryPart) {
+  return part.revisions[part.revisions.length - 1];
 }
 
 const SEAT_PIECES: readonly SeatPiece[] = [
@@ -74,6 +107,7 @@ export function PartsPage() {
   const [dxfFileName, setDxfFileName] = useState('');
   const [dxfFingerprint, setDxfFingerprint] = useState('');
   const [search, setSearch] = useState('');
+  const [product, setProduct] = useState('ALL');
   const [selected, setSelected] = useState(params.get('part') ?? '');
   const [message, setMessage] = useState('');
   useEffect(() => {
@@ -123,6 +157,27 @@ export function PartsPage() {
   const active =
     parts.find((p) => p.id === selected) ??
     parts.find((p) => p.name === params.get('name'));
+  const products = [...new Set(parts.map((p) => p.product))].sort();
+  const normalizedSearch = search.trim().toLowerCase();
+  const visibleParts = parts
+    .filter(
+      (p) =>
+        (product === 'ALL' || p.product === product) &&
+        (!normalizedSearch ||
+          `${p.name} ${p.product} ${p.type}`
+            .toLowerCase()
+            .includes(normalizedSearch)),
+    )
+    .sort((left, right) =>
+      (latestRevision(right)?.createdAt ?? '').localeCompare(
+        latestRevision(left)?.createdAt ?? '',
+      ),
+    );
+  const {
+    pageItems: pagedParts,
+    pagination,
+    setPagination,
+  } = useWorkbenchPagination(visibleParts, `${search}|${product}`);
   const returnTo = params.get('returnTo');
   const safeReturn = returnTo?.startsWith('/vehicle-projects?')
     ? returnTo
@@ -181,9 +236,9 @@ export function PartsPage() {
         description="부품 라이브러리 · Name Generator · Version History"
         actions={
           safeReturn ? (
-            <button onClick={() => navigate(safeReturn)}>
+            <Button variant="outline" onClick={() => navigate(safeReturn)}>
               프로젝트로 돌아가기
-            </button>
+            </Button>
           ) : undefined
         }
         tables={
@@ -199,18 +254,27 @@ export function PartsPage() {
             : undefined
         }
       />
-      <nav className="parts-tabs">
-        <button
-          aria-pressed={tab === 'create'}
+      <div className="segment-filters" role="group" aria-label="Parts 보기">
+        <Button
+          size="sm"
+          variant={tab === 'create' ? 'mono' : 'outline'}
           onClick={() => setTab('create')}
         >
           생성기
-        </button>
-        <button aria-pressed={tab === 'list'} onClick={() => setTab('list')}>
+        </Button>
+        <Button
+          size="sm"
+          variant={tab === 'list' ? 'mono' : 'outline'}
+          onClick={() => setTab('list')}
+        >
           목록 · {parts.length}
-        </button>
-      </nav>
-      {message && <p role="status">{message}</p>}
+        </Button>
+      </div>
+      {message && (
+        <p className="detail-help-text" role="status">
+          {message}
+        </p>
+      )}
       {tab === 'create' ? (
         <div className="parts-generator">
           <div className="parts-diagram-panel">
@@ -446,49 +510,146 @@ export function PartsPage() {
           </form>
         </div>
       ) : (
-        <div className="parts-list-layout">
-          <div>
-            <label>
-              Part 검색
-              <input
+        <div className="parts-list">
+          <div className="workbench-filters">
+            <div className="search-field">
+              <Search aria-hidden="true" />
+              <Input
+                aria-label="Part 이름, 제품군, Part Type 검색"
+                placeholder="Part 이름 / 제품군 / Part Type"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="이름 / 제품군 / Part Type"
               />
-            </label>
-            {parts
-              .filter((p) =>
-                `${p.name} ${p.product} ${p.type}`
-                  .toLowerCase()
-                  .includes(search.toLowerCase()),
-              )
-              .map((p) => (
-                <button
-                  className="part-list-row"
-                  key={p.id}
-                  aria-pressed={selected === p.id}
-                  onClick={() => {
-                    setSelected(p.id);
-                    setNote('');
-                  }}
-                >
-                  <strong>{p.name}</strong>
-                  <span>
-                    {p.product} · {p.type} · v
-                    {p.revisions[p.revisions.length - 1]?.revisionNumber}
-                  </span>
-                </button>
-              ))}
-            {!parts.length && (
-              <p>등록된 Part가 없습니다. 생성기에서 첫 Part를 추가하세요.</p>
+            </div>
+            <Select value={product} onValueChange={setProduct}>
+              <SelectTrigger
+                aria-label="제품군 필터"
+                className="filter-select wide"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Product: All</SelectItem>
+                {products.map((item) => (
+                  <SelectItem value={item} key={item}>
+                    {item}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {(search || product !== 'ALL') && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setSearch('');
+                  setProduct('ALL');
+                }}
+              >
+                <X /> 필터 초기화
+              </Button>
             )}
+            <span className="filter-count">
+              {visibleParts.length} / {parts.length} Parts
+            </span>
           </div>
-          <aside>
-            {active ? (
-              <>
-                <h2>{active.name}</h2>
-                <h3>Version History</h3>
-                {active.revisions.map((r) => (
+          {visibleParts.length ? (
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Part Name</TableHead>
+                    <TableHead>Product</TableHead>
+                    <TableHead>Part Type</TableHead>
+                    <TableHead>Version</TableHead>
+                    <TableHead>Last Updated</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pagedParts.map((p) => {
+                    const latest = latestRevision(p);
+                    const isSelected = active?.id === p.id;
+                    return (
+                      <TableRow
+                        key={p.id}
+                        data-state={isSelected ? 'selected' : undefined}
+                      >
+                        <TableCell>
+                          <code className="part-name">{p.name}</code>
+                        </TableCell>
+                        <TableCell>{p.product}</TableCell>
+                        <TableCell>{p.type}</TableCell>
+                        <TableCell>
+                          <strong>v{latest?.revisionNumber ?? 1}</strong>
+                          <div className="vehicle-meta">
+                            {p.revisions.length} revisions
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {latest ? latest.createdAt.slice(0, 10) : '—'}
+                          <div className="vehicle-meta">
+                            {latest?.createdBy}
+                          </div>
+                        </TableCell>
+                        <TableCell className="table-actions">
+                          <Button
+                            size="sm"
+                            variant={isSelected ? 'mono' : 'outline'}
+                            aria-pressed={isSelected}
+                            onClick={() => {
+                              setSelected(p.id);
+                              setNote('');
+                            }}
+                          >
+                            <History /> Version History
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+              <WorkbenchPagination
+                recordCount={visibleParts.length}
+                pagination={pagination}
+                onPaginationChange={setPagination}
+                itemLabel="parts"
+              />
+            </Card>
+          ) : (
+            <div className="empty-state">
+              <div className="empty-icon">🧩</div>
+              <strong>
+                {parts.length
+                  ? '조건에 맞는 Part가 없습니다.'
+                  : '등록된 Part가 없습니다.'}
+              </strong>
+              <p>
+                {parts.length
+                  ? '검색어나 제품군 필터를 바꿔 보세요.'
+                  : '생성기에서 첫 Part를 추가하세요.'}
+              </p>
+            </div>
+          )}
+          {active && (
+            <Card className="detail-panel part-history-panel">
+              <CardHeader>
+                <CardTitle>
+                  <code className="part-name">{active.name}</code>
+                  <small>Version History · {active.revisions.length}</small>
+                </CardTitle>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label="Version History 닫기"
+                  onClick={() => setSelected('')}
+                >
+                  <X />
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {[...active.revisions].reverse().map((r) => (
                   <article className="part-version" key={r.id}>
                     <strong>v{r.revisionNumber}</strong>
                     <p>{r.note}</p>
@@ -543,15 +704,13 @@ export function PartsPage() {
                     </small>
                   </article>
                 ))}
-                <p className="part-library-revision-note">
+                <p className="detail-help-text">
                   새 Revision과 수정 요청은 프로젝트 상세의 Revision Control에서
                   생성합니다. 검증 결과는 이 이력에 자동으로 연결됩니다.
                 </p>
-              </>
-            ) : (
-              <p>Part를 선택하면 버전 이력을 확인할 수 있습니다.</p>
-            )}
-          </aside>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </section>

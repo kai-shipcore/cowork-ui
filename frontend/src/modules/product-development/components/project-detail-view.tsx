@@ -69,6 +69,7 @@ import {
   isChangedDxf,
   revisionExecutionAccuracy,
 } from '@/shared/domain/revision-control';
+import { sampleRoundLabel } from '@/shared/domain/sample-request';
 import { UserAvatar, UserPicker } from '@/shared/domain/user-picker';
 import { PageTables, type TableRef } from '@/shared/components/page-header';
 import { StatusBadge } from '@/shared/components/status-badge';
@@ -81,9 +82,11 @@ import type {
   ProjectDesignRevision,
   ProjectDetailSnapshot,
   ProjectSample,
+  ProjectSampleLine,
   ProjectStage,
   ProjectVisit,
   SampleRequestItem,
+  SampleShipmentDetails,
   SeatCoverCode,
   SeatCoverPart,
   UniqueVehicle,
@@ -99,6 +102,8 @@ import {
   handoffReady,
   sizeReviewEvidence,
 } from '@/modules/product-shapes/shape-model';
+import { ShipmentDialog } from '@/modules/sampling/shipment-dialog';
+import { ShipmentSummary } from '@/modules/sampling/shipment-summary';
 import { CURRENT_USER_ID } from '@/app/current-user';
 import { SEED_SCAN_VISIT_DATE } from '@/app/workbench-mock-data';
 import { isLegacySeedActivity, useWorkbenchStore } from '@/app/workbench-store';
@@ -150,6 +155,12 @@ interface ProjectDetailViewProps {
   onSelectZone: (zoneCode: string) => void;
   /** Tab to open on mount, for deep links from other screens. */
   initialTab?: DetailTab;
+}
+
+interface NewSampleInput {
+  factory: string;
+  note: string;
+  lines: readonly ProjectSampleLine[];
 }
 
 interface NewDesignInput {
@@ -448,9 +459,15 @@ export function ProjectDetailView({
         : {}),
       ...(visit.result ? { result: visit.result } : {}),
     }));
+  // The shared store decides how far a request got (Sample Tracker can move
+  // it too); the saved snapshot keeps what only this screen records (lines,
+  // note, APPROVED) and the shipment row holds the recorded dates.
   const samplesFromSharedStore: readonly ProjectSample[] = sharedSampleRequests
     .filter((request) => request.projectGroupId === project.id)
     .map((request) => {
+      const saved = savedDetail?.samples.find(
+        (sample) => sample.id === request.id,
+      );
       const items = sharedSampleRequestItems.filter(
         (item) => item.sampleRequestId === request.id,
       );
@@ -460,13 +477,44 @@ export function ProjectDetailView({
       const allReceived =
         items.length > 0 && items.every((item) => item.sampleReceivedAt);
       const anyShipped = shipments.some((shipment) => shipment.shippedAt);
+      const derivedStatus: ProjectSample['status'] = allReceived
+        ? 'ARRIVED'
+        : anyShipped
+          ? 'SHIPPED'
+          : 'REQUESTED';
+      const status =
+        saved &&
+        SAMPLE_STATUS_ORDER.indexOf(saved.status) >
+          SAMPLE_STATUS_ORDER.indexOf(derivedStatus)
+          ? saved.status
+          : derivedStatus;
+      // Dates the shared shipment row has win; anything it lacks (an arrival
+      // stamped here before the row caught up) stays from the snapshot.
+      const shipment = shipments[0];
+      const recorded: NonNullable<ProjectSample['shipment']> = {
+        ...(saved?.shipment ?? {}),
+        ...(shipment?.sampleReadyAt
+          ? { sampleReadyAt: shipment.sampleReadyAt }
+          : {}),
+        ...(shipment?.shippedAt ? { shippedAt: shipment.shippedAt } : {}),
+        ...(shipment?.expectedArrivalDate
+          ? { expectedArrivalDate: shipment.expectedArrivalDate }
+          : {}),
+        ...(shipment?.externalReference
+          ? { externalReference: shipment.externalReference }
+          : {}),
+        ...(shipment?.note ? { note: shipment.note } : {}),
+        ...(shipment?.arrivedAt ? { arrivedAt: shipment.arrivedAt } : {}),
+      };
       return {
+        ...(saved ?? {}),
         id: request.id,
         factory: request.factory,
         designIds: items.map((item) => item.vehicleProductDesignId),
         items: items.length,
         round: Math.max(1, ...items.map((item) => item.sampleRound)),
-        status: allReceived ? 'ARRIVED' : anyShipped ? 'SHIPPED' : 'REQUESTED',
+        status,
+        ...(Object.keys(recorded).length ? { shipment: recorded } : {}),
       };
     });
   const completedSharedScanZones = new Set(
@@ -721,7 +769,8 @@ export function ProjectDetailView({
           vehicle: project.vehicle,
           product: project.product,
           factory: sample.factory,
-          createdAt: '2026-08-31T09:00:00-07:00',
+          ...(sample.note ? { note: sample.note } : {}),
+          createdAt: sample.requestedAt ?? '2026-08-31T09:00:00-07:00',
           ...(sample.status !== 'REQUESTED'
             ? {
                 sentAt: '2026-08-31T10:00:00-07:00',
@@ -745,28 +794,38 @@ export function ProjectDetailView({
               (design) => design.id === item.vehicleProductDesignId,
             ),
         ),
-        ...samples.flatMap((sample) =>
-          (sample.designIds
-            ? designs.filter((design) => sample.designIds?.includes(design.id))
-            : designs.filter((design) =>
-                current.some(
-                  (item) =>
-                    item.sampleRequestId === sample.id &&
-                    item.vehicleProductDesignId === design.id,
-                ),
-              )
-          )
-            .slice(0, Math.max(1, sample.items))
-            .map((design, index) => {
-              const itemId = `SRI-${sample.id}-${index + 1}`;
-              // A request line stays pinned to the revision it was raised for,
-              // so adding a Revision later does not rewrite earlier rounds.
-              const existing = current.find(
-                (item) =>
-                  item.sampleRequestId === sample.id &&
-                  item.vehicleProductDesignId === design.id,
-              );
-              return {
+        ...samples.flatMap((sample) => {
+          const lines: readonly ProjectSampleLine[] =
+            sample.lines ??
+            (sample.designIds
+              ? designs.filter((design) =>
+                  sample.designIds?.includes(design.id),
+                )
+              : designs.filter((design) =>
+                  current.some(
+                    (item) =>
+                      item.sampleRequestId === sample.id &&
+                      item.vehicleProductDesignId === design.id,
+                  ),
+                )
+            )
+              .slice(0, Math.max(1, sample.items))
+              .map((design) => ({ designId: design.id }));
+          return lines.flatMap((line, index) => {
+            const design = designs.find(
+              (candidate) => candidate.id === line.designId,
+            );
+            if (!design) return [];
+            const itemId = `SRI-${sample.id}-${index + 1}`;
+            // A request line stays pinned to the revision it was raised for,
+            // so adding a Revision later does not rewrite earlier rounds.
+            const existing = current.find(
+              (item) =>
+                item.sampleRequestId === sample.id &&
+                item.vehicleProductDesignId === design.id,
+            );
+            return [
+              {
                 id: existing?.id ?? itemId,
                 sampleRequestId: sample.id,
                 vehicleProductDesignId: design.id,
@@ -775,6 +834,7 @@ export function ProjectDetailView({
                   currentRevision(design).id,
                 sampleRound: sample.round,
                 priority: 'NORMAL' as const,
+                ...(line.note ? { note: line.note } : {}),
                 ...(existing?.revisionReflected
                   ? {
                       revisionReflected: existing.revisionReflected,
@@ -785,14 +845,18 @@ export function ProjectDetailView({
                     }
                   : {}),
                 ...(sample.status === 'ARRIVED' || sample.status === 'APPROVED'
-                  ? { sampleReceivedAt: new Date().toISOString() }
+                  ? {
+                      sampleReceivedAt:
+                        sample.shipment?.arrivedAt ?? new Date().toISOString(),
+                    }
                   : {}),
                 ...(sample.status !== 'REQUESTED'
                   ? { sampleShipmentId: `SHIP-${sample.id}` }
                   : {}),
-              };
-            }),
-        ),
+              },
+            ];
+          });
+        }),
       ];
     });
     setSampleShipments((current) => {
@@ -809,12 +873,15 @@ export function ProjectDetailView({
                 {
                   id: `SHIP-${sample.id}`,
                   factory: sample.factory,
+                  // Samples shipped or arrived before dates were recorded
+                  // fall back to "now"; recorded values below win.
                   shippedAt: new Date().toISOString(),
+                  externalReference: `TRACK-${sample.id}`,
                   ...(sample.status === 'ARRIVED' ||
                   sample.status === 'APPROVED'
                     ? { arrivedAt: new Date().toISOString() }
                     : {}),
-                  shipmentReference: `TRACK-${sample.id}`,
+                  ...sample.shipment,
                 },
               ],
         ),
@@ -1151,6 +1218,20 @@ export function ProjectDetailView({
             sampleItems={sharedSampleRequestItems}
             canRequestSample={canRequestSample}
             onRequest={() => openDialog('sample')}
+            onShip={(sampleId, shipment) => {
+              if (!canRequestSample) return;
+              setSamples((current) =>
+                current.map((sample) =>
+                  sample.id === sampleId && sample.status === 'REQUESTED'
+                    ? { ...sample, status: 'SHIPPED', shipment }
+                    : sample,
+                ),
+              );
+              addActivity(
+                'Sample Shipped',
+                `${sampleId} · ${shipment.externalReference ?? ''} · ${shipment.shippedAt ?? ''}`,
+              );
+            }}
             onAdvance={(sampleId) => {
               if (!canRequestSample) return;
               setSamples((current) =>
@@ -1158,13 +1239,17 @@ export function ProjectDetailView({
                   if (sample.id !== sampleId) {
                     return sample;
                   }
-                  const next =
-                    sample.status === 'REQUESTED'
-                      ? 'SHIPPED'
-                      : sample.status === 'SHIPPED'
-                        ? 'ARRIVED'
-                        : 'APPROVED';
-                  return { ...sample, status: next };
+                  if (sample.status === 'SHIPPED') {
+                    return {
+                      ...sample,
+                      status: 'ARRIVED',
+                      shipment: {
+                        ...(sample.shipment ?? {}),
+                        arrivedAt: new Date().toISOString(),
+                      },
+                    };
+                  }
+                  return { ...sample, status: 'APPROVED' };
                 }),
               );
             }}
@@ -1559,29 +1644,35 @@ export function ProjectDetailView({
           );
           closeDialog();
         }}
-        onSample={(factory, designIds) => {
+        onSample={(input) => {
           if (!canRequestSample) return;
-          const candidates = scopeDesigns.filter(
-            (design) =>
-              sampleEligibleProjectIds.includes(design.vehicleProjectId) &&
-              designIds.includes(design.id),
-          );
-          const eligibleDesigns = candidates.filter((design) =>
-            isRevisionSampleRequestable(design, sharedSampleRequestItems),
-          );
-          if (!eligibleDesigns.length) return;
+          const lines = input.lines.filter((line) => {
+            const design = scopeDesigns.find(
+              (candidate) =>
+                candidate.id === line.designId &&
+                sampleEligibleProjectIds.includes(candidate.vehicleProjectId),
+            );
+            return (
+              design !== undefined &&
+              isRevisionSampleRequestable(design, sharedSampleRequestItems)
+            );
+          });
+          if (!lines.length) return;
           const sample: ProjectSample = {
             id: `SR-${project.id.replace(/\D/g, '')}-${String(samples.length + 1).padStart(2, '0')}`,
-            factory,
-            items: eligibleDesigns.length,
-            designIds: eligibleDesigns.map((design) => design.id),
+            factory: input.factory,
+            items: lines.length,
+            designIds: lines.map((line) => line.designId),
+            lines,
             round: samples.length + 1,
             status: 'REQUESTED',
+            requestedAt: new Date().toISOString(),
+            ...(input.note ? { note: input.note } : {}),
           };
           setSamples((current) => [...current, sample]);
           addActivity(
             'Sample Request',
-            `${sample.id} · ${factory} · ${eligibleDesigns.length} items`,
+            `${sample.id} · ${input.factory} · ${lines.length} items`,
           );
           closeDialog();
         }}
@@ -2881,6 +2972,9 @@ interface SamplesTabProps {
   sampleItems: readonly SampleRequestItem[];
   canRequestSample: boolean;
   onRequest: () => void;
+  /** Mark Shipped: records the shipment and moves the request to SHIPPED. */
+  onShip: (sampleId: string, shipment: SampleShipmentDetails) => void;
+  /** SHIPPED → ARRIVED → APPROVED. */
   onAdvance: (sampleId: string) => void;
   onApproveDesign: (designId: string) => void;
   onVerifyRevision: (
@@ -2889,6 +2983,13 @@ interface SamplesTabProps {
     note: string,
   ) => void;
 }
+
+const SAMPLE_STATUS_ORDER: readonly ProjectSample['status'][] = [
+  'REQUESTED',
+  'SHIPPED',
+  'ARRIVED',
+  'APPROVED',
+];
 
 const SAMPLE_STATUS_GROUPS = [
   {
@@ -2909,7 +3010,12 @@ const SAMPLE_STATUS_GROUPS = [
     label: 'Arrived',
     description: '도착 · 검증 및 요청 승인 대기',
   },
-  { status: 'APPROVED', emoji: '✅', label: 'Approved', description: '요청 승인 완료' },
+  {
+    status: 'APPROVED',
+    emoji: '✅',
+    label: 'Approved',
+    description: '요청 승인 완료',
+  },
 ] as const;
 
 function SamplesTab({
@@ -2921,10 +3027,12 @@ function SamplesTab({
   sampleItems,
   canRequestSample,
   onRequest,
+  onShip,
   onAdvance,
   onApproveDesign,
   onVerifyRevision,
 }: SamplesTabProps) {
+  const [shippingSample, setShippingSample] = useState<ProjectSample>();
   // Approval is per revision: a Rev 3 can only be approved once a sample that
   // was actually made from Rev 3 has been received.
   const isRevisionArrived = (design: ProjectDesign) =>
@@ -2955,6 +3063,12 @@ function SamplesTab({
     );
     return designs.filter((design) => designIds.has(design.id));
   };
+  const lineOf = (sample: ProjectSample, design: ProjectDesign) =>
+    sampleItems.find(
+      (item) =>
+        item.sampleRequestId === sample.id &&
+        item.vehicleProductDesignId === design.id,
+    );
   const canApproveRequest = (sample: ProjectSample) => {
     const items = sampleItems.filter(
       (item) => item.sampleRequestId === sample.id,
@@ -2983,6 +3097,11 @@ function SamplesTab({
       <div className="detail-help-text">
         흐름: Sample Request(item = design + revision + round) → Shipment → 입고
         {product === 'Floor Mat' ? '' : ' → 승인 게이트'} → Fitting.
+      </div>
+      <div className="detail-help-text">
+        Stage 8: 부품별 Note는 Sample Tracker의 Part Lines(부품 1개 = 1행)에
+        등록됩니다. 날짜·차량 정보는 프로젝트에서, Status(Sample → Ready)는
+        Revision 승인에서 자동으로 채워집니다.
       </div>
       {!canRequestSample && (
         <div className="stage-gate-lock">
@@ -3035,7 +3154,9 @@ function SamplesTab({
             >
               <summary>
                 <span className="sample-status-heading">
-                  <span aria-hidden="true" className="text-lg leading-none">{group.emoji}</span>
+                  <span aria-hidden="true" className="text-lg leading-none">
+                    {group.emoji}
+                  </span>
                   <strong>{group.label}</strong>
                   <span className="sample-status-count">
                     {groupedSamples.length}
@@ -3082,7 +3203,11 @@ function SamplesTab({
                               ? '수정된 모든 부품이 정확히 반영됨으로 검증되어야 요청을 승인할 수 있습니다.'
                               : undefined
                           }
-                          onClick={() => onAdvance(sample.id)}
+                          onClick={() =>
+                            sample.status === 'REQUESTED'
+                              ? setShippingSample(sample)
+                              : onAdvance(sample.id)
+                          }
                         >
                           {sample.status === 'REQUESTED'
                             ? 'Mark Shipped'
@@ -3094,16 +3219,43 @@ function SamplesTab({
                     </CardHeader>
                     <CardContent>
                       <div className="sample-items">
-                        {designsOfSample(sample).map((design) => (
-                          <div key={design.id}>
-                            <strong>{design.name}</strong>
-                            <span>
-                              Rev {requestedRevisionNumber(sample, design)}
-                            </span>
-                            <span>Round {sample.round}</span>
-                          </div>
-                        ))}
+                        {designsOfSample(sample).map((design) => {
+                          const line = lineOf(sample, design);
+                          // Ready once the revision this line was made from
+                          // has its sample approved; until then it is a Sample.
+                          const isReady = Boolean(
+                            design.revisions.find(
+                              (revision) =>
+                                revision.id ===
+                                line?.vehicleProductDesignRevisionId,
+                            )?.sampleApprovedAt,
+                          );
+                          return (
+                            <div key={design.id}>
+                              <strong>{design.name}</strong>
+                              <span>
+                                Rev {requestedRevisionNumber(sample, design)}
+                              </span>
+                              <StatusBadge
+                                label={isReady ? 'Ready' : 'Sample'}
+                                tone={isReady ? 'success' : 'progress'}
+                              />
+                              <span>{sampleRoundLabel(sample.round)}</span>
+                              {line?.note && (
+                                <small className="sample-line-note">
+                                  {line.note}
+                                </small>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
+                      {sample.note && (
+                        <p className="detail-help-text">{sample.note}</p>
+                      )}
+                      {sample.shipment && (
+                        <ShipmentSummary shipment={sample.shipment} />
+                      )}
                       {sample.status === 'ARRIVED' &&
                         sampleItems
                           .filter((item) => item.sampleRequestId === sample.id)
@@ -3222,6 +3374,17 @@ function SamplesTab({
           </Button>
         )}
       </div>
+      {shippingSample && (
+        <ShipmentDialog
+          subject={shippingSample.id}
+          factory={shippingSample.factory}
+          onClose={() => setShippingSample(undefined)}
+          onSubmit={(details) => {
+            onShip(shippingSample.id, details);
+            setShippingSample(undefined);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -3574,7 +3737,7 @@ interface ProjectDialogProps {
     changeRequest: NonNullable<ProjectDesignRevision['changeRequest']>,
   ) => void;
   onVisit: (input: NewVisitInput) => void;
-  onSample: (factory: string, designIds: readonly string[]) => void;
+  onSample: (input: NewSampleInput) => void;
   onFile: (name: string, type: ProjectAsset['type']) => void;
   onConfiguration: (
     title: string,
@@ -3693,9 +3856,17 @@ function ProjectDialog({
       sampleEligibleProjectIds.includes(design.vehicleProjectId) &&
       (!samples.length || isRevisionSampleRequestable(design, sampleItems)),
   );
-  const [selectedSampleDesignIds, setSelectedSampleDesignIds] = useState<
-    readonly string[]
-  >(sampleCandidates.map((design) => design.id));
+  const [sampleNote, setSampleNote] = useState('');
+  const [sampleLines, setSampleLines] = useState<
+    Readonly<Record<string, ProjectSampleLine | undefined>>
+  >(() =>
+    Object.fromEntries(
+      sampleCandidates.map((design) => [design.id, { designId: design.id }]),
+    ),
+  );
+  const includedSampleLines = Object.values(sampleLines).filter(
+    (line): line is ProjectSampleLine => line !== undefined,
+  );
   const [fileName, setFileName] = useState(
     project.stage === '3D Model' ? 'vehicle_3d_model.obj' : 'RAV4_scan_v2.stl',
   );
@@ -3865,7 +4036,11 @@ function ProjectDialog({
         targetVehicleResearchId,
       });
     } else if (dialog === 'sample') {
-      onSample(factory, selectedSampleDesignIds);
+      onSample({
+        factory,
+        note: sampleNote.trim(),
+        lines: includedSampleLines,
+      });
     } else if (dialog === 'file') {
       onFile(fileName.trim(), fileType);
     } else if (dialog === 'new-configuration') {
@@ -4575,47 +4750,78 @@ function ProjectDialog({
           )}
           {dialog === 'sample' && (
             <div className="project-dialog-stack">
-              <label className="dialog-field-label">
-                Factory
-                <Select
-                  value={factory}
-                  onValueChange={(value) =>
-                    setFactory(value as (typeof FACTORIES)[number])
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FACTORIES.map((item) => (
-                      <SelectItem value={item} key={item}>
-                        {item}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </label>
+              <div className="dialog-form-grid">
+                <label>
+                  Vendor (Factory)
+                  <Select
+                    value={factory}
+                    onValueChange={(value) =>
+                      setFactory(value as (typeof FACTORIES)[number])
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FACTORIES.map((item) => (
+                        <SelectItem value={item} key={item}>
+                          {item}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
+                <label>
+                  Note
+                  <Input
+                    value={sampleNote}
+                    placeholder="Slack 게시글의 간단한 메모 · 상세 지시는 Checklist"
+                    onChange={(event) => setSampleNote(event.target.value)}
+                  />
+                </label>
+              </div>
               <div className="sample-dialog-items">
-                <strong>Items — 현재 revision · design별 다음 round</strong>
-                {sampleCandidates.map((design) => (
-                  <label key={design.id}>
-                    <Checkbox
-                      checked={selectedSampleDesignIds.includes(design.id)}
-                      onCheckedChange={(checked) =>
-                        setSelectedSampleDesignIds((current) =>
-                          checked
-                            ? [...current, design.id]
-                            : current.filter((id) => id !== design.id),
-                        )
-                      }
-                    />
-                    <span>
-                      {design.name} · Rev{' '}
-                      {currentRevision(design).revisionNumber} · Round{' '}
-                      {samples.length + 1}
-                    </span>
-                  </label>
-                ))}
+                <strong>
+                  Parts — 부품 1개 = Sample Tracking 1행 · Round{' '}
+                  {samples.length + 1}
+                </strong>
+                {sampleCandidates.map((design) => {
+                  const line = sampleLines[design.id];
+                  const setLine = (next: ProjectSampleLine | undefined) => {
+                    setSampleLines((current) => ({
+                      ...current,
+                      [design.id]: next,
+                    }));
+                  };
+                  return (
+                    <div className="sample-dialog-line" key={design.id}>
+                      <label>
+                        <Checkbox
+                          checked={line !== undefined}
+                          onCheckedChange={(checked) =>
+                            setLine(
+                              checked ? { designId: design.id } : undefined,
+                            )
+                          }
+                        />
+                        <span title={design.name}>
+                          {design.name} · Rev{' '}
+                          {currentRevision(design).revisionNumber}
+                        </span>
+                      </label>
+                      <Input
+                        aria-label={`${design.name} Note`}
+                        placeholder="Note"
+                        disabled={!line}
+                        value={line?.note ?? ''}
+                        onChange={(event) => {
+                          if (line)
+                            setLine({ ...line, note: event.target.value });
+                        }}
+                      />
+                    </div>
+                  );
+                })}
                 {!sampleCandidates.length && (
                   <p className="empty-inline">
                     요청할 수정 부품이 없습니다. 새 수정 요청을 작성하거나
@@ -4739,7 +4945,7 @@ function ProjectDialog({
                   !date ||
                   !time)) ||
               (dialog === 'sample' &&
-                (!canRequestSample || !selectedSampleDesignIds.length)) ||
+                (!canRequestSample || !includedSampleLines.length)) ||
               (dialog === 'file' && !fileName.trim())
             }
           >

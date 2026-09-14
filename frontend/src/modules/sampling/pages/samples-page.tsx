@@ -20,6 +20,7 @@ import {
 import { PackageCheck, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
+import { sampleRoundLabel } from '@/shared/domain/sample-request';
 import { PageHeader } from '@/shared/components/page-header';
 import { StatusBadge } from '@/shared/components/status-badge';
 import {
@@ -30,8 +31,13 @@ import type {
   SampleRequest,
   SampleRequestItem,
   SampleShipment,
+  SampleShipmentDetails,
 } from '@/shared/types/workbench';
 import { useWorkbenchStore } from '@/app/workbench-store';
+import { toSampleTrackingRows } from '../sample-tracking';
+import { SampleTrackingTable } from '../sample-tracking-table';
+import { ShipmentDialog } from '../shipment-dialog';
+import { ShipmentSummary } from '../shipment-summary';
 
 type SampleLifecycle = 'DRAFT' | 'SENT' | 'IN_TRANSIT' | 'ARRIVED';
 const STATUS_CARDS: readonly {
@@ -90,10 +96,13 @@ export function SamplesPage() {
     sampleShipments,
     setSampleShipments,
     projects,
+    projectDetails,
   } = useWorkbenchStore();
   const [query, setQuery] = useState('');
   const [factory, setFactory] = useState('ALL');
   const [status, setStatus] = useState<'ALL' | SampleLifecycle>('ALL');
+  const [view, setView] = useState<'REQUESTS' | 'PARTS'>('REQUESTS');
+  const [shippingRequest, setShippingRequest] = useState<SampleRequest>();
   const factories = [...new Set(requests.map((request) => request.factory))]
     .sort()
     .filter(Boolean);
@@ -103,7 +112,7 @@ export function SamplesPage() {
   const scopedRequests = requests.filter((request) => {
     const items = itemsOf(request, sampleRequestItems);
     const references = shipmentsOf(items, sampleShipments)
-      .map((item) => item.shipmentReference)
+      .map((item) => item.externalReference)
       .join(' ');
     const haystack =
       `${request.id} ${request.projectGroupId} ${request.vehicle} ${request.product} ${request.factory} ${references}`.toLowerCase();
@@ -120,6 +129,12 @@ export function SamplesPage() {
     pagination,
     setPagination,
   } = useWorkbenchPagination(visibleRequests, `${query}|${factory}|${status}`);
+  const trackingRows = toSampleTrackingRows({
+    requests: visibleRequests,
+    items: sampleRequestItems,
+    projects,
+    projectDetails,
+  });
   const projectIds = new Set(projects.map((project) => project.id));
 
   function openProjectSamples(projectId: string): void {
@@ -144,24 +159,7 @@ export function SamplesPage() {
     }
     const requestItems = itemsOf(request, sampleRequestItems);
     if (state === 'SENT') {
-      const shipmentId = `SHIP-${request.id}-${Date.now().toString().slice(-4)}`;
-      setSampleShipments((current) => [
-        ...current,
-        {
-          id: shipmentId,
-          factory: request.factory,
-          sampleReadyAt: now,
-          shippedAt: now,
-          shipmentReference: `TRACK-${request.id}`,
-        },
-      ]);
-      setSampleRequestItems((current) =>
-        current.map((item) =>
-          item.sampleRequestId === request.id
-            ? { ...item, sampleShipmentId: shipmentId }
-            : item,
-        ),
-      );
+      setShippingRequest(request);
       return;
     }
     if (state === 'IN_TRANSIT') {
@@ -185,6 +183,25 @@ export function SamplesPage() {
     }
   }
 
+  function createShipment(
+    request: SampleRequest,
+    details: SampleShipmentDetails,
+  ): void {
+    const shipmentId = `SHIP-${request.id}-${Date.now().toString().slice(-4)}`;
+    setSampleShipments((current) => [
+      ...current,
+      { id: shipmentId, factory: request.factory, ...details },
+    ]);
+    setSampleRequestItems((current) =>
+      current.map((item) =>
+        item.sampleRequestId === request.id
+          ? { ...item, sampleShipmentId: shipmentId }
+          : item,
+      ),
+    );
+    setShippingRequest(undefined);
+  }
+
   function resetFilters(): void {
     setQuery('');
     setFactory('ALL');
@@ -194,14 +211,17 @@ export function SamplesPage() {
   return (
     <section>
       <PageHeader
-        description="Request 발송 · design/revision/round별 Item · 실제 Shipment/입고를 분리해 추적합니다. Sample 승인은 Parts의 Revision에서 처리합니다."
+        description="Request 발송 · design/revision/round별 Item · 실제 Shipment/입고를 분리해 추적합니다. Part Lines는 Sample Tracking 시트 형식(부품 1개 = 1행)입니다. Sample 승인은 Parts의 Revision에서 처리합니다."
         tables={
           import.meta.env.DEV
             ? [
                 { name: 'sample_request' },
                 { name: 'sample_request_item' },
                 { name: 'sample_shipment' },
+                { name: 'vehicle_product_design' },
                 { name: 'vehicle_product_design_revision' },
+                { name: 'vehicle_project_group' },
+                { name: 'vehicle_project' },
               ]
             : undefined
         }
@@ -269,7 +289,33 @@ export function SamplesPage() {
           {visibleRequests.length} / {requests.length} 요청
         </span>
       </div>
-      {visibleRequests.length ? (
+      <div className="segment-filters" role="group" aria-label="보기 방식">
+        <Button
+          size="sm"
+          variant={view === 'REQUESTS' ? 'mono' : 'outline'}
+          onClick={() => setView('REQUESTS')}
+        >
+          Requests · {visibleRequests.length}
+        </Button>
+        <Button
+          size="sm"
+          variant={view === 'PARTS' ? 'mono' : 'outline'}
+          onClick={() => setView('PARTS')}
+        >
+          Part Lines · {trackingRows.length}
+        </Button>
+        <span className="filter-count">
+          Part Lines = Sample Tracking 시트(SeatCover-Sample-Request) 형식 ·
+          부품 1개 = 1행
+        </span>
+      </div>
+      {view === 'PARTS' ? (
+        <SampleTrackingTable
+          rows={trackingRows}
+          filterKey={`${query}|${factory}|${status}`}
+          onOpenProject={openProjectSamples}
+        />
+      ) : visibleRequests.length ? (
         <Card>
           <Table>
             <TableHeader>
@@ -339,8 +385,8 @@ export function SamplesPage() {
                           <span key={item.id}>
                             <code>{item.vehicleProductDesignId}</code>
                             <small>
-                              {item.vehicleProductDesignRevisionId} · Round{' '}
-                              {item.sampleRound}
+                              {item.vehicleProductDesignRevisionId} ·{' '}
+                              {sampleRoundLabel(item.sampleRound)}
                             </small>
                             {item.priority === 'URGENT' && (
                               <StatusBadge label="URGENT" tone="danger" />
@@ -352,14 +398,10 @@ export function SamplesPage() {
                     <TableCell>
                       {shipments.length ? (
                         shipments.map((shipment) => (
-                          <div key={shipment.id}>
-                            <span className="tracking-code">
-                              {shipment.shipmentReference ?? shipment.id}
-                            </span>
-                            <div className="vehicle-meta">
-                              {shipment.arrivedAt ? 'Arrived' : 'In transit'}
-                            </div>
-                          </div>
+                          <ShipmentSummary
+                            key={shipment.id}
+                            shipment={shipment}
+                          />
                         ))
                       ) : (
                         <span className="muted-text">Not assigned</span>
@@ -412,6 +454,14 @@ export function SamplesPage() {
           <strong>조건에 맞는 샘플 요청이 없습니다.</strong>
           <p>검색어, 공장, 상태 필터를 바꿔 보세요.</p>
         </div>
+      )}
+      {shippingRequest && (
+        <ShipmentDialog
+          subject={shippingRequest.id}
+          factory={shippingRequest.factory}
+          onClose={() => setShippingRequest(undefined)}
+          onSubmit={(details) => createShipment(shippingRequest, details)}
+        />
       )}
     </section>
   );

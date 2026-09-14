@@ -425,6 +425,7 @@ export interface SampleRequestItem {
   vehicleProductDesignRevisionId: string;
   sampleRound: number;
   priority: 'URGENT' | 'NORMAL';
+  /** Sample Tracking "Note" for this part. */
   note?: string;
   sampleReceivedAt?: string;
   sampleShipmentId?: string;
@@ -443,9 +444,20 @@ export interface SampleShipment {
   shippedAt?: string;
   expectedArrivalDate?: string;
   arrivedAt?: string;
-  shipmentReference?: string;
+  /** Carrier tracking number or factory dispatch reference. */
+  externalReference?: string;
   note?: string;
 }
+
+/** What the operator records when a shipment is created; the rest is system-set. */
+export type SampleShipmentDetails = Pick<
+  SampleShipment,
+  | 'sampleReadyAt'
+  | 'shippedAt'
+  | 'expectedArrivalDate'
+  | 'externalReference'
+  | 'note'
+>;
 
 export interface UniqueVehicle {
   fNumber: string;
@@ -601,14 +613,30 @@ export interface FloorMatDesignDetails {
   vehicleZoneId: string;
 }
 
+/** One part of a project sample request with its Sample Tracking memo. */
+export interface ProjectSampleLine {
+  designId: string;
+  note?: string;
+}
+
 export interface ProjectSample {
   id: string;
   factory: string;
   items: number;
   /** The exact part designs included in this request round. */
   designIds?: readonly string[];
+  /** Per-part status and memo; takes precedence over designIds when present. */
+  lines?: readonly ProjectSampleLine[];
   round: number;
   status: 'REQUESTED' | 'SHIPPED' | 'ARRIVED' | 'APPROVED';
+  /** ISO timestamp of creation; becomes `sample_request.created_at`. */
+  requestedAt?: string;
+  note?: string;
+  /**
+   * Recorded at Mark Shipped (details) and Mark Arrived (`arrivedAt`);
+   * becomes this request's `sample_shipment`.
+   */
+  shipment?: SampleShipmentDetails & Pick<SampleShipment, 'arrivedAt'>;
 }
 
 export interface ProjectAsset {
