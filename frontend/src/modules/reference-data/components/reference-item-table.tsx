@@ -10,6 +10,10 @@ import {
 } from '@coverland-engineering/ui/table';
 import { Pencil, Trash2 } from 'lucide-react';
 import {
+  useWorkbenchPagination,
+  WorkbenchPagination,
+} from '@/shared/components/workbench-pagination';
+import {
   PRODUCT_TYPES,
   type ProductReferenceItem,
 } from '@/shared/types/workbench';
@@ -25,6 +29,8 @@ interface ReferenceItemTableProps {
   items: readonly ProductReferenceItem[];
   /** "색상" or "재질" — used in the empty state and action labels. */
   entityLabel: string;
+  /** Resets to the first page when the surrounding filters change. */
+  filterKey: string;
   onEdit: (item: ProductReferenceItem) => void;
   onDelete: (item: ProductReferenceItem) => void;
 }
@@ -33,9 +39,15 @@ interface ReferenceItemTableProps {
 export function ReferenceItemTable({
   items,
   entityLabel,
+  filterKey,
   onEdit,
   onDelete,
 }: ReferenceItemTableProps) {
+  const { pageItems, pagination, setPagination } = useWorkbenchPagination(
+    items,
+    filterKey,
+  );
+
   if (!items.length) {
     return (
       <div className="empty-state">
@@ -59,7 +71,7 @@ export function ReferenceItemTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map((item) => (
+          {pageItems.map((item) => (
             <TableRow key={item.id}>
               <TableCell>
                 <span className="reference-code">{item.code}</span>
@@ -98,6 +110,12 @@ export function ReferenceItemTable({
           ))}
         </TableBody>
       </Table>
+      <WorkbenchPagination
+        recordCount={items.length}
+        pagination={pagination}
+        onPaginationChange={setPagination}
+        itemLabel="items"
+      />
     </Card>
   );
 }

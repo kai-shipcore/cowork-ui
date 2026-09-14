@@ -24,6 +24,10 @@ import {
 } from '@coverland-engineering/ui/select';
 import { Plus, Search, Trash2, X } from 'lucide-react';
 import { PageHeader } from '@/shared/components/page-header';
+import {
+  useWorkbenchPagination,
+  WorkbenchPagination,
+} from '@/shared/components/workbench-pagination';
 import { PRODUCT_TYPES } from '@/shared/types/workbench';
 import type {
   ProductTypeId,
@@ -76,6 +80,11 @@ export function VehicleOptionsPage() {
     );
   });
   const hasActiveFilter = normalizedQuery.length > 0 || productType !== 'ALL';
+  const {
+    pageItems: pagedKeys,
+    pagination,
+    setPagination,
+  } = useWorkbenchPagination(visibleKeys, `${query}|${productType}`);
 
   /** Seat cover codes that reference this value — deleting it breaks them. */
   const codeLinkCount = (value: VehicleOptionValue) =>
@@ -212,7 +221,7 @@ export function VehicleOptionsPage() {
 
       {visibleKeys.length ? (
         <div className="option-key-list">
-          {visibleKeys.map((optionKey) => {
+          {pagedKeys.map((optionKey) => {
             const values = valuesOf(optionKey);
             const productName =
               PRODUCT_TYPES.find((type) => type.id === optionKey.productTypeId)
@@ -265,6 +274,14 @@ export function VehicleOptionsPage() {
               </Card>
             );
           })}
+          <Card>
+            <WorkbenchPagination
+              recordCount={visibleKeys.length}
+              pagination={pagination}
+              onPaginationChange={setPagination}
+              itemLabel="keys"
+            />
+          </Card>
         </div>
       ) : (
         <div className="empty-state">

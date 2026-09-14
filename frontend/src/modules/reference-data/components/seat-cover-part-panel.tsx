@@ -28,6 +28,10 @@ import {
 } from '@coverland-engineering/ui/table';
 import { Plus } from 'lucide-react';
 import { StatusBadge } from '@/shared/components/status-badge';
+import {
+  useWorkbenchPagination,
+  WorkbenchPagination,
+} from '@/shared/components/workbench-pagination';
 import type { SeatCoverPart, VehicleZone } from '@/shared/types/workbench';
 import { useWorkbenchStore } from '@/app/workbench-store';
 
@@ -71,6 +75,11 @@ export function SeatCoverPartPanel({ query }: { query: string }) {
         .toLowerCase()
         .includes(normalized),
   );
+  const {
+    pageItems: pagedParts,
+    pagination,
+    setPagination,
+  } = useWorkbenchPagination(visible, query);
   const duplicate = seatCoverParts.some(
     (part) => part.name.toLowerCase() === name.trim().toLowerCase(),
   );
@@ -138,7 +147,7 @@ export function SeatCoverPartPanel({ query }: { query: string }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visible.map((part) => (
+              {pagedParts.map((part) => (
                 <TableRow key={part.id}>
                   <TableCell>
                     <span className="reference-code">{part.name}</span>
@@ -186,6 +195,12 @@ export function SeatCoverPartPanel({ query }: { query: string }) {
               ))}
             </TableBody>
           </Table>
+          <WorkbenchPagination
+            recordCount={visible.length}
+            pagination={pagination}
+            onPaginationChange={setPagination}
+            itemLabel="parts"
+          />
         </Card>
       ) : (
         <div className="empty-state">

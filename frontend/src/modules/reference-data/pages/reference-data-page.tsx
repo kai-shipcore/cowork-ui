@@ -248,6 +248,7 @@ export function ReferenceDataPage() {
             <ReferenceItemTable
               items={visibleItems}
               entityLabel={entityLabel}
+              filterKey={`${kind}|${query}|${productTypeFilter}`}
               onEdit={openEdit}
               onDelete={setPendingDelete}
             />

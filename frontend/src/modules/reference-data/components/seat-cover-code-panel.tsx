@@ -24,6 +24,10 @@ import {
 } from '@coverland-engineering/ui/select';
 import { Plus, Trash2 } from 'lucide-react';
 import { StatusBadge } from '@/shared/components/status-badge';
+import {
+  useWorkbenchPagination,
+  WorkbenchPagination,
+} from '@/shared/components/workbench-pagination';
 import type {
   SeatCoverCode,
   SeatCoverCodeOptionValue,
@@ -82,6 +86,11 @@ export function SeatCoverCodePanel({ query }: { query: string }) {
         .toLowerCase()
         .includes(normalized),
   );
+  const {
+    pageItems: pagedCodes,
+    pagination,
+    setPagination,
+  } = useWorkbenchPagination(visible, query);
   const duplicateCode = seatCoverCodes.some(
     (styleCode) => styleCode.code.toLowerCase() === code.trim().toLowerCase(),
   );
@@ -150,7 +159,7 @@ export function SeatCoverCodePanel({ query }: { query: string }) {
 
       {visible.length ? (
         <div className="option-key-list">
-          {visible.map((styleCode) => {
+          {pagedCodes.map((styleCode) => {
             const links = linksOf(styleCode);
             return (
               <Card className="detail-panel" key={styleCode.id}>
@@ -208,6 +217,14 @@ export function SeatCoverCodePanel({ query }: { query: string }) {
               </Card>
             );
           })}
+          <Card>
+            <WorkbenchPagination
+              recordCount={visible.length}
+              pagination={pagination}
+              onPaginationChange={setPagination}
+              itemLabel="codes"
+            />
+          </Card>
         </div>
       ) : (
         <div className="empty-state">
