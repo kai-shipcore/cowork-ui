@@ -20,6 +20,10 @@ const item = (
   sampleRound: 2,
   priority: 'NORMAL',
   sampleReceivedAt: '2026-09-08',
+  drawingMatch: true,
+  inspectedAt: '2026-09-09',
+  inspectedBy: 'inspector',
+  inspectionNote: 'Recorded inspection',
   ...(verdict ? { revisionReflected: verdict } : {}),
 });
 const revised: ProjectDesignRevision = {
@@ -50,12 +54,16 @@ test('the same DXF content is rejected regardless of filename', () => {
 });
 test('only exact execution counts in revision accuracy', () => {
   assert.deepEqual(
-    revisionExecutionAccuracy([item('EXACT'), item('PARTIAL'), item('NONE')]),
+    revisionExecutionAccuracy([
+      item('CORRECT'),
+      item('PARTIAL'),
+      item('NOT_REFLECTED'),
+    ]),
     { exact: 1, verified: 3, percentage: 33.3 },
   );
 });
 test('revised samples cannot be approved before exact execution verification', () => {
   assert.equal(canApproveRevisionSample(revised, item()), false);
   assert.equal(canApproveRevisionSample(revised, item('PARTIAL')), false);
-  assert.equal(canApproveRevisionSample(revised, item('EXACT')), true);
+  assert.equal(canApproveRevisionSample(revised, item('CORRECT')), true);
 });

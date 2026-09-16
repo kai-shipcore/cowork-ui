@@ -2,6 +2,7 @@ import type {
   ProjectDesignRevision,
   SampleRequestItem,
 } from '../types/workbench';
+import { sampleStatus } from './sample-inspection';
 
 export async function fileFingerprint(file: File): Promise<string> {
   const digest = await crypto.subtle.digest(
@@ -29,7 +30,7 @@ export function revisionExecutionAccuracy(
 ): { exact: number; verified: number; percentage?: number } {
   const verifiedItems = items.filter((item) => item.revisionReflected);
   const exact = verifiedItems.filter(
-    (item) => item.revisionReflected === 'EXACT',
+    (item) => item.revisionReflected === 'CORRECT',
   ).length;
   return {
     exact,
@@ -45,7 +46,7 @@ export function canApproveRevisionSample(
   item: SampleRequestItem,
 ): boolean {
   return (
-    Boolean(item.sampleReceivedAt) &&
-    (!revision?.changeRequest || item.revisionReflected === 'EXACT')
+    sampleStatus(item) === 'PASSED' &&
+    (!revision?.changeRequest || item.revisionReflected === 'CORRECT')
   );
 }

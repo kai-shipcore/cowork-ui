@@ -55,7 +55,7 @@ export function ProductShapesPage() {
   return (
     <section className="shape-management">
       <PageHeader
-        description="Shape — 검토·승인 후 확정한 최종 Shape와 적용 프로젝트를 관리합니다."
+        description="Shape — 개발 Shape 생성부터 품질 검토·확정까지 관리합니다. 판매 차량 적용은 F#에서 별도로 기록합니다."
         tables={[
           { name: 'vehicle_product_shape' },
           { name: 'vehicle_product_shape_dimension' },
@@ -78,7 +78,7 @@ export function ProductShapesPage() {
           variant={view === 'issued' ? 'primary' : 'outline'}
           onClick={() => setParams({ view: 'issued' })}
         >
-          발급된 Shape
+          개발·확정 Shape
         </Button>
       </div>
       {view === 'review' ? (
@@ -86,10 +86,10 @@ export function ProductShapesPage() {
       ) : (
         <>
           <div className="shape-info">
-            <strong>발급된 Shape · 구성 등록</strong>
+            <strong>개발·확정 Shape · 구성 등록</strong>
             <p>
-              프로젝트 Handoff → 검토·승인 → Shape 발급 → Part 구성·Blueprint
-              등록
+              개발 Shape → 피팅·품질 검토 → Shape 확정 → Handoff · Part
+              구성·Blueprint 등록
             </p>
             <p>
               Shape가 같으면 여러 차량 프로젝트가 같은 Shape를 참조합니다. Part

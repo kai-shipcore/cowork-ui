@@ -8,6 +8,7 @@ import {
 
 test('library rejects duplicate names and syncs project revision history', () => {
   const data = new Map<string, string>();
+  data.set('coverland-part-library-v1', '[]');
   Object.defineProperty(globalThis, 'localStorage', {
     configurable: true,
     value: {

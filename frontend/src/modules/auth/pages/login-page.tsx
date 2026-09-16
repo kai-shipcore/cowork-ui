@@ -18,10 +18,10 @@ function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
 /** Static sign-in screen. Renders outside the app shell, with no auth behavior. */
 export function LoginPage() {
   return (
-    <div className="bg-background flex min-h-screen w-full">
+    <div className="mt-login bg-background flex min-h-screen w-full">
       {/* The logo asset is a square with a baked-in white background, so it sits
           on its own white plate to stay legible on the dark theme. */}
-      <div className="bg-muted hidden w-full items-center justify-center p-12 md:flex">
+      <div className="mt-login-brand bg-muted hidden w-full items-center justify-center p-12 md:flex">
         <img
           src={toAbsoluteUrl('/media/app/coverland_logo.png')}
           className="w-full max-w-xs rounded-2xl bg-white"
@@ -31,7 +31,7 @@ export function LoginPage() {
 
       <div className="flex w-full flex-col items-center justify-center p-6">
         <form
-          className="flex w-full max-w-sm flex-col gap-5"
+          className="mt-login-card flex w-full max-w-sm flex-col gap-5"
           onSubmit={handleSubmit}
         >
           <div className="flex flex-col gap-2 text-center">

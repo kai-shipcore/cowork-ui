@@ -47,7 +47,9 @@ export function ShapeEditor({
     shape?.productTypeId ?? productTypeId ?? 'PT-SC',
   );
   const [name, setName] = useState(shape?.name ?? '');
-  const [status, setStatus] = useState(shape?.status ?? 'ACTIVE');
+  const [status, setStatus] = useState(
+    issuanceApproved ? 'ACTIVE' : (shape?.status ?? 'IN_DEVELOPMENT'),
+  );
   const [includeDimensions, setIncludeDimensions] = useState(
     Boolean(shape?.dimensions && shape.dimensions.length > 0),
   );
@@ -77,15 +79,16 @@ export function ShapeEditor({
     productTypeId: product,
     name: name.trim(),
     status,
-    dimensions: includeDimensions
-      ? {
-          length: Number(length),
-          height: Number(height),
-          unit,
-          ...(front ? { frontWidth: Number(front) } : {}),
-          ...(back ? { backWidth: Number(back) } : {}),
-        }
-      : undefined,
+    dimensions:
+      product === 'PT-CC' && (includeDimensions || status === 'ACTIVE')
+        ? {
+            length: Number(length),
+            height: Number(height),
+            unit,
+            ...(front ? { frontWidth: Number(front) } : {}),
+            ...(back ? { backWidth: Number(back) } : {}),
+          }
+        : undefined,
   };
   const errors = shapeErrors(input, shapes, shape?.id);
   const save = () => {
@@ -121,13 +124,13 @@ export function ShapeEditor({
               ? 'Shape 수정'
               : issuanceApproved
                 ? '최종 Shape 발급 · 프로젝트 연결'
-                : '기존 확정 Shape 등록'}
+                : '개발 Shape 생성'}
           </DialogTitle>
         </DialogHeader>
         <DialogBody className="project-dialog-stack">
           <p className="muted-text">
-            Shape는 검토·승인으로 확정한 제품 규격입니다. 여러 프로젝트가 같은
-            Shape를 참조할 수 있습니다. Part와 패턴 버전은 별도로 관리합니다.
+            Shape는 개발 원천 프로젝트 하나에 연결됩니다. 여러 판매 차량에 대한
+            적용은 F# 화면에서 관리합니다.
           </p>
           <div className="dialog-form-grid">
             <label>
@@ -163,7 +166,15 @@ export function ShapeEditor({
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(SHAPE_STATUSES).map(([value, label]) => (
-                    <SelectItem value={value} key={value}>
+                    <SelectItem
+                      value={value}
+                      key={value}
+                      disabled={
+                        value === 'ACTIVE' &&
+                        shape?.status !== 'ACTIVE' &&
+                        !issuanceApproved
+                      }
+                    >
                       {label}
                     </SelectItem>
                   ))}
@@ -197,72 +208,78 @@ export function ShapeEditor({
               신규 개발 Shape는 프로젝트에서 검토 후 발급하세요.
             </label>
           )}
-          <label className="shape-check">
-            <Checkbox
-              checked={includeDimensions}
-              onCheckedChange={(value) => setIncludeDimensions(value === true)}
-            />
-            치수 입력 (선택)
-          </label>
-          {includeDimensions && (
-            <div className="dialog-form-grid">
-              <label>
-                길이 *
-                <Input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={length}
-                  onChange={(event) => setLength(event.target.value)}
-                />
-              </label>
-              <label>
-                높이 *
-                <Input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={height}
-                  onChange={(event) => setHeight(event.target.value)}
-                />
-              </label>
-              <label>
-                앞폭
-                <Input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={front}
-                  onChange={(event) => setFront(event.target.value)}
-                />
-              </label>
-              <label>
-                뒤폭
-                <Input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={back}
-                  onChange={(event) => setBack(event.target.value)}
-                />
-              </label>
-              <label>
-                단위
-                <Select
-                  value={unit}
-                  onValueChange={(value) => setUnit(value as 'CM' | 'IN')}
-                >
-                  <SelectTrigger aria-label="치수 단위">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="CM">cm</SelectItem>
-                    <SelectItem value="IN">inch</SelectItem>
-                  </SelectContent>
-                </Select>
-              </label>
-            </div>
+          {product === 'PT-CC' && (
+            <label className="shape-check">
+              <Checkbox
+                checked={includeDimensions || status === 'ACTIVE'}
+                disabled={status === 'ACTIVE'}
+                onCheckedChange={(value) =>
+                  setIncludeDimensions(value === true)
+                }
+              />
+              치수 입력 (확정 Car Cover 필수 · 앞폭과 뒤폭은 함께 입력)
+            </label>
           )}
+          {product === 'PT-CC' &&
+            (includeDimensions || status === 'ACTIVE') && (
+              <div className="dialog-form-grid">
+                <label>
+                  길이 *
+                  <Input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={length}
+                    onChange={(event) => setLength(event.target.value)}
+                  />
+                </label>
+                <label>
+                  높이 *
+                  <Input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={height}
+                    onChange={(event) => setHeight(event.target.value)}
+                  />
+                </label>
+                <label>
+                  앞폭
+                  <Input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={front}
+                    onChange={(event) => setFront(event.target.value)}
+                  />
+                </label>
+                <label>
+                  뒤폭
+                  <Input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={back}
+                    onChange={(event) => setBack(event.target.value)}
+                  />
+                </label>
+                <label>
+                  단위
+                  <Select
+                    value={unit}
+                    onValueChange={(value) => setUnit(value as 'CM' | 'IN')}
+                  >
+                    <SelectTrigger aria-label="치수 단위">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CM">cm</SelectItem>
+                      <SelectItem value="IN">inch</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </label>
+              </div>
+            )}
           {usageCount > 0 && (
             <div className="shape-impact">
               <strong>{usageCount}개 프로젝트에 함께 반영됩니다.</strong>
@@ -303,7 +320,7 @@ export function ShapeEditor({
               ? '변경 저장'
               : issuanceApproved
                 ? 'Shape 발급 · 연결'
-                : '기존 Shape 등록'}
+                : '개발 Shape 생성'}
           </Button>
         </DialogFooter>
       </DialogContent>

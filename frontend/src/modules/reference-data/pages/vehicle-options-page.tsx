@@ -55,6 +55,8 @@ export function VehicleOptionsPage() {
     vehicleOptionValues,
     setVehicleOptionValues,
     seatCoverCodeOptionValues,
+    configurations,
+    uniqueVehicles,
   } = useWorkbenchStore();
   const [query, setQuery] = useState('');
   const [productType, setProductType] = useState<'ALL' | ProductTypeId>('ALL');
@@ -90,6 +92,17 @@ export function VehicleOptionsPage() {
   const codeLinkCount = (value: VehicleOptionValue) =>
     seatCoverCodeOptionValues.filter(
       (link) => link.vehicleOptionValueId === value.id,
+    ).length +
+    [...configurations, ...uniqueVehicles].filter(
+      (record) =>
+        record.optionValueIds?.includes(value.id) ||
+        record.options.some(
+          ([key, text]) =>
+            key ===
+              vehicleOptionKeys.find(
+                (item) => item.id === value.vehicleOptionKeyId,
+              )?.name && text === value.value,
+        ),
     ).length;
   const blockingLinks = pendingDelete ? codeLinkCount(pendingDelete) : 0;
 

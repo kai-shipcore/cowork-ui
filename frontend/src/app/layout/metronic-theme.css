@@ -1,0 +1,302 @@
+/* Content-only Demo1 theme. The original navigation keeps its global theme. */
+.metronic-content,
+.mt-login {
+  --primary: var(--color-blue-500);
+  --primary-foreground: var(--color-white);
+  --wb-ink: var(--foreground);
+  --wb-ink-soft: #4b5675;
+  --wb-muted: #78829d;
+  --wb-line: var(--border);
+  --wb-canvas: #f9f9f9;
+  --wb-blue: var(--primary);
+  --wb-soft-blue: #eff6ff;
+  --wb-success-bg: #effbf5;
+  --wb-success: #17a56b;
+  --wb-warning-bg: #fff8e8;
+  --wb-warning: #b87908;
+  --wb-danger-bg: #fff1f4;
+  --wb-danger: #d81a48;
+  --wb-purple-bg: #f6f0ff;
+  --wb-purple: #7239ea;
+  --wb-cyan-bg: #ecfeff;
+  --wb-cyan: #0891b2;
+  font-family: Inter, 'Segoe UI', 'Malgun Gothic', sans-serif;
+  font-size: 13px;
+  color: var(--foreground);
+}
+.dark .metronic-content,
+.dark .mt-login {
+  --primary: var(--color-blue-600);
+  --primary-foreground: var(--color-white);
+  --wb-canvas: #111217;
+  --wb-ink-soft: #c4cada;
+  --wb-muted: #9299ac;
+  --wb-soft-blue: #17243b;
+  --wb-success-bg: #132d25;
+  --wb-success: #51d39d;
+  --wb-warning-bg: #332a18;
+  --wb-warning: #f3c36c;
+  --wb-danger-bg: #361f29;
+  --wb-danger: #ff8ca7;
+  --wb-purple-bg: #292039;
+  --wb-purple: #bf9eff;
+  --wb-cyan-bg: #122e35;
+  --wb-cyan: #67d6e6;
+}
+/* Page working surfaces only. */
+.metronic-content .workbench-page-header {
+  align-items: center;
+  margin-bottom: 22px;
+}
+.metronic-content .workbench-page-header p {
+  color: var(--wb-muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.metronic-content .page-tables {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--wb-muted);
+}
+.metronic-content .mt-screen-help {
+  margin-bottom: 20px;
+  background: var(--wb-canvas);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+.metronic-content [data-slot='card'] {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 3px 4px 0 rgb(0 0 0 / 2%);
+  color: var(--card-foreground);
+}
+.metronic-content [data-slot='card-header'] {
+  padding: 18px 22px;
+  min-height: 64px;
+  border-bottom: 1px solid var(--border);
+}
+.metronic-content [data-slot='card-title'] {
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: -0.2px;
+}
+.metronic-content table {
+  font-size: 13px;
+}
+.metronic-content thead th {
+  background: var(--wb-canvas);
+  color: var(--wb-muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 13px 18px;
+  height: 44px;
+  border-bottom: 1px solid var(--border);
+}
+.metronic-content tbody td {
+  padding: 15px 18px;
+  border-color: var(--border);
+}
+.metronic-content tbody tr:hover {
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
+}
+.metronic-content .workbench-filters {
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.metronic-content .filter-count {
+  color: var(--wb-muted);
+  font-size: 12px;
+}
+.metronic-content .workbench-badge {
+  border: 1px solid currentColor;
+  border-color: color-mix(in srgb, currentColor 15%, transparent);
+  border-radius: 5px;
+  font-weight: 500;
+  font-size: 11px;
+}
+.metronic-content .badge-neutral {
+  background: var(--muted);
+  color: var(--wb-muted);
+}
+.metronic-content .badge-progress {
+  background: var(--wb-soft-blue);
+  color: var(--primary);
+}
+.metronic-content .badge-success {
+  background: var(--wb-success-bg);
+  color: var(--wb-success);
+}
+.metronic-content .badge-warning {
+  background: var(--wb-warning-bg);
+  color: var(--wb-warning);
+}
+.metronic-content .badge-danger {
+  background: var(--wb-danger-bg);
+  color: var(--wb-danger);
+}
+.metronic-content .badge-purple {
+  background: var(--wb-purple-bg);
+  color: var(--wb-purple);
+}
+.metronic-content .badge-cyan {
+  background: var(--wb-cyan-bg);
+  color: var(--wb-cyan);
+}
+.metronic-content
+  :is(
+    .shape-info,
+    .shape-section,
+    .shape-table-scroll,
+    .detail-card,
+    .task-card,
+    .design-card,
+    .parts-generator,
+    .project-next-action,
+    .development-project-card
+  ) {
+  border-color: var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--foreground);
+}
+.metronic-content :is(.shape-info, .shape-impact, .shape-success) {
+  background: var(--wb-soft-blue);
+  border-color: color-mix(in srgb, var(--primary) 20%, var(--border));
+  color: var(--wb-ink-soft);
+}
+.metronic-content :is(.shape-management, .parts-workspace) {
+  color: var(--foreground);
+}
+.metronic-content :is(.shape-management a, .project-next-action-link) {
+  color: var(--primary);
+}
+.metronic-content :is(.shape-section, .parts-generator) label {
+  color: var(--wb-ink-soft);
+  font-size: 12px;
+}
+.metronic-content
+  :is(.shape-section, .shape-management, .parts-generator, .parts-workspace)
+  :is(
+    select,
+    input:not([type='checkbox']):not([type='radio']):not([data-slot]),
+    textarea
+  ) {
+  min-height: 36px;
+  padding: 8px 11px;
+  border: 1px solid var(--input);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  max-width: 100%;
+}
+.metronic-content :is(.shape-section, .parts-generator) > label {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 12px 8px 0;
+}
+.metronic-content :is(.shape-section, .parts-generator) input[type='checkbox'] {
+  accent-color: var(--primary);
+}
+.metronic-content .dashboard-stat-value {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -1px;
+  color: var(--foreground);
+}
+.metronic-content .dashboard-stat-label {
+  font-size: 13px;
+  color: var(--wb-muted);
+}
+.metronic-content :is(.summary-card, .summary-tile) {
+  border-radius: 10px;
+  border-color: var(--border);
+  box-shadow: none;
+}
+.metronic-content .project-group-header-row > td {
+  border-top: 1px solid var(--border);
+  background: var(--wb-canvas);
+}
+.metronic-content .shape-table {
+  background: var(--card);
+}
+.metronic-content :is(.parts-tabs, .shape-tabs) {
+  gap: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.metronic-content :is(.parts-tabs, .shape-tabs) > button {
+  border: 0;
+  border-radius: 0;
+  padding: 12px 2px;
+  background: transparent;
+  color: var(--wb-muted);
+  border-bottom: 2px solid transparent;
+}
+.metronic-content :is(.parts-tabs, .shape-tabs) > button[aria-pressed='true'] {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background: transparent;
+}
+.metronic-content .summary-card strong {
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 24px;
+  letter-spacing: -0.6px;
+}
+.metronic-content :is(.vehicle-name, .project-group-heading h1) {
+  font-weight: 600;
+}
+.metronic-content .config-chip {
+  background: var(--muted);
+  font-size: 10px;
+}
+.metronic-content .parts-title h1 {
+  font-size: 18px;
+  font-weight: 600;
+}
+.metronic-content .project-shape-panel .shape-section {
+  border-radius: 10px;
+}
+.metronic-content .shape-section fieldset {
+  padding: 14px;
+  margin: 12px 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.metronic-content .shape-section legend {
+  padding: 0 6px;
+  color: var(--wb-muted);
+  font-size: 12px;
+}
+.mt-login {
+  font-family: Inter, 'Segoe UI', 'Malgun Gothic', sans-serif;
+  background: var(--muted);
+}
+.mt-login .mt-login-brand {
+  max-width: 44%;
+  border-right: 1px solid var(--border);
+  background: var(--background);
+}
+.mt-login .mt-login-card {
+  max-width: 440px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 36px;
+  background: var(--card);
+  box-shadow: 0 3px 4px rgb(0 0 0 / 3%);
+}
+.mt-login h1 {
+  font-size: 24px;
+}
+@media (max-width: 600px) {
+  .metronic-content tbody td,
+  .metronic-content thead th {
+    padding: 12px;
+  }
+}

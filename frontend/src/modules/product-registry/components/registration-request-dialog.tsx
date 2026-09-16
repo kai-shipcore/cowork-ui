@@ -42,7 +42,7 @@ export interface RegistrationCombination {
 
 export interface RegistrationRequestDraft {
   combinations: readonly RegistrationCombination[];
-  vehicleProjectIds: readonly string[];
+  sourceShapeIds: readonly string[];
   /** Shapes the SKU was rendered from, in zone order. */
   shapeIds: readonly string[];
   note: string;
@@ -79,7 +79,6 @@ const COLOR_TYPE_LABELS: Record<ColorType, string> = {
 export function RegistrationRequestDialog({
   vehicle,
   productTypeId,
-  zoneProjects,
   shapes,
   materials,
   colors,
@@ -89,7 +88,7 @@ export function RegistrationRequestDialog({
 }: RegistrationRequestDialogProps) {
   const [selectedProjectIds, setSelectedProjectIds] = useState<
     readonly string[]
-  >(() => zoneProjects.map((zoneProject) => zoneProject.id));
+  >(() => shapes.map((shape) => shape.id));
   const [selectedMaterialIds, setSelectedMaterialIds] = useState<
     readonly string[]
   >(() => (materials[0] ? [materials[0].id] : []));
@@ -164,7 +163,7 @@ export function RegistrationRequestDialog({
     colorType,
     fNumber: vehicle.fNumber,
   });
-  const canSubmit = newCombinations.length > 0 && selectedProjectIds.length > 0;
+  const canSubmit = newCombinations.length > 0 && shapes.length > 0;
 
   function toggle(
     setter: (updater: (current: readonly string[]) => string[]) => void,
@@ -217,11 +216,9 @@ export function RegistrationRequestDialog({
           </div>
 
           <fieldset className="visit-zone-picker">
-            <legend>
-              STEP 1 · 근거 Zone Project — 등록 아이템에 기록됩니다
-            </legend>
-            {zoneProjects.length ? (
-              zoneProjects.map((zoneProject) => (
+            <legend>STEP 1 · 근거 Shape 선택 (선택 사항)</legend>
+            {shapes.length ? (
+              shapes.map((zoneProject) => (
                 <label key={zoneProject.id}>
                   <Checkbox
                     checked={selectedProjectIds.includes(zoneProject.id)}
@@ -234,15 +231,13 @@ export function RegistrationRequestDialog({
                     }
                   />
                   <span>
-                    {zoneProject.code} · {zoneProject.label} · {zoneProject.id}
+                    {zoneProject.name} · {zoneProject.id}
                   </span>
                 </label>
               ))
             ) : (
               <p className="visit-no-task-note">
-                이 F#의 Project Group({vehicle.projectGroupId})에서 Zone
-                Project를 찾을 수 없습니다. 등록 근거를 걸 수 없어 요청할 수
-                없습니다.
+                이 F#의 Zone별 PRIMARY Shape 적용을 먼저 등록하세요.
               </p>
             )}
           </fieldset>
@@ -406,7 +401,7 @@ export function RegistrationRequestDialog({
             onClick={() =>
               onSubmit({
                 combinations: newCombinations,
-                vehicleProjectIds: selectedProjectIds,
+                sourceShapeIds: selectedProjectIds,
                 shapeIds: shapes.map((shape) => shape.id),
                 note: note.trim(),
               })

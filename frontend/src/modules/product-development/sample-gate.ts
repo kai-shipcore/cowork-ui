@@ -74,7 +74,7 @@ export function getSampleGate(
         !revisionItems.some((item) => canApproveRevisionSample(revision, item))
       ) {
         blockers.push({
-          message: `${label}: 수정 지시가 정확히 반영되었는지 확인해야 합니다.`,
+          message: `${label}: 항목별 검수에서 도면 일치와 수정 반영 결과를 확인하세요.`,
           tab: 'samples',
         });
       } else if (product !== 'Floor Mat' && !revision.sampleApprovedAt) {

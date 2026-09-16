@@ -13,10 +13,13 @@ import type {
 } from '@/shared/types/workbench';
 import { CURRENT_USER_ID } from '@/app/current-user';
 import { useWorkbenchStore } from '@/app/workbench-store';
+import { FitmentQualityPanel } from './fitment-quality-panel';
 import { ShapeEditor } from './shape-editor';
 import {
   dimensionsLabel,
+  hasCurrentFitmentQuality,
   isSizeReviewCurrent,
+  latestFitting,
   SHAPE_STATUSES,
   sizeReviewBlockers,
   sizeReviewEvidence,
@@ -44,8 +47,10 @@ export function ProjectShapePanel({
     vehicleProductShapes: shapes,
     setVehicleProductShapes,
     appUsers,
+    projects,
+    fitmentQualities,
   } = useWorkbenchStore();
-  const [editor, setEditor] = useState(false);
+  const [editor, setEditor] = useState<false | 'NEW' | 'ACTIVATE'>(false);
   const [selected, setSelected] = useState('');
   const [query, setQuery] = useState('');
   const [blueprint, setBlueprint] = useState(
@@ -74,17 +79,24 @@ export function ProjectShapePanel({
     `Manual Design: ${appUsers.find((user) => user.id === attendees.manual)?.name ?? ''}`,
   ];
   const activeUsers = appUsers.filter((user) => user.status === 'ACTIVE');
+  const fitting = latestFitting(zone.id, visits);
+  const fittingTime = Date.parse(
+    fitting?.performedAt ?? `${fitting?.date}T${fitting?.time}`,
+  );
+  const qualityReady = hasCurrentFitmentQuality(
+    zone.id,
+    designs,
+    visits,
+    fitmentQualities,
+  );
   const meetingReady = Boolean(
     meetingAt &&
     Number.isFinite(Date.parse(meetingAt)) &&
+    Date.parse(meetingAt) <= Date.now() &&
     Object.values(attendees).every((id) =>
       activeUsers.some((user) => user.id === id),
     ) &&
-    Date.parse(meetingAt) >=
-      Math.floor(
-        Date.parse(zone.productionHandoff?.completedAt ?? '') / 60000,
-      ) *
-        60000,
+    Date.parse(meetingAt) >= Math.floor(fittingTime / 60000) * 60000,
   );
   const [rejectionType, setRejectionType] = useState<'DOCUMENT' | 'PATTERN'>(
     'DOCUMENT',
@@ -102,19 +114,29 @@ export function ProjectShapePanel({
     affectedDesignIds: readonly string[];
   }>();
   const canRequestChanges =
-    zone.currentStage === 'Approved' &&
-    zone.productionHandoff &&
+    ['Fitting', 'Approved'].includes(zone.currentStage) &&
     meetingReady &&
     note.trim() &&
     (rejectionType !== 'PATTERN' || affectedDesignIds.length > 0) &&
     appUsers.some((user) => user.id === reviewer && user.status === 'ACTIVE');
-  const blockers = sizeReviewBlockers(zone, designs, visits);
-  const reviewed = isSizeReviewCurrent(zone, designs, visits);
+  const blockers = [
+    ...sizeReviewBlockers(zone, designs, visits),
+    ...(!qualityReady
+      ? ['부품별 품질 확인 후 전체 제품의 PASS를 기록하세요.']
+      : []),
+  ];
+  const reviewed = qualityReady && isSizeReviewCurrent(zone, designs, visits);
   const shape = shapes.find((item) => item.id === zone.productShapeId);
   const candidates = shapes.filter(
     (item) =>
       item.productTypeId === zone.productTypeId &&
-      item.status === 'ACTIVE' &&
+      (item.status === 'IN_DEVELOPMENT' ||
+        (reviewed && item.status === 'ACTIVE')) &&
+      !projects.some((project) =>
+        project.zoneProjects.some(
+          (other) => other.id !== zone.id && other.productShapeId === item.id,
+        ),
+      ) &&
       `${item.name} ${item.id}`.toLowerCase().includes(query.toLowerCase()),
   );
   const parts = designs.filter(
@@ -128,7 +150,9 @@ export function ProjectShapePanel({
     checked &&
     appUsers.some((user) => user.id === reviewer && user.status === 'ACTIVE');
   const linkAllowed =
-    reviewed && (!shape || replacing) && zone.currentStage === 'Approved';
+    (!shape || replacing) &&
+    zone.status !== 'CANCELLED' &&
+    zone.status !== 'MERGED';
 
   function toggleTestInput(enabled: boolean): void {
     if (!enabled && beforeTest) {
@@ -191,10 +215,10 @@ export function ProjectShapePanel({
     <div className="shape-management project-shape-panel">
       <div className="shape-info">
         <strong>Shape · {zone.code}</strong>
-        <p>Handoff 완료 → 검토·승인 → Shape 발급·연결 → 구성 등록</p>
+        <p>개발 Shape 생성 → 피팅·품질 확인 → 검토·확정 → 인계</p>
         <p>
-          스캔·3D 모델·패턴 작업에는 Shape가 필요하지 않습니다. 기존 Shape를
-          재사용해도 이 프로젝트의 피팅과 검토는 필요합니다.
+          개발 중 Shape를 먼저 생성할 수 있습니다. 하나의 Shape는 하나의 개발
+          프로젝트에 연결하며, 여러 판매 차량의 적용 관계는 별도로 관리합니다.
         </p>
         <Link to="/product-shapes">전체 Shape 관리 →</Link>
         {zone.productionHandoff && (
@@ -243,6 +267,7 @@ export function ProjectShapePanel({
           </ul>
         )}
       </section>
+      <FitmentQualityPanel zone={zone} designs={designs} visits={visits} />
       <section className="shape-section shape-review-section">
         <h3>Shape 검토 회의 및 구두 승인</h3>
         <p>
@@ -444,7 +469,7 @@ export function ProjectShapePanel({
               </Button>
             </div>
             <p className="muted-text">
-              인계 이후의 회의 일시, 참석자, 필수 자료, 검토 책임자, 확인 체크를
+              피팅 이후의 회의 일시, 참석자, 필수 자료, 검토 책임자, 확인 체크를
               모두 입력해야 기록할 수 있습니다. 현재 화면은 실무 승인 결과를
               기록하며 계정별 승인 권한을 검증하지 않습니다.
             </p>
@@ -459,6 +484,14 @@ export function ProjectShapePanel({
               {shape.name} · {SHAPE_STATUSES[shape.status]}
             </strong>
             <p>{dimensionsLabel(shape.dimensions)}</p>
+            {shape.status === 'IN_DEVELOPMENT' && (
+              <Button
+                disabled={!reviewed}
+                onClick={() => setEditor('ACTIVATE')}
+              >
+                품질·검토 완료 Shape 확정
+              </Button>
+            )}
             <Link to={`/product-shapes?shape=${encodeURIComponent(shape.id)}`}>
               Shape 정보와 적용 프로젝트 관리 →
             </Link>
@@ -470,17 +503,6 @@ export function ProjectShapePanel({
                 >
                   {replacing ? '변경 취소' : '연결할 Shape 변경'}
                 </Button>
-                {replacing && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      onLink(undefined);
-                      setReplacing(false);
-                    }}
-                  >
-                    이 프로젝트 연결 해제
-                  </Button>
-                )}
               </div>
             )}
             <p>
@@ -492,8 +514,8 @@ export function ProjectShapePanel({
         )}
         {!reviewed && (
           <p className="shape-errors">
-            위 검토·승인 기록을 완료하면 신규 발급과 기존 Shape 연결이
-            가능합니다.
+            개발 Shape 생성·연결은 가능하며, ACTIVE 확정에는 품질 PASS와 검토
+            승인이 필요합니다.
           </p>
         )}
         {(!shape || replacing) && (
@@ -502,14 +524,14 @@ export function ProjectShapePanel({
               <Button
                 variant="primary"
                 disabled={!linkAllowed}
-                onClick={() => setEditor(true)}
+                onClick={() => setEditor('NEW')}
               >
-                신규 Shape 발급 · 연결
+                개발 Shape 생성 · 연결
               </Button>
             </div>
             <p>
-              같은 최종 Shape를 쓰는 경우 기존 번호를 선택하세요. 다른 Shape는
-              새 번호로 발급합니다.
+              아직 다른 개발 프로젝트에 연결되지 않은 Shape만 선택할 수
+              있습니다.
             </p>
             <div className="shape-filters">
               <Input
@@ -526,7 +548,7 @@ export function ProjectShapePanel({
                 value={selected}
                 onChange={(event) => setSelected(event.target.value)}
               >
-                <option value="">같은 제품 유형의 확정 Shape 선택</option>
+                <option value="">같은 제품 유형의 미연결 Shape 선택</option>
                 {candidates.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name}
@@ -573,12 +595,17 @@ export function ProjectShapePanel({
         <ShapeEditor
           shapes={shapes}
           productTypeId={zone.productTypeId}
-          issuanceApproved
-          usageCount={0}
+          shape={editor === 'ACTIVATE' ? shape : undefined}
+          issuanceApproved={editor === 'ACTIVATE' && reviewed}
+          usageCount={editor === 'ACTIVATE' ? 1 : 0}
           onClose={() => setEditor(false)}
           onSave={(item) => {
-            if (!linkAllowed) return;
-            setVehicleProductShapes((current) => [...current, item]);
+            if (editor === 'ACTIVATE' ? !reviewed : !linkAllowed) return;
+            setVehicleProductShapes((current) =>
+              editor === 'ACTIVATE'
+                ? current.map((row) => (row.id === item.id ? item : row))
+                : [...current, item],
+            );
             onLink(item.id);
             setEditor(false);
             setReplacing(false);

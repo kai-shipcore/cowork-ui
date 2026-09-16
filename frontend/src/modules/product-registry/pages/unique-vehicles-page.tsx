@@ -11,13 +11,14 @@ import {
   TableRow,
 } from '@coverland-engineering/ui/table';
 import { Search } from 'lucide-react';
+import { userName } from '@/shared/domain/app-user';
 import { ConfigChips } from '@/shared/domain/config-chips';
 import { PageHeader } from '@/shared/components/page-header';
+import { StatusBadge } from '@/shared/components/status-badge';
 import {
   useWorkbenchPagination,
   WorkbenchPagination,
 } from '@/shared/components/workbench-pagination';
-import { StatusBadge } from '@/shared/components/status-badge';
 import { PRODUCT_TYPES } from '@/shared/types/workbench';
 import type {
   Complaint,
@@ -26,7 +27,6 @@ import type {
   VehicleProductRegistration,
   VehicleProductRegistrationItem,
 } from '@/shared/types/workbench';
-import { userName } from '@/shared/domain/app-user';
 import { CURRENT_USER_ID } from '@/app/current-user';
 import { useWorkbenchStore } from '@/app/workbench-store';
 import {
@@ -37,6 +37,7 @@ import {
   RegistrationRequestDialog,
   type RegistrationRequestDraft,
 } from '../components/registration-request-dialog';
+import { ShapeAssignmentPanel } from '../components/shape-assignment-panel';
 
 /** F-number registry for fitting-confirmed vehicle configurations. */
 export function UniqueVehiclesPage() {
@@ -46,7 +47,10 @@ export function UniqueVehiclesPage() {
   const [message, setMessage] = useState('');
   const {
     uniqueVehicles,
-    setUniqueVehicles,
+    shapeAssignments,
+    vehicleZones,
+    masterProductSkus,
+    updateWorkbench,
     complaints,
     setComplaints,
     appUsers,
@@ -55,11 +59,8 @@ export function UniqueVehiclesPage() {
     productColors,
     vehicleProductShapes,
     masterProducts,
-    setMasterProducts,
     registrations,
-    setRegistrations,
     registrationItems,
-    setRegistrationItems,
   } = useWorkbenchStore();
   const visibleVehicles = uniqueVehicles.filter((vehicle) =>
     `${vehicle.fNumber} ${vehicle.vehicle}`
@@ -67,7 +68,30 @@ export function UniqueVehiclesPage() {
       .includes(query.toLowerCase()),
   );
 
-  const registeredSkus = masterProducts.map((product) => product.sku);
+  const registeredSkus = [
+    ...masterProducts.map((product) => product.sku),
+    ...masterProductSkus.map((row) => row.sku),
+  ];
+  function primaryAssignments(vehicle: UniqueVehicle) {
+    return shapeAssignments
+      .filter(
+        (row) =>
+          row.uniqueVehicleId === (vehicle.id ?? vehicle.fNumber) &&
+          row.type === 'PRIMARY' &&
+          !row.validTo,
+      )
+      .sort(
+        (a, b) =>
+          ['EX', 'F', 'B', 'E'].indexOf(
+            vehicleZones.find((zone) => zone.id === a.vehicleZoneId)?.code ??
+              '',
+          ) -
+          ['EX', 'F', 'B', 'E'].indexOf(
+            vehicleZones.find((zone) => zone.id === b.vehicleZoneId)?.code ??
+              '',
+          ),
+      );
+  }
   const {
     pageItems: pagedVehicles,
     pagination,
@@ -105,17 +129,40 @@ export function UniqueVehiclesPage() {
       ) + 1;
     const registrationId = `VPR-${String(nextRegistrationNumber).padStart(4, '0')}`;
     const productTypeId = productTypeIdFor(vehicle);
-    // vehicle_cover_product keeps shapes in per-zone columns: exterior alone
-    // for a whole-vehicle cover, otherwise front / rear / third row in order.
-    const [first, second, third] = draft.shapeIds;
+    const applied = primaryAssignments(vehicle);
+    if (
+      !applied.length ||
+      draft.shapeIds.some(
+        (id) => !applied.some((row) => row.vehicleProductShapeId === id),
+      )
+    ) {
+      setMessage('Zone별 PRIMARY Shape 적용을 먼저 확인하세요.');
+      return;
+    }
+    const shapeFor = (code: string) =>
+      applied.find(
+        (row) =>
+          vehicleZones.find((zone) => zone.id === row.vehicleZoneId)?.code ===
+          code,
+      )?.vehicleProductShapeId;
     const shapeColumns =
       productTypeId === 'PT-CC'
-        ? { exteriorShapeId: first }
+        ? { exteriorShapeId: shapeFor('EX') }
         : {
-            ...(first ? { frontShapeId: first } : {}),
-            ...(second ? { rearShapeId: second } : {}),
-            ...(third ? { thirdRowShapeId: third } : {}),
+            frontShapeId: shapeFor('F'),
+            rearShapeId: shapeFor('B'),
+            thirdRowShapeId: shapeFor('E'),
           };
+    if (
+      draft.combinations.some((row) =>
+        registeredSkus.some(
+          (sku) => sku.trim().toLowerCase() === row.sku.trim().toLowerCase(),
+        ),
+      )
+    ) {
+      setMessage('현재 또는 과거에 사용된 SKU입니다.');
+      return;
+    }
     const newProducts: MasterProduct[] = draft.combinations.map(
       (combination) => ({
         id: `MP-${combination.sku}`,
@@ -141,19 +188,33 @@ export function UniqueVehiclesPage() {
         id: `${registrationId}-${String(index + 1).padStart(2, '0')}`,
         registrationId,
         masterProductId: product.id,
-        vehicleProjectIds: draft.vehicleProjectIds,
+        vehicleProjectIds: [],
+        sourceShapeIds: draft.sourceShapeIds,
       }),
     );
-    setMasterProducts((current) => [...current, ...newProducts]);
-    setRegistrations((current) => [registration, ...current]);
-    setRegistrationItems((current) => [...current, ...newItems]);
-    setUniqueVehicles((current) =>
-      current.map((row) =>
-        row.fNumber === vehicle.fNumber
-          ? { ...row, skuStatus: 'REQUESTED' as const }
-          : row,
-      ),
-    );
+    updateWorkbench((state) => {
+      if (
+        draft.combinations.some((row) =>
+          [...state.masterProducts, ...state.masterProductSkus].some(
+            (existing) =>
+              existing.sku.trim().toLowerCase() ===
+              row.sku.trim().toLowerCase(),
+          ),
+        )
+      )
+        return state;
+      return {
+        ...state,
+        masterProducts: [...state.masterProducts, ...newProducts],
+        registrations: [registration, ...state.registrations],
+        registrationItems: [...state.registrationItems, ...newItems],
+        uniqueVehicles: state.uniqueVehicles.map((row) =>
+          row.fNumber === vehicle.fNumber
+            ? { ...row, skuStatus: 'REQUESTED' as const }
+            : row,
+        ),
+      };
+    });
     setRequesting(undefined);
   }
 
@@ -270,6 +331,7 @@ export function UniqueVehiclesPage() {
                       <span key={shape}>{shape}</span>
                     ))}
                   </div>
+                  <ShapeAssignmentPanel vehicle={vehicle} />
                 </TableCell>
                 <TableCell>
                   <StatusBadge
@@ -360,9 +422,10 @@ export function UniqueVehiclesPage() {
           colors={productColors.filter(
             (color) => color.productTypeId === productTypeIdFor(requesting),
           )}
-          shapes={requesting.shapes.flatMap((shapeId) => {
+          shapes={primaryAssignments(requesting).flatMap((assignment) => {
+            const shapeId = assignment.vehicleProductShapeId;
             const shape = vehicleProductShapes.find(
-              (item) => item.id === shapeId,
+              (item) => item.id === shapeId && item.status === 'ACTIVE',
             );
             return shape ? [shape] : [];
           })}

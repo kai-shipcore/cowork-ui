@@ -1,3 +1,5 @@
+import type { ProjectStageRecord } from './db-workflow';
+
 export type ProductType = 'Seat Cover' | 'Car Cover' | 'Floor Mat';
 
 export type StatusTone =
@@ -5,6 +7,12 @@ export type StatusTone =
 
 export interface VehicleConfiguration {
   id: string;
+  productTypeId?: ProductTypeId;
+  vehicleModelId?: string;
+  yearStart?: number;
+  yearEnd?: number;
+  status?: 'ACTIVE' | 'ON_HOLD' | 'REJECTED';
+  optionValueIds?: readonly string[];
   vehicle: string;
   vehicleClass: string;
   options: ReadonlyArray<readonly [string, string]>;
@@ -23,7 +31,8 @@ export interface VehicleZoneProject {
   managerId: string;
   currentStage: ProjectStage;
   /** Operational fields belong to the zone project, never to its group. */
-  status?: 'ACTIVE' | 'ON_HOLD' | 'CANCELLED';
+  status?: 'ACTIVE' | 'ON_HOLD' | 'CANCELLED' | 'MERGED';
+  stageHistory?: readonly ProjectStageRecord[];
   priority?: 'URGENT' | 'HIGH' | 'NORMAL' | 'LOW';
   targetAt?: string;
   lastActivityAt?: string;
@@ -206,7 +215,7 @@ export type MasterProductStatus =
   'DRAFT' | 'ACTIVE' | 'CLOSEOUT' | 'DISCONTINUED';
 
 /**
- * `master_product` joined with its `vehicle_cover_product` 1:1 child.
+ * `master_product` joined with its `vehicle_product` 1:1 child.
  *
  * The shape columns are the product's identity: either `exterior` alone, or
  * one to three of front / rear / third row. One filled = a row-level product,
@@ -224,6 +233,7 @@ export interface MasterProduct {
   frontShapeId?: string;
   rearShapeId?: string;
   thirdRowShapeId?: string;
+  vehicleProductDesignId?: string;
   /** F# of the unique vehicle this product was registered for. */
   fNumber: string;
   createdAt: string;
@@ -273,7 +283,7 @@ export interface VehicleProductRegistration {
 
 /**
  * `vehicle_product_registration_item` plus its
- * `registration_item_x_vehicle_project` links. `masterProductId` is unique
+ * `registration_item_x_vehicle_product_shape` links. `masterProductId` is unique
  * across all items, so a product can never be registered twice.
  */
 export interface VehicleProductRegistrationItem {
@@ -282,6 +292,8 @@ export interface VehicleProductRegistrationItem {
   masterProductId: string;
   /** Zone projects that justify this product. */
   vehicleProjectIds: readonly string[];
+  /** registration_item_x_vehicle_product_shape; legacy project IDs are read-only. */
+  sourceShapeIds?: readonly string[];
   note?: string;
 }
 
@@ -429,7 +441,12 @@ export interface SampleRequestItem {
   note?: string;
   sampleReceivedAt?: string;
   sampleShipmentId?: string;
-  revisionReflected?: 'EXACT' | 'PARTIAL' | 'NONE';
+  revisionReflected?: 'CORRECT' | 'PARTIAL' | 'NOT_REFLECTED';
+  productionStartedAt?: string;
+  drawingMatch?: boolean;
+  inspectedAt?: string;
+  inspectedBy?: string;
+  inspectionNote?: string;
   verificationNote?: string;
   verifiedAt?: string;
   verifiedBy?: string;
@@ -460,6 +477,14 @@ export type SampleShipmentDetails = Pick<
 >;
 
 export interface UniqueVehicle {
+  id?: string;
+  productTypeId?: ProductTypeId;
+  vehicleModelId?: string;
+  yearStart?: number;
+  yearEnd?: number;
+  status?: 'DRAFT' | 'ACTIVE' | 'INACTIVE' | 'SUPERSEDED';
+  optionValueIds?: readonly string[];
+  optionHash?: string;
   fNumber: string;
   vehicle: string;
   product: ProductType;
@@ -547,6 +572,7 @@ export interface ProjectDesign {
 
 export interface ProjectDesignRevision {
   id: string;
+  status?: 'IN_PROGRESS' | 'COMPLETED' | 'VOID';
   revisionNumber: number;
   note: string;
   createdBy: string;
@@ -562,7 +588,7 @@ export interface ProjectDesignRevision {
 
 export interface RevisionExecutionVerification {
   sampleRequestItemId: string;
-  verdict: 'EXACT' | 'PARTIAL' | 'NONE';
+  verdict: 'CORRECT' | 'PARTIAL' | 'NOT_REFLECTED';
   note: string;
   verifiedAt: string;
   verifiedBy: string;

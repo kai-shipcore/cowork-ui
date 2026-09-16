@@ -6,13 +6,13 @@
 .shape-info,
 .shape-section {
   padding: 20px;
-  border: 1px solid #dbe2ec;
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--card);
 }
 .shape-info {
-  background: #f5f8ff;
-  border-color: #cbd7f7;
+  background: var(--wb-soft-blue);
+  border-color: color-mix(in srgb, var(--primary) 25%, var(--border));
 }
 .shape-management p {
   margin: 8px 0;
@@ -24,7 +24,7 @@
   font-weight: 650;
 }
 .shape-management a {
-  color: #354dcc;
+  color: var(--primary);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -42,10 +42,10 @@
   max-width: 360px;
 }
 .shape-management select {
-  border: 1px solid #dbe2ec;
+  border: 1px solid var(--border);
   padding: 8px 12px;
   border-radius: 6px;
-  background: white;
+  background: var(--card);
   min-height: 36px;
   max-width: 100%;
 }
@@ -63,20 +63,20 @@
 }
 .shape-impact,
 .shape-errors {
-  background: #fff8ec;
-  color: #895416;
+  background: var(--wb-warning-bg);
+  color: var(--wb-warning);
   border-radius: 6px;
   padding: 12px 16px;
   line-height: 1.7;
 }
 .shape-success {
-  background: #eefaf5;
+  background: var(--wb-success-bg);
   padding: 14px;
   border-radius: 6px;
 }
 .shape-table-scroll {
   overflow-x: auto;
-  border: 1px solid #dbe2ec;
+  border: 1px solid var(--border);
   border-radius: 8px;
 }
 .shape-table {
@@ -86,18 +86,18 @@
   font-size: 13px;
 }
 .shape-table th {
-  background: #f7f9fc;
+  background: var(--wb-canvas);
   white-space: nowrap;
 }
 .shape-table td,
 .shape-table th {
   padding: 14px;
-  border-bottom: 1px solid #e5eaf1;
+  border-bottom: 1px solid var(--border);
   vertical-align: top;
 }
 .shape-table small {
   display: block;
-  color: #708198;
+  color: var(--wb-muted);
   font-size: 11px;
   max-width: 220px;
   overflow-wrap: anywhere;
@@ -114,7 +114,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border: 1px solid #dbe2ec;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px 16px;
   margin: 12px 0;
@@ -172,9 +172,9 @@
 .shape-review-fields .user-picker-trigger {
   width: 100%;
   min-height: 40px;
-  border: 1px solid #dbe2ec;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--card);
   padding: 8px 12px;
   font: inherit;
   font-size: 13px;
@@ -188,7 +188,7 @@
 }
 
 .shape-review-fields .user-picker-trigger:hover {
-  background: #f8fafc;
+  background: var(--wb-canvas);
   border-color: #a5b4d4;
 }
 
@@ -204,9 +204,9 @@
   gap: 24px;
   margin-top: 24px;
   padding: 16px;
-  border: 1px solid #dce5f5;
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: #f7f9fd;
+  background: var(--wb-canvas);
 }
 
 .shape-review-approval .shape-check {
@@ -224,7 +224,7 @@
   gap: 16px;
   margin: 20px 0 16px;
   padding-top: 20px;
-  border-top: 1px solid #e5eaf1;
+  border-top: 1px solid var(--border);
 }
 
 .shape-review-rejection-type {
@@ -281,9 +281,9 @@
   gap: 16px;
   margin: 24px 0;
   padding: 16px;
-  border: 1px solid #e5eaf1;
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: #f8fafc;
+  background: var(--wb-canvas);
 }
 
 .shape-composition-source > label {
@@ -363,15 +363,15 @@
 .shape-composition-editor > .shape-check {
   margin: 24px 0;
   padding: 16px;
-  border: 1px solid #dce5f5;
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: #f7f9fd;
+  background: var(--wb-canvas);
 }
 
 .shape-composition-footer {
   justify-content: flex-end;
   padding-top: 16px;
-  border-top: 1px solid #e5eaf1;
+  border-top: 1px solid var(--border);
   margin-bottom: 0;
 }
 

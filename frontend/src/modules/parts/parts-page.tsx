@@ -686,7 +686,7 @@ export function PartsPage() {
                         key={verification.sampleRequestItemId}
                       >
                         <strong>
-                          {verification.verdict === 'EXACT'
+                          {verification.verdict === 'CORRECT'
                             ? '정확히 반영'
                             : verification.verdict === 'PARTIAL'
                               ? '일부 반영'

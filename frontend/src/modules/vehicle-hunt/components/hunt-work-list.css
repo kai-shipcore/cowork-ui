@@ -43,7 +43,7 @@
 }
 .hunt-list-summary small {
   margin-left: auto;
-  color: #64748b;
+  color: var(--wb-muted);
 }
 .hunt-list-table {
   overflow-x: auto;

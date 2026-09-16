@@ -34,6 +34,7 @@ import type {
   SampleShipmentDetails,
 } from '@/shared/types/workbench';
 import { useWorkbenchStore } from '@/app/workbench-store';
+import { InspectionPanel } from '../inspection-panel';
 import { toSampleTrackingRows } from '../sample-tracking';
 import { SampleTrackingTable } from '../sample-tracking-table';
 import { ShipmentDialog } from '../shipment-dialog';
@@ -165,7 +166,13 @@ export function SamplesPage() {
     if (state === 'IN_TRANSIT') {
       const shipmentIds = new Set(
         requestItems.flatMap((item) =>
-          item.sampleShipmentId ? [item.sampleShipmentId] : [],
+          item.sampleShipmentId &&
+          sampleShipments.some(
+            (shipment) =>
+              shipment.id === item.sampleShipmentId && shipment.shippedAt,
+          )
+            ? [item.sampleShipmentId]
+            : [],
         ),
       );
       setSampleShipments((current) =>
@@ -175,7 +182,10 @@ export function SamplesPage() {
       );
       setSampleRequestItems((current) =>
         current.map((item) =>
-          item.sampleRequestId === request.id
+          item.sampleRequestId === request.id &&
+          !item.sampleReceivedAt &&
+          item.sampleShipmentId &&
+          shipmentIds.has(item.sampleShipmentId)
             ? { ...item, sampleReceivedAt: now }
             : item,
         ),
@@ -194,7 +204,9 @@ export function SamplesPage() {
     ]);
     setSampleRequestItems((current) =>
       current.map((item) =>
-        item.sampleRequestId === request.id
+        item.sampleRequestId === request.id &&
+        !item.sampleShipmentId &&
+        !item.sampleReceivedAt
           ? { ...item, sampleShipmentId: shipmentId }
           : item,
       ),
@@ -226,6 +238,7 @@ export function SamplesPage() {
             : undefined
         }
       />
+      <InspectionPanel />
       <div className="summary-grid" role="group" aria-label="샘플 상태 필터">
         {STATUS_CARDS.map((card) => (
           <button

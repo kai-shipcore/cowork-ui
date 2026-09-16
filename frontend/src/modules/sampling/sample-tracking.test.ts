@@ -59,6 +59,11 @@ const items: SampleRequestItem[] = [
   },
   {
     id: 'SRI-BHM',
+    sampleReceivedAt: '2026-05-24',
+    inspectedAt: '2026-05-25',
+    inspectedBy: 'USR-KAI',
+    drawingMatch: true,
+    revisionReflected: 'CORRECT',
     sampleRequestId: 'SR-1',
     vehicleProductDesignId: 'D-BHM',
     vehicleProductDesignRevisionId: 'REV-BHM-1',

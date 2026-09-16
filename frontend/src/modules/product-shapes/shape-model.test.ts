@@ -14,6 +14,7 @@ import {
   collectShapes,
   compositionIsCurrent,
   handoffReady,
+  hasCurrentFitmentQuality,
   isSizeReviewCurrent,
   latestFittingPassed,
   removeLegacyAdoption,
@@ -29,6 +30,7 @@ const shape: VehicleProductShape = {
   productTypeId: 'PT-CC',
   name: 'CN-M',
   status: 'ACTIVE',
+  dimensions: { length: 450, height: 150, unit: 'CM' },
   source: 'NEW',
   createdBy: 'U1',
   createdAt: '2026-09-01',
@@ -152,16 +154,17 @@ const reviewedDetail: ProjectDetailSnapshot = {
   activity: [],
 };
 
-test('development can finish without Shape; review cannot start before production handoff', () => {
+test('Shape review starts after fitting without requiring an earlier handoff', () => {
   assert.equal(zone.productShapeId, undefined);
   assert.equal(handoffReady(zone, [part], [visit]), true);
-  assert.ok(sizeReviewBlockers(zone, [part], [visit]).length);
-  assert.ok(
+  assert.equal(sizeReviewBlockers(zone, [part], [visit]).length, 0);
+  assert.equal(
     sizeReviewBlockers(
       { ...reviewed, productionHandoff: undefined },
       [part],
       [visit],
     ).length,
+    0,
   );
   assert.deepEqual(sizeReviewBlockers(reviewed, [part], [visit]), []);
 });
@@ -249,6 +252,10 @@ test('pattern rejection returns the original project to Sample and requires a ne
           sampleRound: 2,
           priority: 'NORMAL',
           sampleReceivedAt: '2026-09-06',
+          drawingMatch: true,
+          revisionReflected: 'CORRECT',
+          inspectedAt: '2026-09-06T12:00:00Z',
+          inspectedBy: 'U1',
         },
       ],
     ).ready,
@@ -428,7 +435,9 @@ test('Size uniqueness is product scoped; all dimension values must be positive f
     0,
   );
   assert.equal(
-    shapeErrors({ ...shape, productTypeId: 'PT-SC' }, [shape]).length,
+    shapeErrors({ ...shape, productTypeId: 'PT-SC', dimensions: undefined }, [
+      shape,
+    ]).length,
     0,
   );
   assert.ok(
@@ -447,6 +456,57 @@ test('Size uniqueness is product scoped; all dimension values must be positive f
       [],
       shape.id,
     ).length,
+  );
+});
+
+test('overall quality needs all current part observations and becomes stale after a newer part result', () => {
+  const base = {
+    id: 'q',
+    vehicleResearchId: 'V1',
+    vehicleProjectId: zone.id,
+    quality: 'PASS' as const,
+    source: 'REVIEW' as const,
+    note: 'observed',
+    evidenceKey: sizeReviewEvidence(zone.id, [part], [visit]),
+    createdAt: '2026-09-03',
+  };
+  const observations = [
+    { ...base, vehicleProductDesignId: part.id },
+    { ...base, id: 'overall' },
+  ];
+  assert.equal(
+    hasCurrentFitmentQuality(zone.id, [part], [visit], observations),
+    true,
+  );
+  assert.equal(
+    hasCurrentFitmentQuality(zone.id, [part], [visit], [base]),
+    false,
+  );
+  assert.equal(
+    hasCurrentFitmentQuality(
+      zone.id,
+      [part],
+      [visit],
+      [
+        ...observations,
+        {
+          ...base,
+          id: 'failed',
+          vehicleProductDesignId: part.id,
+          quality: 'FAIL',
+        },
+      ],
+    ),
+    false,
+  );
+  assert.equal(
+    hasCurrentFitmentQuality(
+      zone.id,
+      [{ ...part, quantity: 2 }],
+      [visit],
+      observations,
+    ),
+    false,
   );
 });
 

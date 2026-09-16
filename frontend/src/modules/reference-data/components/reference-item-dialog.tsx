@@ -72,7 +72,8 @@ export function ReferenceItemDialog({
     (sibling) =>
       sibling.id !== item?.id &&
       sibling.productTypeId === productTypeId &&
-      sibling.code === normalizedCode,
+      (sibling.code === normalizedCode ||
+        sibling.name.trim().toLowerCase() === name.trim().toLowerCase()),
   );
   const canSave = normalizedCode.length > 0 && name.trim().length > 0;
 
@@ -89,6 +90,7 @@ export function ReferenceItemDialog({
             Product Type
             <Select
               value={productTypeId}
+              disabled={Boolean(item)}
               onValueChange={(value) =>
                 setProductTypeId(value as ProductTypeId)
               }
@@ -128,8 +130,7 @@ export function ReferenceItemDialog({
           </div>
           {isDuplicate && (
             <div className="dialog-error">
-              이 Product Type에 Code &quot;{normalizedCode}&quot;가 이미
-              있습니다.
+              이 Product Type에 같은 Code 또는 이름이 이미 있습니다.
             </div>
           )}
         </DialogBody>

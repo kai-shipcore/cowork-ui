@@ -11,6 +11,16 @@ import {
 } from 'react';
 import { migrateVisitStaff } from '@/shared/domain/field-visit';
 import { summarizeGroupStage } from '@/shared/domain/project-stage';
+import { recordStageTransitions } from '@/shared/domain/project-stage-history';
+import { migrateSampleInspection } from '@/shared/domain/sample-inspection';
+import type {
+  ApprovalAssignment,
+  ApprovalGrant,
+  ApprovalRequest,
+  ApprovalStep,
+  FitmentQuality,
+  ShapeAssignment,
+} from '@/shared/types/db-workflow';
 import type {
   AppUser,
   Complaint,
@@ -47,6 +57,7 @@ import {
   collectShapes,
   removeLegacyAdoption,
 } from '@/modules/product-shapes/shape-model';
+import { CURRENT_USER_ID } from './current-user';
 import {
   APP_USERS,
   COMPLAINTS,
@@ -77,7 +88,13 @@ import workbenchSeed from './workbench-seed.json';
 
 const STORAGE_KEY = 'coverland-rd-workbench-v1';
 
-interface WorkbenchState {
+export interface WorkbenchState {
+  shapeAssignments: readonly ShapeAssignment[];
+  fitmentQualities: readonly FitmentQuality[];
+  approvalRequests: readonly ApprovalRequest[];
+  approvalSteps: readonly ApprovalStep[];
+  approvalAssignments: readonly ApprovalAssignment[];
+  approvalGrants: readonly ApprovalGrant[];
   configurations: readonly VehicleConfiguration[];
   projects: readonly VehicleProjectGroup[];
   visits: readonly Visit[];
@@ -107,6 +124,9 @@ interface WorkbenchState {
 }
 
 interface WorkbenchStore extends WorkbenchState {
+  updateWorkbench: (
+    transform: (state: WorkbenchState) => WorkbenchState,
+  ) => void;
   updateProjectWorkflow: (
     projectId: string,
     transform: (detail: ProjectDetailSnapshot) => ProjectDetailSnapshot,
@@ -154,6 +174,12 @@ interface WorkbenchStore extends WorkbenchState {
 /** Hand-written reference data; fills any collection the seed snapshot lacks. */
 function baselineState(): WorkbenchState {
   return {
+    shapeAssignments: [],
+    fitmentQualities: [],
+    approvalRequests: [],
+    approvalSteps: [],
+    approvalAssignments: [],
+    approvalGrants: [],
     configurations: VEHICLE_CONFIGURATIONS,
     projects: VEHICLE_PROJECTS,
     visits: VISITS,
@@ -698,7 +724,7 @@ function migrateState(
     registrations: stored.registrations ?? fallback.registrations,
     registrationItems: stored.registrationItems ?? fallback.registrationItems,
     sampleRequests,
-    sampleRequestItems,
+    sampleRequestItems: sampleRequestItems.map(migrateSampleInspection),
     sampleShipments,
     uniqueVehicles: (stored.uniqueVehicles ?? fallback.uniqueVehicles).map(
       (vehicle) => {
@@ -712,6 +738,12 @@ function migrateState(
       },
     ),
     projectDetails,
+    shapeAssignments: stored.shapeAssignments ?? [],
+    fitmentQualities: stored.fitmentQualities ?? [],
+    approvalRequests: stored.approvalRequests ?? [],
+    approvalSteps: stored.approvalSteps ?? [],
+    approvalAssignments: stored.approvalAssignments ?? [],
+    approvalGrants: stored.approvalGrants ?? [],
   };
 }
 
@@ -725,6 +757,11 @@ const WorkbenchContext = createContext<WorkbenchStore | undefined>(undefined);
 
 export function WorkbenchProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<WorkbenchState>(loadState);
+  const updateWorkbench = useCallback(
+    (transform: (state: WorkbenchState) => WorkbenchState) =>
+      setState(transform),
+    [],
+  );
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -923,7 +960,14 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
     (projectId: string, detail: ProjectDetailSnapshot) => {
       setState((current) => ({
         ...current,
-        projectDetails: { ...current.projectDetails, [projectId]: detail },
+        projectDetails: {
+          ...current.projectDetails,
+          [projectId]: recordStageTransitions(
+            current.projectDetails[projectId],
+            detail,
+            CURRENT_USER_ID,
+          ),
+        },
       }));
     },
     [],
@@ -938,7 +982,35 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
         const detail = current.projectDetails[projectId];
         const project = current.projects.find((item) => item.id === projectId);
         if (!detail || !project) return current;
-        const next = transform(detail);
+        const next = recordStageTransitions(
+          detail,
+          transform(detail),
+          CURRENT_USER_ID,
+        );
+        // Do not introduce a second development owner for a Shape. Existing
+        // ambiguous legacy links remain visible until deliberately corrected.
+        if (
+          next.zones.some(
+            (zone) =>
+              zone.productShapeId &&
+              zone.productShapeId !==
+                detail.zones.find((old) => old.id === zone.id)
+                  ?.productShapeId &&
+              (next.zones.some(
+                (other) =>
+                  other.id !== zone.id &&
+                  other.productShapeId === zone.productShapeId,
+              ) ||
+                current.projects.some(
+                  (other) =>
+                    other.id !== projectId &&
+                    other.zoneProjects.some(
+                      (linked) => linked.productShapeId === zone.productShapeId,
+                    ),
+                )),
+          )
+        )
+          return current;
         const zones = project.zoneProjects.map((zone) => {
           const updated = next.zones.find((item) => item.id === zone.id);
           return updated ? { ...zone, ...updated } : zone;
@@ -974,6 +1046,7 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
   const value = useMemo<WorkbenchStore>(
     () => ({
       ...state,
+      updateWorkbench,
       setConfigurations,
       setProjects,
       setVehicleProductShapes,
@@ -1026,6 +1099,7 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       setUniqueVehicles,
       setVisits,
       state,
+      updateWorkbench,
       resetWorkbench,
     ],
   );

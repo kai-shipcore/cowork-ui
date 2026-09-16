@@ -100,6 +100,8 @@ import { PartLinkDialog } from '@/modules/parts/part-link-dialog';
 import {
   handoffBlockers,
   handoffReady,
+  hasCurrentFitmentQuality,
+  isSizeReviewCurrent,
   sizeReviewEvidence,
 } from '@/modules/product-shapes/shape-model';
 import { ShipmentDialog } from '@/modules/sampling/shipment-dialog';
@@ -239,7 +241,7 @@ function isRevisionSampleRequestable(
   return (
     !latest ||
     latest.revisionReflected === 'PARTIAL' ||
-    latest.revisionReflected === 'NONE'
+    latest.revisionReflected === 'NOT_REFLECTED'
   );
 }
 
@@ -418,6 +420,7 @@ export function ProjectDetailView({
   const [linkZone, setLinkZone] = useState<string>();
   const {
     vehicleProductShapes,
+    fitmentQualities,
     projectDetails,
     saveProjectDetail,
     setProjects,
@@ -914,10 +917,19 @@ export function ProjectDetailView({
       ),
       skuStatus: 'DRAFT',
     };
-    setUniqueVehicles((current) => [
-      uniqueVehicle,
-      ...current.filter((vehicle) => vehicle.projectGroupId !== project.id),
-    ]);
+    setUniqueVehicles((current) =>
+      current.some(
+        (vehicle) =>
+          vehicle.fNumber === fNumber || vehicle.projectGroupId === project.id,
+      )
+        ? current
+        : [
+            uniqueVehicle,
+            ...current.filter(
+              (vehicle) => vehicle.projectGroupId !== project.id,
+            ),
+          ],
+    );
   }, [fNumber, project, setUniqueVehicles, zones]);
 
   function addActivity(title: string, detail: string): void {
@@ -1041,6 +1053,25 @@ export function ProjectDetailView({
     );
   }
 
+  function shapeHandoffErrors(zone: ZoneProject): string[] {
+    const shape = vehicleProductShapes.find(
+      (row) => row.id === zone.productShapeId,
+    );
+    return [
+      ...(!shape || shape.status !== 'ACTIVE'
+        ? [
+            `${zone.code}: 확정 Shape가 필요합니다. Shape 검토 화면에서 생성·확정하세요.`,
+          ]
+        : []),
+      ...(!isSizeReviewCurrent(zone, designs, visits)
+        ? [`${zone.code}: 현재 구성에 대한 Shape 검토 승인이 필요합니다.`]
+        : []),
+      ...(!hasCurrentFitmentQuality(zone.id, designs, visits, fitmentQualities)
+        ? [`${zone.code}: 전체 제품의 최신 피팅 품질 PASS가 필요합니다.`]
+        : []),
+    ];
+  }
+
   if (!focusedZone) {
     return (
       <section className="project-workspace">
@@ -1110,6 +1141,16 @@ export function ProjectDetailView({
       <Button className="project-back-button" variant="ghost" onClick={onBack}>
         <ArrowLeft /> Vehicle Projects
       </Button>
+      <Button
+        variant="outline"
+        onClick={() =>
+          navigate(
+            `/product-shapes?view=review&project=${encodeURIComponent(project.id)}&zone=${encodeURIComponent(focusedZone.id)}`,
+          )
+        }
+      >
+        Shape 생성·품질 검토·확정 →
+      </Button>
       <ProjectHeader
         project={project}
         zone={focusedZone}
@@ -1177,6 +1218,23 @@ export function ProjectDetailView({
             }
             onOpenVisits={() => setActiveTab('visits')}
           />
+          <details className="shape-section">
+            <summary>단계 전환 이력</summary>
+            <p>
+              이번 수정 이후 기록한 전환입니다. 기존 단계의 실제 시작 시각은
+              추정하지 않습니다.
+            </p>
+            {(
+              savedDetail?.zones.find((zone) => zone.id === focusedZone.id)
+                ?.stageHistory ?? []
+            ).map((record) => (
+              <p key={record.id}>
+                {record.stageSequence}. {record.stage} · 시작 {record.startedAt}{' '}
+                · 완료 {record.completedAt ?? '진행 중'} · 목표{' '}
+                {record.targetDueAt ?? '미설정'}
+              </p>
+            ))}
+          </details>
         </TabsContent>
         <TabsContent value="designs">
           <DesignsTab
@@ -1293,7 +1351,7 @@ export function ProjectDetailView({
                         verificationNote: note,
                         verifiedAt,
                         verifiedBy: CURRENT_USER_ID,
-                        ...(verdict === 'EXACT'
+                        ...(verdict === 'CORRECT'
                           ? {}
                           : { issueSource: 'FACTORY' as const }),
                       }
@@ -1322,7 +1380,7 @@ export function ProjectDetailView({
                                   note,
                                   verifiedAt,
                                   verifiedBy: CURRENT_USER_ID,
-                                  ...(verdict === 'EXACT'
+                                  ...(verdict === 'CORRECT'
                                     ? {}
                                     : { issueSource: 'FACTORY' as const }),
                                 },
@@ -1489,6 +1547,7 @@ export function ProjectDetailView({
           )
         }
         handoffErrors={[
+          ...handoffScope.flatMap(shapeHandoffErrors),
           ...handoffScope.flatMap((zone) =>
             handoffBlockers(zone, designs, visits),
           ),
@@ -1708,6 +1767,7 @@ export function ProjectDetailView({
                 ? sizeReviewEvidence(handoffScope[0].id, designs, visits)
                 : '') ||
             !handoffScope.length ||
+            handoffScope.some((zone) => shapeHandoffErrors(zone).length > 0) ||
             !handoffScope.every((zone) =>
               handoffReady(zone, designs, visits),
             ) ||
@@ -2932,7 +2992,7 @@ function RevisionVerification({
         onChange={(event) => setNote(event.target.value)}
       />
       <div className="revision-verdict-actions">
-        {(['EXACT', 'PARTIAL', 'NONE'] as const).map((verdict) => (
+        {(['CORRECT', 'PARTIAL', 'NOT_REFLECTED'] as const).map((verdict) => (
           <Button
             key={verdict}
             size="sm"
@@ -2940,7 +3000,7 @@ function RevisionVerification({
             disabled={!note.trim()}
             onClick={() => onVerify(item.id, verdict, note.trim())}
           >
-            {verdict === 'EXACT'
+            {verdict === 'CORRECT'
               ? '정확히 반영'
               : verdict === 'PARTIAL'
                 ? '일부 반영'
@@ -2951,11 +3011,11 @@ function RevisionVerification({
       {item.revisionReflected && (
         <StatusBadge
           label={
-            item.revisionReflected === 'EXACT'
+            item.revisionReflected === 'CORRECT'
               ? '장착 테스트 진행 가능'
               : '공장 실행 문제 · 별도 추적'
           }
-          tone={item.revisionReflected === 'EXACT' ? 'success' : 'danger'}
+          tone={item.revisionReflected === 'CORRECT' ? 'success' : 'danger'}
         />
       )}
     </div>
@@ -4602,9 +4662,11 @@ function ProjectDialog({
                 <label>
                   Target Vehicle
                   <Select
-                    value={targetVehicleResearchId || 'NONE'}
+                    value={targetVehicleResearchId || 'NOT_REFLECTED'}
                     onValueChange={(value) =>
-                      setTargetVehicleResearchId(value === 'NONE' ? '' : value)
+                      setTargetVehicleResearchId(
+                        value === 'NOT_REFLECTED' ? '' : value,
+                      )
                     }
                   >
                     <SelectTrigger aria-label="Target Vehicle">

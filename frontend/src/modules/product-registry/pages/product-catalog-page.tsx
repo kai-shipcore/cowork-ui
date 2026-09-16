@@ -19,12 +19,17 @@ import {
 } from '@coverland-engineering/ui/table';
 import { PackageCheck, Search, X } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import {
+  businessDateInstant,
+  packagingVersionErrors,
+  skuVersionErrors,
+} from '@/shared/domain/catalog-validation';
 import { PageHeader } from '@/shared/components/page-header';
+import { StatusBadge } from '@/shared/components/status-badge';
 import {
   useWorkbenchPagination,
   WorkbenchPagination,
 } from '@/shared/components/workbench-pagination';
-import { StatusBadge } from '@/shared/components/status-badge';
 import { PRODUCT_TYPES } from '@/shared/types/workbench';
 import type {
   MasterProduct,
@@ -143,8 +148,28 @@ export function ProductCatalogPage() {
   }
 
   /** Issuing a version closes the open one at the same instant, never edits it. */
-  function issueSku(product: MasterProduct, version: NewSkuVersion): void {
-    const validFrom = `${version.validFrom}T00:00:00-07:00`;
+  function issueSku(
+    product: MasterProduct,
+    version: NewSkuVersion,
+  ): readonly string[] {
+    const errors = skuVersionErrors(
+      version.sku,
+      version.validFrom,
+      [
+        ...masterProductSkus,
+        ...masterProducts.map((row) => ({
+          id: row.id,
+          masterProductId: row.id,
+          sku: row.sku,
+          validFrom: row.createdAt,
+        })),
+      ],
+      masterProductSkus.find(
+        (row) => row.masterProductId === product.id && !row.validTo,
+      )?.validFrom,
+    );
+    if (errors.length) return errors;
+    const validFrom = businessDateInstant(version.validFrom)!;
     const row: MasterProductSku = {
       id: `MPS-${version.sku}-${masterProductSkus.length + 1}`,
       masterProductId: product.id,
@@ -172,13 +197,25 @@ export function ProductCatalogPage() {
           : existing,
       ),
     );
+    return [];
   }
 
   function issuePackaging(
     product: MasterProduct,
     version: NewPackagingVersion,
-  ): void {
-    const validFrom = `${version.validFrom}T00:00:00-07:00`;
+  ): readonly string[] {
+    const errors = packagingVersionErrors(
+      {
+        length: Number(version.length),
+        width: Number(version.width),
+        height: Number(version.height),
+        weight: Number(version.weight),
+      },
+      version.validFrom,
+      currentPackaging(product)?.validFrom,
+    );
+    if (errors.length) return errors;
+    const validFrom = businessDateInstant(version.validFrom)!;
     const row: MasterProductPackaging = {
       id: `MPP-${product.id}-${masterProductPackagings.length + 1}`,
       masterProductId: product.id,
@@ -200,6 +237,7 @@ export function ProductCatalogPage() {
       ),
       row,
     ]);
+    return [];
   }
 
   if (selected) {
@@ -236,7 +274,7 @@ export function ProductCatalogPage() {
           import.meta.env.DEV
             ? [
                 { name: 'master_product' },
-                { name: 'vehicle_cover_product' },
+                { name: 'vehicle_product' },
                 { name: 'master_product_sku' },
                 { name: 'master_product_packaging' },
               ]

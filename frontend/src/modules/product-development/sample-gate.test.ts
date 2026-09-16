@@ -39,6 +39,9 @@ const item: SampleRequestItem = {
   sampleRound: 1,
   priority: 'NORMAL',
   sampleReceivedAt: '2026-09-09',
+  drawingMatch: true,
+  inspectedAt: '2026-09-09T12:00:00Z',
+  inspectedBy: 'USR-KAI',
 };
 
 test('an orphan approved sample cannot pass an empty car-cover design gate', () => {
@@ -99,7 +102,7 @@ test('each bundle zone needs a design and another zones receipt cannot satisfy i
   assert.equal(getSampleGate('Car Cover', [], [], []).ready, false);
 });
 
-test('floor mat retains its receipt-only approval policy but cannot bypass receipt', () => {
+test('floor mat requires inspection but not a separate legacy revision approval', () => {
   const unapproved = {
     ...design,
     revisions: design.revisions.map((revision) => ({

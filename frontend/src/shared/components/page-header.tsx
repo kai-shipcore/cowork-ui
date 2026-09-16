@@ -1,11 +1,9 @@
 import type { ReactNode } from 'react';
+import type { DatabaseTable } from '@/shared/types/db-tables';
 
 /** A database table the screen reads or writes. */
-export interface TableRef {
-  name: string;
-  /** True when the table is not in the schema (proposed, or a UI-only stand-in). */
-  proposed?: boolean;
-}
+export type TableRef =
+  { name: DatabaseTable; proposed?: false } | { name: string; proposed: true };
 
 interface PageHeaderProps {
   description: string;
@@ -30,9 +28,11 @@ export function PageTables({ tables }: { tables: readonly TableRef[] }) {
   return (
     <details className="page-tables">
       <summary>
-        Tables <span className="page-tables-count">{tables.length}</span>
+        설계 대응 Tables{' '}
+        <span className="page-tables-count">{tables.length}</span>
       </summary>
       <div className="page-tables-list">
+        <small>최종 DB 설계 기준 · 현재 브라우저 저장, 서버 연결 전</small>
         {tables.map((table) => (
           <span
             className={table.proposed ? 'table-chip proposed' : 'table-chip'}

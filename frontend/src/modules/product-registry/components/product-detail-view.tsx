@@ -54,8 +54,8 @@ interface ProductDetailViewProps {
   registration?: VehicleProductRegistration;
   registrationItem?: VehicleProductRegistrationItem;
   onBack: () => void;
-  onIssueSku: (version: NewSkuVersion) => void;
-  onIssuePackaging: (version: NewPackagingVersion) => void;
+  onIssueSku: (version: NewSkuVersion) => readonly string[];
+  onIssuePackaging: (version: NewPackagingVersion) => readonly string[];
 }
 
 function productName(productTypeId: string): string {
@@ -92,6 +92,7 @@ export function ProductDetailView({
   onIssuePackaging,
 }: ProductDetailViewProps) {
   const [skuDialogOpen, setSkuDialogOpen] = useState(false);
+  const [errors, setErrors] = useState<readonly string[]>([]);
   const [packagingDialogOpen, setPackagingDialogOpen] = useState(false);
   const [newSku, setNewSku] = useState(product.sku);
   const [skuNote, setSkuNote] = useState('');
@@ -112,7 +113,7 @@ export function ProductDetailView({
           <CardTitle>
             <span className="generated-sku">{product.sku}</span>
             {import.meta.env.DEV && (
-              <small>master_product · vehicle_cover_product</small>
+              <small>master_product · vehicle_product</small>
             )}
           </CardTitle>
           <StatusBadge
@@ -281,6 +282,11 @@ export function ProductDetailView({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>새 SKU 발행</DialogTitle>
+            {errors.map((error) => (
+              <p role="alert" key={error}>
+                {error}
+              </p>
+            ))}
           </DialogHeader>
           <DialogBody className="dialog-form-grid">
             <label className="full-width">
@@ -319,12 +325,13 @@ export function ProductDetailView({
               variant="primary"
               disabled={!newSku.trim() || newSku.trim() === product.sku}
               onClick={() => {
-                onIssueSku({
+                const nextErrors = onIssueSku({
                   sku: newSku.trim(),
                   validFrom,
                   note: skuNote.trim(),
                 });
-                setSkuDialogOpen(false);
+                setErrors(nextErrors);
+                if (!nextErrors.length) setSkuDialogOpen(false);
               }}
             >
               발행
@@ -337,6 +344,11 @@ export function ProductDetailView({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>새 Packaging 발행</DialogTitle>
+            {errors.map((error) => (
+              <p role="alert" key={error}>
+                {error}
+              </p>
+            ))}
           </DialogHeader>
           <DialogBody className="dialog-form-grid">
             <label>
@@ -393,8 +405,15 @@ export function ProductDetailView({
             <Button
               variant="primary"
               onClick={() => {
-                onIssuePackaging({ length, width, height, weight, validFrom });
-                setPackagingDialogOpen(false);
+                const nextErrors = onIssuePackaging({
+                  length,
+                  width,
+                  height,
+                  weight,
+                  validFrom,
+                });
+                setErrors(nextErrors);
+                if (!nextErrors.length) setPackagingDialogOpen(false);
               }}
             >
               발행

@@ -18,467 +18,198 @@ import {
   TableHeader,
   TableRow,
 } from '@coverland-engineering/ui/table';
-import { Check, PackageCheck, Search, Trash2, X } from 'lucide-react';
 import { userName } from '@/shared/domain/app-user';
 import { PageHeader } from '@/shared/components/page-header';
 import {
   useWorkbenchPagination,
   WorkbenchPagination,
 } from '@/shared/components/workbench-pagination';
-import { StatusBadge } from '@/shared/components/status-badge';
-import type {
-  MasterProductSku,
-  VehicleProductRegistration,
-} from '@/shared/types/workbench';
-import { CURRENT_USER_ID } from '@/app/current-user';
 import { useWorkbenchStore } from '@/app/workbench-store';
+import {
+  LocalApprovalGrants,
+  ProductApprovalPanel,
+} from '../components/product-approval-panel';
+import '@/modules/product-shapes/shape-management.css';
 
-type ApprovalFilter = 'ALL' | 'PENDING' | 'APPROVED';
-
-/** Approval queue for product registration requests. */
 export function ProductRegistrationsPage() {
   const {
     registrations,
-    setRegistrations,
     registrationItems,
-    setRegistrationItems,
     masterProducts,
-    setMasterProducts,
-    setMasterProductSkus,
-    setUniqueVehicles,
+    approvalRequests,
     appUsers,
   } = useWorkbenchStore();
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<ApprovalFilter>('ALL');
-  const [reviewing, setReviewing] = useState<VehicleProductRegistration>();
-  const [pendingDelete, setPendingDelete] =
-    useState<VehicleProductRegistration>();
-
-  const itemsOf = (registrationId: string) =>
-    registrationItems.filter((item) => item.registrationId === registrationId);
-  const productOf = (masterProductId: string) =>
-    masterProducts.find((product) => product.id === masterProductId);
-
-  const normalizedQuery = query.trim().toLowerCase();
-  const visibleRegistrations = registrations.filter((registration) => {
-    const skus = itemsOf(registration.id)
-      .map((item) => productOf(item.masterProductId)?.sku ?? '')
-      .join(' ');
-    const matchesQuery =
-      !normalizedQuery ||
-      `${registration.id} ${userName(appUsers, registration.requestedBy)} ${skus}`
+  const [filter, setFilter] = useState('ALL');
+  const [reviewing, setReviewing] = useState('');
+  const itemsOf = (id: string) =>
+    registrationItems.filter((item) => item.registrationId === id);
+  const statusOf = (id: string) =>
+    approvalRequests.filter((request) => request.entityId === id).slice(-1)[0]
+      ?.status ??
+    (registrations.find((row) => row.id === id)?.approvedAt
+      ? 'LEGACY_APPROVED'
+      : 'NOT_SUBMITTED');
+  const visible = registrations.filter(
+    (row) =>
+      (filter === 'ALL' || statusOf(row.id) === filter) &&
+      `${row.id} ${userName(appUsers, row.requestedBy)} ${itemsOf(row.id)
+        .map(
+          (item) =>
+            masterProducts.find((p) => p.id === item.masterProductId)?.sku,
+        )
+        .join(' ')}`
         .toLowerCase()
-        .includes(normalizedQuery);
-    const isPending = registration.approvedAt === undefined;
-    const matchesFilter =
-      filter === 'ALL' || (filter === 'PENDING' ? isPending : !isPending);
-    return matchesQuery && matchesFilter;
-  });
-  const pendingCount = registrations.filter(
-    (registration) => registration.approvedAt === undefined,
-  ).length;
-  const {
-    pageItems: pagedRegistrations,
-    pagination,
-    setPagination,
-  } = useWorkbenchPagination(visibleRegistrations, `${query}|${filter}`);
-
-  /** Approval is per registration; every item goes ACTIVE together. */
-  function approve(registration: VehicleProductRegistration): void {
-    const now = new Date().toISOString();
-    const productIds = itemsOf(registration.id).map(
-      (item) => item.masterProductId,
-    );
-    const approvedFNumbers = productIds
-      .map((productId) => productOf(productId)?.fNumber)
-      .filter((fNumber): fNumber is string => fNumber !== undefined);
-    setRegistrations((current) =>
-      current.map((item) =>
-        item.id === registration.id
-          ? { ...item, approvedAt: now, approvedBy: CURRENT_USER_ID }
-          : item,
-      ),
-    );
-    setMasterProducts((current) =>
-      current.map((product) =>
-        productIds.includes(product.id)
-          ? { ...product, status: 'ACTIVE' as const, updatedAt: now }
-          : product,
-      ),
-    );
-    setUniqueVehicles((current) =>
-      current.map((vehicle) =>
-        approvedFNumbers.includes(vehicle.fNumber)
-          ? { ...vehicle, skuStatus: 'ACTIVE' as const }
-          : vehicle,
-      ),
-    );
-    // Approval is when the SKU starts being valid, so it opens the history.
-    const openedSkus: MasterProductSku[] = productIds.flatMap((productId) => {
-      const product = productOf(productId);
-      return product
-        ? [
-            {
-              id: `MPS-${product.sku}-1`,
-              masterProductId: product.id,
-              sku: product.sku,
-              validFrom: now,
-              note: '최초 등록',
-            },
-          ]
-        : [];
-    });
-    setMasterProductSkus((current) => [...current, ...openedSkus]);
-    setReviewing(undefined);
-  }
-
-  /**
-   * There is no reject state, so a mistaken request is deleted. That has to
-   * remove the master products too: their ids are unique across registration
-   * items, and leaving them behind would permanently block re-registering the
-   * same SKU.
-   */
-  function deleteRegistration(registration: VehicleProductRegistration): void {
-    const items = itemsOf(registration.id);
-    const productIds = items.map((item) => item.masterProductId);
-    const releasedFNumbers = productIds
-      .map((productId) => productOf(productId)?.fNumber)
-      .filter((fNumber): fNumber is string => fNumber !== undefined);
-    setRegistrationItems((current) =>
-      current.filter((item) => item.registrationId !== registration.id),
-    );
-    setMasterProducts((current) =>
-      current.filter((product) => !productIds.includes(product.id)),
-    );
-    setMasterProductSkus((current) =>
-      current.filter((row) => !productIds.includes(row.masterProductId)),
-    );
-    setRegistrations((current) =>
-      current.filter((item) => item.id !== registration.id),
-    );
-    setUniqueVehicles((current) =>
-      current.map((vehicle) =>
-        releasedFNumbers.includes(vehicle.fNumber)
-          ? { ...vehicle, skuStatus: 'DRAFT' as const }
-          : vehicle,
-      ),
-    );
-    setPendingDelete(undefined);
-    setReviewing(undefined);
-  }
-
+        .includes(query.toLowerCase()),
+  );
+  const { pageItems, pagination, setPagination } = useWorkbenchPagination(
+    visible,
+    `${query}|${filter}`,
+  );
   return (
-    <section>
+    <section className="shape-management">
       <PageHeader
-        description="Product 등록 요청 승인 — 승인은 등록 단위 일괄 처리이며, 반려 대신 승인 대기 건 삭제로 되돌립니다"
+        description="제품 등록 · 단계별 승인 / 반려 이력 보존 / 최종 승인 시 제품과 SKU 일괄 반영"
         tables={
           import.meta.env.DEV
             ? [
                 { name: 'vehicle_product_registration' },
                 { name: 'vehicle_product_registration_item' },
-                { name: 'registration_item_x_vehicle_project' },
+                { name: 'registration_item_x_vehicle_product_shape' },
+                { name: 'vehicle_product' },
                 { name: 'master_product' },
+                { name: 'approval_type' },
+                { name: 'user_x_approval_type_grant' },
+                { name: 'approval_request' },
+                { name: 'approval_request_step' },
+                { name: 'approval_request_step_assignment' },
               ]
             : undefined
         }
       />
-
-      <div className="summary-grid" role="group" aria-label="승인 상태 필터">
-        <SummaryTile
-          label="승인 대기"
-          value={pendingCount}
-          tone="warning"
-          active={filter === 'PENDING'}
-          onToggle={() =>
-            setFilter((current) => (current === 'PENDING' ? 'ALL' : 'PENDING'))
-          }
+      <p>
+        현재 브라우저 저장 기반의 승인 흐름입니다. 실제 사용자 인증과 서버
+        트랜잭션은 연결 전입니다.
+      </p>
+      <div className="shape-filters">
+        <Input
+          aria-label="등록 번호, 요청자, SKU 검색"
+          placeholder="등록 번호 / 요청자 / SKU 검색"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
         />
-        <SummaryTile
-          label="승인 완료"
-          value={registrations.length - pendingCount}
-          tone="success"
-          active={filter === 'APPROVED'}
-          onToggle={() =>
-            setFilter((current) =>
-              current === 'APPROVED' ? 'ALL' : 'APPROVED',
-            )
-          }
-        />
+        <select
+          aria-label="승인 상태"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        >
+          {[
+            'ALL',
+            'NOT_SUBMITTED',
+            'PENDING',
+            'APPROVED',
+            'REJECTED',
+            'CANCELLED',
+            'LEGACY_APPROVED',
+          ].map((status) => (
+            <option key={status}>{status}</option>
+          ))}
+        </select>
       </div>
-
-      <div className="workbench-filters">
-        <div className="search-field">
-          <Search aria-hidden="true" />
-          <Input
-            aria-label="등록 번호, 요청자, SKU 검색"
-            placeholder="VPR / 요청자 / SKU 검색"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </div>
-        {(normalizedQuery || filter !== 'ALL') && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              setQuery('');
-              setFilter('ALL');
-            }}
-          >
-            <X /> 필터 초기화
-          </Button>
-        )}
-        <span className="filter-count">
-          {visibleRegistrations.length} / {registrations.length} 등록
-        </span>
-      </div>
-
-      {visibleRegistrations.length ? (
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>등록</TableHead>
-                <TableHead>요청자</TableHead>
-                <TableHead>아이템</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>상태</TableHead>
-                <TableHead className="action-column" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pagedRegistrations.map((registration) => {
-                const items = itemsOf(registration.id);
-                const isPending = registration.approvedAt === undefined;
-                return (
-                  <TableRow
-                    key={registration.id}
-                    className="row-link"
-                    onClick={() => setReviewing(registration)}
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>등록</TableHead>
+              <TableHead>요청자</TableHead>
+              <TableHead>SKU</TableHead>
+              <TableHead>상태</TableHead>
+              <TableHead>작업</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {pageItems.map((row) => (
+              <TableRow key={row.id}>
+                <TableCell>
+                  {row.id}
+                  <small>{row.requestedAt}</small>
+                </TableCell>
+                <TableCell>{userName(appUsers, row.requestedBy)}</TableCell>
+                <TableCell>
+                  {itemsOf(row.id).map((item) => (
+                    <div key={item.id}>
+                      {masterProducts.find(
+                        (product) => product.id === item.masterProductId,
+                      )?.sku ?? '제품 누락'}
+                    </div>
+                  ))}
+                </TableCell>
+                <TableCell>{statusOf(row.id)}</TableCell>
+                <TableCell>
+                  <Button
+                    variant="outline"
+                    onClick={() => setReviewing(row.id)}
                   >
-                    <TableCell>
-                      <span className="visit-reference">{registration.id}</span>
-                      <div className="vehicle-meta">
-                        {registration.requestedAt.slice(0, 10)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {userName(appUsers, registration.requestedBy)}
-                    </TableCell>
-                    <TableCell>{items.length}건</TableCell>
-                    <TableCell>
-                      {items.map((item) => (
-                        <div className="generated-sku compact" key={item.id}>
-                          {productOf(item.masterProductId)?.sku ?? '—'}
-                        </div>
-                      ))}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        label={isPending ? '승인 대기' : '승인 완료'}
-                        tone={isPending ? 'warning' : 'success'}
-                      />
-                      {!isPending && (
-                        <div className="vehicle-meta">
-                          {userName(appUsers, registration.approvedBy)}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="table-actions">
-                      <Button size="sm" variant="outline">
-                        검토
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-          <WorkbenchPagination
-            recordCount={visibleRegistrations.length}
-            pagination={pagination}
-            onPaginationChange={setPagination}
-            itemLabel="registrations"
-          />
-        </Card>
-      ) : (
-        <div className="empty-state">
-          <div className="empty-icon">📦</div>
-          <strong>등록 요청이 없습니다.</strong>
-          <p>
-            Unique Vehicles / F# 화면에서 &quot;등록 요청&quot;으로 시작합니다.
-          </p>
-        </div>
-      )}
-
+                    검토·이력
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <WorkbenchPagination
+          recordCount={visible.length}
+          pagination={pagination}
+          onPaginationChange={setPagination}
+          itemLabel="registrations"
+        />
+      </Card>
+      {!visible.length && <p>표시할 등록 요청이 없습니다.</p>}
       <Dialog
-        open={reviewing !== undefined}
-        onOpenChange={(open) => !open && setReviewing(undefined)}
+        open={Boolean(reviewing)}
+        onOpenChange={(open) => !open && setReviewing('')}
       >
         <DialogContent className="detail-dialog">
           <DialogHeader>
-            <DialogTitle>등록 검토 · {reviewing?.id}</DialogTitle>
-          </DialogHeader>
-          {reviewing && (
-            <DialogBody className="detail-card-list">
-              <div className="detail-card">
-                <span className="detail-card-label">
-                  요청자 {userName(appUsers, reviewing.requestedBy)} ·{' '}
-                  {reviewing.requestedAt.slice(0, 10)}
-                </span>
-                <strong>
-                  {reviewing.approvedAt ? '승인 완료' : '승인 대기'}
-                </strong>
-                {reviewing.note && (
-                  <dl className="detail-rows">
-                    <div>
-                      <dt>메모</dt>
-                      <dd>{reviewing.note}</dd>
-                    </div>
-                  </dl>
-                )}
-              </div>
-
-              {itemsOf(reviewing.id).map((item) => {
-                const product = productOf(item.masterProductId);
-                return (
-                  <div className="detail-card" key={item.id}>
-                    <span className="detail-card-label">
-                      {item.id} · {product?.fNumber}
-                    </span>
-                    <strong className="generated-sku">
-                      {product?.sku ?? '—'}
-                    </strong>
-                    <dl className="detail-rows">
-                      <div>
-                        <dt>근거 Zone Project</dt>
-                        <dd>
-                          <span className="zone-list">
-                            {item.vehicleProjectIds.map((projectId) => (
-                              <span
-                                className="zone-project-reference"
-                                key={projectId}
-                              >
-                                {projectId}
-                              </span>
-                            ))}
-                          </span>
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Product 상태</dt>
-                        <dd>
-                          <StatusBadge
-                            label={product?.status ?? 'DRAFT'}
-                            tone={
-                              product?.status === 'ACTIVE'
-                                ? 'success'
-                                : 'neutral'
-                            }
-                          />
-                        </dd>
-                      </div>
-                    </dl>
-                  </div>
-                );
-              })}
-            </DialogBody>
-          )}
-          <DialogFooter>
-            {reviewing && reviewing.approvedAt === undefined && (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => setPendingDelete(reviewing)}
-                >
-                  <Trash2 /> 삭제
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setReviewing(undefined)}
-                >
-                  닫기
-                </Button>
-                <Button variant="primary" onClick={() => approve(reviewing)}>
-                  <Check /> 등록 승인 ({itemsOf(reviewing.id).length}건)
-                </Button>
-              </>
-            )}
-            {reviewing?.approvedAt !== undefined && (
-              <Button variant="outline" onClick={() => setReviewing(undefined)}>
-                닫기
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={pendingDelete !== undefined}
-        onOpenChange={(open) => !open && setPendingDelete(undefined)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>등록 요청 삭제</DialogTitle>
+            <DialogTitle>등록 검토 · {reviewing}</DialogTitle>
           </DialogHeader>
           <DialogBody>
-            <div className="dialog-note">
-              {pendingDelete?.id}의 아이템과 생성된 Master Product가 함께
-              삭제되어 같은 SKU를 다시 등록할 수 있게 됩니다. 해당 F#은 DRAFT로
-              돌아갑니다.
-            </div>
+            {itemsOf(reviewing).map((item) => (
+              <section className="shape-section" key={item.id}>
+                <strong>
+                  {
+                    masterProducts.find(
+                      (product) => product.id === item.masterProductId,
+                    )?.sku
+                  }
+                </strong>
+                <p>
+                  근거 Shape:{' '}
+                  {item.sourceShapeIds?.join(', ') || '별도 근거 없음'}
+                </p>
+                {item.vehicleProjectIds.length > 0 && (
+                  <p>
+                    이전 기록의 프로젝트 참조:{' '}
+                    {item.vehicleProjectIds.join(', ')} (기존 데이터 보존)
+                  </p>
+                )}
+              </section>
+            ))}
+            {reviewing && (
+              <ProductApprovalPanel
+                key={reviewing}
+                registrationId={reviewing}
+              />
+            )}
           </DialogBody>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setPendingDelete(undefined)}
-            >
-              취소
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => pendingDelete && deleteRegistration(pendingDelete)}
-            >
-              삭제
+            <Button variant="outline" onClick={() => setReviewing('')}>
+              닫기
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <LocalApprovalGrants />
     </section>
-  );
-}
-
-interface SummaryTileProps {
-  label: string;
-  value: number;
-  tone: 'warning' | 'success';
-  active: boolean;
-  onToggle: () => void;
-}
-
-function SummaryTile({
-  label,
-  value,
-  tone,
-  active,
-  onToggle,
-}: SummaryTileProps) {
-  return (
-    <button
-      type="button"
-      className="summary-card-button"
-      aria-pressed={active}
-      onClick={onToggle}
-    >
-      <Card
-        className={`summary-card summary-${tone}${active ? ' active' : ''}`}
-      >
-        <PackageCheck />
-        <div>
-          <strong>{value}</strong>
-          <span>{label}</span>
-        </div>
-      </Card>
-    </button>
   );
 }

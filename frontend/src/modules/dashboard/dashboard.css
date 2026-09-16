@@ -1,4 +1,4 @@
-/* Dashboard lives outside .workbench-shell, so colours are literal. */
+/* Dashboard uses the shared Metronic workbench theme tokens. */
 .dashboard {
   display: grid;
   gap: 16px;
@@ -8,14 +8,14 @@
   display: grid;
   gap: 8px;
   border: 1px solid #fecaca;
-  border-left: 4px solid #dc2626;
+  border-left: 4px solid var(--wb-danger);
   border-radius: 10px;
-  background: #fef2f2;
+  background: var(--wb-danger-bg);
   padding: 12px 16px;
 }
 
 .dashboard-alerts h2 {
-  color: #991b1b;
+  color: var(--wb-danger);
   font-size: 13px;
   font-weight: 800;
 }
@@ -33,7 +33,7 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  color: #7f1d1d;
+  color: var(--wb-danger);
   font-size: 12.5px;
   text-align: left;
 }
@@ -51,24 +51,24 @@
 }
 
 .dashboard-stat-label {
-  color: #64748b;
+  color: var(--wb-muted);
   font-size: 12.5px;
 }
 
 .dashboard-stat-value {
-  color: #0f172a;
+  color: var(--foreground);
   font-size: 32px;
   font-weight: 800;
   line-height: 1;
 }
 
 .dashboard-stat-sub {
-  color: #64748b;
+  color: var(--wb-muted);
   font-size: 12px;
 }
 
 .dashboard-stat-sub.attention {
-  color: #b45309;
+  color: var(--wb-warning);
 }
 
 .dashboard-kpis {
@@ -80,14 +80,14 @@
 .dashboard-kpi {
   display: grid;
   gap: 4px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: white;
+  background: var(--card);
   padding: 12px 14px;
 }
 
 .dashboard-kpi span {
-  color: #64748b;
+  color: var(--wb-muted);
   font-size: 11.5px;
 }
 
@@ -97,7 +97,7 @@
 }
 
 .dashboard-kpi.attention strong {
-  color: #b91c1c;
+  color: var(--wb-danger);
 }
 
 .dashboard-stages {
@@ -111,20 +111,20 @@
   display: grid;
   flex: 1 1 100px;
   gap: 4px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--wb-canvas);
   padding: 10px 12px;
   text-align: center;
 }
 
 .dashboard-stage.active {
-  border-color: #bfdbfe;
-  background: #eff6ff;
+  border-color: color-mix(in srgb, var(--primary) 25%, var(--border));
+  background: var(--wb-soft-blue);
 }
 
 .dashboard-stage span {
-  color: #64748b;
+  color: var(--wb-muted);
   font-size: 11px;
   font-weight: 600;
 }
@@ -146,7 +146,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border);
   padding: 16px 20px;
 }
 
@@ -157,7 +157,7 @@
 
 .dashboard-panel > [data-slot='card-header'] small {
   margin-left: 6px;
-  color: #64748b;
+  color: var(--wb-muted);
   font-size: 12px;
   font-weight: 600;
 }
@@ -171,7 +171,7 @@
   grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 16px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--muted);
   padding: 14px 0;
 }
 
@@ -192,7 +192,7 @@
 
 .dashboard-row-text span {
   overflow: hidden;
-  color: #64748b;
+  color: var(--wb-muted);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -203,12 +203,12 @@
   align-items: center;
   gap: 8px;
   min-width: 96px;
-  color: #334155;
+  color: var(--wb-ink-soft);
   font-size: 12.5px;
 }
 
 .dashboard-owner.unassigned {
-  color: #94a3b8;
+  color: var(--wb-muted);
 }
 
 .dashboard-arrival {
@@ -216,7 +216,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--muted);
   padding: 14px 0;
 }
 
@@ -233,7 +233,7 @@
 
 .dashboard-empty {
   padding: 24px 0;
-  color: #64748b;
+  color: var(--wb-muted);
   font-size: 12.5px;
   text-align: center;
 }

@@ -1,3 +1,4 @@
+import type { FitmentQuality } from '@/shared/types/db-workflow';
 import type {
   ProductShapeDimension,
   ProjectDesign,
@@ -8,8 +9,44 @@ import type {
   ZoneProject,
 } from '@/shared/types/workbench';
 
+export function hasCurrentFitmentQuality(
+  zoneId: string,
+  designs: readonly ProjectDesign[],
+  visits: readonly ProjectVisit[],
+  records: readonly FitmentQuality[],
+): boolean {
+  const relevant = records.filter((row) => row.vehicleProjectId === zoneId);
+  const evidence = sizeReviewEvidence(zoneId, designs, visits);
+  const overallIndex = relevant.reduce(
+    (last, row, index) => (row.vehicleProductDesignId ? last : index),
+    -1,
+  );
+  const overall = relevant[overallIndex];
+  if (overall?.quality !== 'PASS' || overall.evidenceKey !== evidence)
+    return false;
+  const parts = designs.filter(
+    (row) => row.vehicleProjectId === zoneId && row.status === 'ACTIVE',
+  );
+  return (
+    parts.length > 0 &&
+    parts.every((part) => {
+      const index = relevant.reduce(
+        (last, row, current) =>
+          row.vehicleProductDesignId === part.id ? current : last,
+        -1,
+      );
+      return (
+        index >= 0 &&
+        index < overallIndex &&
+        relevant[index].quality === 'PASS' &&
+        relevant[index].evidenceKey === evidence
+      );
+    })
+  );
+}
+
 export const SHAPE_STATUSES = {
-  IN_DEVELOPMENT: '확정 여부 확인 필요',
+  IN_DEVELOPMENT: '개발 중',
   ACTIVE: '확정 Shape',
   RETIRED: '신규 사용 중지',
 } as const;
@@ -27,6 +64,14 @@ export function shapeErrors(
   id?: string,
 ): readonly string[] {
   const errors: string[] = [];
+  if (
+    input.productTypeId === 'PT-CC' &&
+    input.status === 'ACTIVE' &&
+    !input.dimensions
+  )
+    errors.push('확정 Car Cover에는 완성 치수가 필요합니다.');
+  if (input.productTypeId !== 'PT-CC' && input.dimensions)
+    errors.push('Shape 치수는 Car Cover에만 등록할 수 있습니다.');
   if (!input.name.trim()) errors.push('Shape 이름을 입력하세요.');
   if (
     shapes.some(
@@ -43,6 +88,8 @@ export function shapeErrors(
   }
   if (input.dimensions) {
     const { length, height, frontWidth, backWidth } = input.dimensions;
+    if ((frontWidth === undefined) !== (backWidth === undefined))
+      errors.push('앞폭과 뒤폭은 함께 입력하거나 모두 비워 두세요.');
     if (
       ![
         length,
@@ -124,7 +171,7 @@ export function dimensionsLabel(dimension?: ProductShapeDimension): string {
 }
 
 /** A shared shape status is never evidence of this project's fitting result. */
-function latestFitting(
+export function latestFitting(
   zoneId: string,
   visits: readonly ProjectVisit[],
 ): ProjectVisit | undefined {
@@ -192,17 +239,8 @@ export function sizeReviewBlockers(
   visits: readonly ProjectVisit[],
 ): readonly string[] {
   const errors: string[] = [];
-  if (zone.currentStage !== 'Approved' || !zone.productionHandoff)
-    errors.push(
-      '프로젝트에서 Handoff를 완료해야 Shape 검토를 시작할 수 있습니다.',
-    );
-  else if (
-    zone.productionHandoff.evidenceKey !==
-    sizeReviewEvidence(zone.id, designs, visits)
-  )
-    errors.push(
-      'Handoff 후 Part 또는 피팅 자료가 변경되었습니다. 프로젝트에서 다시 인계하세요.',
-    );
+  if (!['Fitting', 'Approved'].includes(zone.currentStage))
+    errors.push('최종 샘플 검수 후 Fitting 단계에서 Shape 검토를 시작하세요.');
   if (!latestFittingPassed(zone.id, visits))
     errors.push(
       'Visits에서 해당 Zone의 최신 완료 피팅 결과를 PASS로 기록하세요.',
@@ -255,9 +293,13 @@ export function isSizeReviewCurrent(
     zone.sizeReview.meetingAt &&
     Date.parse(zone.sizeReview.meetingAt) >=
       Math.floor(
-        Date.parse(zone.productionHandoff?.completedAt ?? '') / 60000,
+        Date.parse(
+          latestFitting(zone.id, visits)?.performedAt ??
+            `${latestFitting(zone.id, visits)?.date}T${latestFitting(zone.id, visits)?.time}`,
+        ) / 60000,
       ) *
         60000 &&
+    Date.parse(zone.sizeReview.meetingAt) <= Date.now() &&
     (zone.sizeReview.participants?.length ?? 0) >= 5 &&
     zone.sizeReview?.blueprintReference.trim() &&
     zone.sizeReview.reviewedBy &&
@@ -419,16 +461,14 @@ export function shapeWorkflowLabel(
     return '자료 변경 · 인계·검토 재확인 필요';
   if (zone.reworkRequestedAt && zone.currentStage !== 'Approved')
     return '패턴 재작업 · 새 샘플부터 재진행';
-  if (!zone.productionHandoff)
-    return zone.currentStage === 'Approved'
-      ? '기존 완료 · 인계 확인 필요'
-      : '개발 진행 중';
   if (zone.sizeReview?.outcome === 'REJECTED')
     return zone.sizeReview.rejectionType === 'DOCUMENT'
       ? '문서 보완 · 재검토 대기'
-      : '재인계 · 재검토 대기';
+      : '새 샘플·피팅 · 재검토 대기';
   if (zone.productShapeId && zone.sizeReview?.outcome === 'APPROVED')
-    return 'Shape 연결됨';
+    return 'Shape 검토 승인 · 확정 상태 확인';
+  if (!['Fitting', 'Approved'].includes(zone.currentStage))
+    return '개발 진행 · Shape 생성 가능';
   return zone.sizeReview?.outcome === 'APPROVED'
     ? '승인 완료 · 발급 대기'
     : '검토 대기';

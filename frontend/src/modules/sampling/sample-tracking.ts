@@ -1,3 +1,4 @@
+import { sampleStatus } from '@/shared/domain/sample-inspection';
 import type {
   ProjectDetailSnapshot,
   SampleRequest,
@@ -71,9 +72,10 @@ export function toSampleTrackingRows({
         const revision = design?.revisions.find(
           (candidate) => candidate.id === item.vehicleProductDesignRevisionId,
         );
-        const status: PartStatus = revision?.sampleApprovedAt
-          ? 'READY'
-          : 'SAMPLE';
+        const status: PartStatus =
+          revision?.sampleApprovedAt && sampleStatus(item) === 'PASSED'
+            ? 'READY'
+            : 'SAMPLE';
         const row: SampleTrackingRow = {
           id: item.id,
           requestId: request.id,

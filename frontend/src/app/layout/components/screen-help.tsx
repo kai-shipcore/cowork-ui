@@ -171,7 +171,7 @@ export function ScreenHelp() {
   return (
     <details
       key={pathname}
-      className="mb-4 rounded-lg border border-border bg-background p-3 text-sm"
+      className="mt-screen-help mb-4 rounded-lg border border-border bg-background p-3 text-sm"
     >
       <summary className="cursor-pointer font-medium">
         <CircleHelp

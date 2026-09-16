@@ -1,17 +1,25 @@
+import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useWorkbenchStore } from '@/app/workbench-store';
 import { ProjectShapePanel } from './project-shape-panel';
 import {
   applyShapeReview,
+  hasCurrentFitmentQuality,
   isSizeReviewCurrent,
   shapeWorkflowLabel,
 } from './shape-model';
 
 export function ShapeReviewWorkspace() {
-  const { projects, projectDetails, updateProjectWorkflow } =
-    useWorkbenchStore();
+  const {
+    projects,
+    projectDetails,
+    updateProjectWorkflow,
+    vehicleProductShapes,
+    fitmentQualities,
+  } = useWorkbenchStore();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
+  const [showAll, setShowAll] = useState(false);
   const rows = projects
     .flatMap((project) =>
       project.zoneProjects.map((record) => ({
@@ -22,8 +30,7 @@ export function ShapeReviewWorkspace() {
       })),
     )
     .filter(
-      ({ zone }) =>
-        zone.currentStage === 'Approved' || zone.shapeReviewHistory?.length,
+      ({ zone }) => zone.status !== 'CANCELLED' && zone.status !== 'MERGED',
     );
   const selected = rows.find(
     ({ project, zone }) =>
@@ -34,12 +41,29 @@ export function ShapeReviewWorkspace() {
     const snapshot = projectDetails[project.id];
     return (
       !zone.productShapeId ||
+      vehicleProductShapes.find((shape) => shape.id === zone.productShapeId)
+        ?.status !== 'ACTIVE' ||
+      (snapshot &&
+        !hasCurrentFitmentQuality(
+          zone.id,
+          snapshot.designs,
+          snapshot.visits,
+          fitmentQualities,
+        )) ||
       !snapshot ||
       !isSizeReviewCurrent(zone, snapshot.designs, snapshot.visits)
     );
   });
   return (
     <div className="shape-management">
+      <label>
+        <input
+          type="checkbox"
+          checked={showAll}
+          onChange={(event) => setShowAll(event.target.checked)}
+        />{' '}
+        완료 항목과 검토 이력도 표시
+      </label>
       <div className="shape-table-scroll">
         <table className="shape-table">
           <thead>
@@ -51,7 +75,7 @@ export function ShapeReviewWorkspace() {
             </tr>
           </thead>
           <tbody>
-            {pending.map(({ project, zone }) => (
+            {(showAll ? rows : pending).map(({ project, zone }) => (
               <tr key={zone.id}>
                 <td>
                   {project.vehicle}
@@ -90,16 +114,18 @@ export function ShapeReviewWorkspace() {
                       })
                     }
                   >
-                    {selected?.zone.id === zone.id ? '검토 닫기 ↑' : '검토 열기 →'}
+                    {selected?.zone.id === zone.id
+                      ? '검토 닫기 ↑'
+                      : '검토 열기 →'}
                   </button>
                 </td>
               </tr>
             ))}
-            {!pending.length && (
+            {!(showAll ? rows : pending).length && (
               <tr>
                 <td colSpan={4}>
-                  현재 검토·발급 대기 항목이 없습니다. 신규 개발은 프로젝트에서
-                  Handoff를 먼저 완료하세요.
+                  현재 검토·발급 대기 항목이 없습니다. 신규 개발 프로젝트의
+                  피팅·품질 확인 후 검토하세요.
                 </td>
               </tr>
             )}
