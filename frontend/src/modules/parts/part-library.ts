@@ -65,11 +65,16 @@ export function resetPartLibrary(): void {
   localStorage.removeItem(KEY);
   window.dispatchEvent(new Event('part-library-change'));
 }
+/**
+ * Mirrors a project's part designs into the shared library. Only Seat Cover
+ * designs are parts; Car Cover and Floor Mat designs are skipped.
+ */
 export function importProjectParts(
   designs: readonly ProjectDesign[],
   product: ProductType,
 ) {
   for (const design of designs) {
+    if (design.details.kind !== 'SEAT_COVER') continue;
     const existing = snapshot().find(
       (part) => part.name.toLowerCase() === design.name.toLowerCase(),
     );

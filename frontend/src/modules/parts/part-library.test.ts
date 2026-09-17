@@ -25,7 +25,18 @@ test('library rejects duplicate names and syncs project revision history', () =>
     name: 'FH-AC-MX-W-D',
     product: 'Seat Cover',
     type: 'HEADREST',
-    details: { kind: 'CAR_COVER', vehicleResearchId: '', designedBy: 'user' },
+    details: {
+      kind: 'SEAT_COVER',
+      vehicleResearchId: '',
+      seatCoverPartId: 'PART-FRONT-HEADREST',
+      seatCoverCodeId: 'CODE-W',
+      partName: 'Front Headrest',
+      category: 'HEADREST',
+      side: 'DRIVER',
+      isForMiddleSeat: false,
+      isCustom: true,
+      designedBy: 'user',
+    },
     revisions: [
       {
         id: 'v1',
@@ -70,10 +81,35 @@ test('library rejects duplicate names and syncs project revision history', () =>
     ],
     'Car Cover',
   );
+  // Only Seat Cover designs are parts; a Car Cover design must not be mirrored.
+  importProjectParts(
+    [
+      {
+        id: 'cover',
+        name: 'Exterior',
+        productTypeId: 'CC',
+        vehicleProjectId: 'zone',
+        status: 'ACTIVE',
+        quantity: 1,
+        fittingConfirmed: true,
+        details: {
+          kind: 'CAR_COVER',
+          vehicleResearchId: '',
+          designedBy: 'user',
+        },
+        revisions: [pinned],
+      },
+    ],
+    'Car Cover',
+  );
   const stored = JSON.parse(
     data.get('coverland-part-library-v1')!,
   ) as LibraryPart[];
   assert.equal(stored.length, 2);
+  assert.equal(
+    stored.some((p) => p.name === 'Exterior'),
+    false,
+  );
   assert.equal(
     stored.find((p) => p.name === 'Legacy')?.revisions[0].sampleApprovedAt,
     '2026-09-08',

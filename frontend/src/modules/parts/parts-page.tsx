@@ -116,7 +116,6 @@ export function PartsPage() {
   const [dxfFileName, setDxfFileName] = useState('');
   const [dxfFingerprint, setDxfFingerprint] = useState('');
   const [search, setSearch] = useState('');
-  const [product, setProduct] = useState('ALL');
   const [selected, setSelected] = useState(params.get('part') ?? '');
   const [message, setMessage] = useState('');
   useEffect(() => {
@@ -166,25 +165,13 @@ export function PartsPage() {
   const active =
     parts.find((p) => p.id === selected) ??
     parts.find((p) => p.name === params.get('name'));
-  const products = [...new Set(parts.map((p) => p.product))].sort();
   const normalizedSearch = search.trim().toLowerCase();
-  const searchedParts = parts.filter(
-    (p) =>
-      !normalizedSearch ||
-      `${p.name} ${p.product} ${p.type}`
-        .toLowerCase()
-        .includes(normalizedSearch),
-  );
-  const productFilters = [
-    { label: 'All', value: 'ALL', count: searchedParts.length },
-    ...products.map((item) => ({
-      label: item,
-      value: item,
-      count: searchedParts.filter((p) => p.product === item).length,
-    })),
-  ];
-  const visibleParts = searchedParts
-    .filter((p) => product === 'ALL' || p.product === product)
+  const visibleParts = parts
+    .filter(
+      (p) =>
+        !normalizedSearch ||
+        `${p.name} ${p.type}`.toLowerCase().includes(normalizedSearch),
+    )
     .sort((left, right) =>
       (latestRevision(right)?.createdAt ?? '').localeCompare(
         latestRevision(left)?.createdAt ?? '',
@@ -194,7 +181,7 @@ export function PartsPage() {
     pageItems: pagedParts,
     pagination,
     setPagination,
-  } = useWorkbenchPagination(visibleParts, `${search}|${product}`);
+  } = useWorkbenchPagination(visibleParts, search);
   const returnTo = params.get('returnTo');
   const safeReturn = returnTo?.startsWith('/vehicle-projects?')
     ? returnTo
@@ -570,25 +557,11 @@ export function PartsPage() {
               <div className="search-field">
                 <Search aria-hidden="true" />
                 <Input
-                  aria-label="Part 이름, 제품군, Part Type 검색"
-                  placeholder="Part 이름 / 제품군 / Part Type"
+                  aria-label="Part 이름 또는 Part Type 검색"
+                  placeholder="Part 이름 / Part Type"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
-              </div>
-              <div className="stage-tabs" role="group" aria-label="제품군 필터">
-                {productFilters.map((filter) => (
-                  <button
-                    type="button"
-                    key={filter.value}
-                    className="stage-tab"
-                    aria-pressed={product === filter.value}
-                    onClick={() => setProduct(filter.value)}
-                  >
-                    {filter.label}
-                    <span className="stage-tab-count">{filter.count}</span>
-                  </button>
-                ))}
               </div>
             </div>
             <div className="grid-toolbar-actions">
@@ -611,7 +584,6 @@ export function PartsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Part Name</TableHead>
-                  <TableHead>Product</TableHead>
                   <TableHead>Part Type</TableHead>
                   <TableHead>Version</TableHead>
                   <TableHead>Last Updated</TableHead>
@@ -630,7 +602,6 @@ export function PartsPage() {
                       <TableCell>
                         <code className="part-name">{p.name}</code>
                       </TableCell>
-                      <TableCell>{p.product}</TableCell>
                       <TableCell>{p.type}</TableCell>
                       <TableCell>
                         <strong>v{latest?.revisionNumber ?? 1}</strong>
