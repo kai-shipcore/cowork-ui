@@ -1,15 +1,20 @@
 import { useState } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
-import {
-  inspectionErrors,
-  sampleStatus,
-} from '@/shared/domain/sample-inspection';
+import { inspectionErrors } from '@/shared/domain/sample-inspection';
 import type { SampleRequestItem } from '@/shared/types/workbench';
 import { CURRENT_USER_ID } from '@/app/current-user';
 import { useWorkbenchStore } from '@/app/workbench-store';
-import '@/modules/product-shapes/shape-management.css';
+import './inspection.css';
 
-export function InspectionPanel() {
+export function InspectionPanel({
+  itemId,
+  onSaved,
+  onDirty,
+}: {
+  itemId: string;
+  onSaved: () => void;
+  onDirty: () => void;
+}) {
   const {
     sampleRequestItems,
     sampleRequests,
@@ -17,12 +22,15 @@ export function InspectionPanel() {
     appUsers,
     updateWorkbench,
   } = useWorkbenchStore();
-  const [selected, setSelected] = useState('');
-  const [drawing, setDrawing] = useState('');
-  const [reflected, setReflected] = useState('');
-  const [note, setNote] = useState('');
+  const item = sampleRequestItems.find((row) => row.id === itemId);
+  const [drawing, setDrawing] = useState(
+    item?.drawingMatch === undefined ? '' : item.drawingMatch ? 'YES' : 'NO',
+  );
+  const [reflected, setReflected] = useState<string>(
+    item?.revisionReflected ?? '',
+  );
+  const [note, setNote] = useState(item?.inspectionNote ?? '');
   const [message, setMessage] = useState('');
-  const item = sampleRequestItems.find((row) => row.id === selected);
   const save = () => {
     if (!item) return;
     const next: SampleRequestItem = {
@@ -51,36 +59,16 @@ export function InspectionPanel() {
         row.id === next.id ? next : row,
       ),
     }));
-    setMessage(`검수 저장: ${sampleStatus(next)}`);
+    setMessage('검수 결과를 저장했습니다. 목록에도 반영되었습니다.');
+    onSaved();
   };
   return (
-    <section className="shape-section">
+    <section className="sample-inspection-form space-y-4">
       <h3>항목별 입고·검수</h3>
       <p>
         도면 준비와 샘플 검수는 별도입니다. 최초 차수는 수정 반영을 비워 둘 수
         있습니다.
       </p>
-      <label>
-        요청 항목{' '}
-        <select
-          value={selected}
-          onChange={(event) => {
-            setSelected(event.target.value);
-            setDrawing('');
-            setReflected('');
-            setNote('');
-            setMessage('');
-          }}
-        >
-          <option value="">선택</option>
-          {sampleRequestItems.map((row) => (
-            <option key={row.id} value={row.id}>
-              {row.sampleRequestId} · {row.vehicleProductDesignId} ·{' '}
-              {row.sampleRound}차 · {sampleStatus(row)}
-            </option>
-          ))}
-        </select>
-      </label>
       {item && (
         <>
           <p>
@@ -90,7 +78,9 @@ export function InspectionPanel() {
               )?.factory
             }{' '}
             · Revision {item.vehicleProductDesignRevisionId} · 입고{' '}
-            {item.sampleReceivedAt ?? '미입고'}
+            {item.sampleReceivedAt
+              ? new Date(item.sampleReceivedAt).toLocaleString('ko-KR')
+              : '미입고 · 입고 확인 후 검수할 수 있습니다.'}
           </p>
           {!item.productionStartedAt && !item.sampleShipmentId && (
             <Button
@@ -155,6 +145,8 @@ export function InspectionPanel() {
               value={drawing}
               onChange={(event) => {
                 setDrawing(event.target.value);
+                onDirty();
+                setMessage('');
               }}
             >
               <option value="">선택</option>
@@ -168,6 +160,8 @@ export function InspectionPanel() {
               value={reflected}
               onChange={(event) => {
                 setReflected(event.target.value);
+                onDirty();
+                setMessage('');
               }}
             >
               <option value="">미판정 / 최초 차수 해당 없음</option>
@@ -178,10 +172,14 @@ export function InspectionPanel() {
           </label>
           <label>
             검수 사유{' '}
-            <input
+            <textarea
+              rows={3}
+              placeholder="불일치 또는 수정 미반영 시 사유를 입력하세요."
               value={note}
               onChange={(event) => {
                 setNote(event.target.value);
+                onDirty();
+                setMessage('');
               }}
             />
           </label>

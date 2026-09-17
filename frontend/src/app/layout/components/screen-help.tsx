@@ -182,6 +182,39 @@ export function ScreenHelp() {
       </summary>
       <div className="mt-3 space-y-3 leading-relaxed">
         <p>{guide.purpose}</p>
+        {[
+          '/vehicle-research',
+          '/vehicle-options',
+          '/vehicle-projects',
+          '/hunt-board',
+          '/samples',
+        ].includes(pathname) && (
+          <a
+            className="block font-medium text-blue-600 underline"
+            href="/help/vehicle-to-handoff.html"
+            target="_blank"
+            rel="noreferrer"
+          >
+            처음부터 따라 하기: 차량 등록 → 옵션·조사 → 제품별 7단계 개발·인계
+            (샘플 입력과 실제 화면 도움말)
+          </a>
+        )}
+        {[
+          '/product-shapes',
+          '/unique-vehicles',
+          '/product-registrations',
+          '/products',
+        ].includes(pathname) && (
+          <a
+            className="block font-medium text-blue-600 underline"
+            href="/help/shape-to-product.html"
+            target="_blank"
+            rel="noreferrer"
+          >
+            처음부터 따라 하기: Shape → 차량 적용 → 제품 등록·승인 → Catalog
+            (실제 화면 도움말)
+          </a>
+        )}
         <ol className="list-decimal space-y-1 pl-5">
           {guide.steps.map((step) => (
             <li key={step}>{step}</li>

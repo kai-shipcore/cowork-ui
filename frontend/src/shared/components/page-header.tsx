@@ -32,7 +32,6 @@ export function PageTables({ tables }: { tables: readonly TableRef[] }) {
         <span className="page-tables-count">{tables.length}</span>
       </summary>
       <div className="page-tables-list">
-        <small>최종 DB 설계 기준 · 현재 브라우저 저장, 서버 연결 전</small>
         {tables.map((table) => (
           <span
             className={table.proposed ? 'table-chip proposed' : 'table-chip'}

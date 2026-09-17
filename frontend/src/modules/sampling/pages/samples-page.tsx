@@ -21,6 +21,7 @@ import { PackageCheck, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { sampleRoundLabel } from '@/shared/domain/sample-request';
+import { matchesInspectionItem, matchesInspectionRequest } from '@/shared/domain/sample-inspection-filter';
 import { PageHeader } from '@/shared/components/page-header';
 import { StatusBadge } from '@/shared/components/status-badge';
 import {
@@ -34,22 +35,25 @@ import type {
   SampleShipmentDetails,
 } from '@/shared/types/workbench';
 import { useWorkbenchStore } from '@/app/workbench-store';
-import { InspectionPanel } from '../inspection-panel';
+import { InspectionDialog } from '../inspection-dialog';
+import { InspectionResult, InspectionSummary } from '../inspection-result';
 import { toSampleTrackingRows } from '../sample-tracking';
 import { SampleTrackingTable } from '../sample-tracking-table';
 import { ShipmentDialog } from '../shipment-dialog';
 import { ShipmentSummary } from '../shipment-summary';
 
 type SampleLifecycle = 'DRAFT' | 'SENT' | 'IN_TRANSIT' | 'ARRIVED';
+type SampleFilter = SampleLifecycle | 'PASSED';
 const STATUS_CARDS: readonly {
-  status: SampleLifecycle;
+  status: SampleFilter;
   label: string;
   tone: 'neutral' | 'warning' | 'progress' | 'success';
 }[] = [
   { status: 'DRAFT', label: 'Draft Request', tone: 'neutral' },
   { status: 'SENT', label: 'Sent / Awaiting Shipment', tone: 'warning' },
   { status: 'IN_TRANSIT', label: 'In Transit', tone: 'progress' },
-  { status: 'ARRIVED', label: 'Arrived / Inspect', tone: 'success' },
+  { status: 'ARRIVED', label: 'Arrived / 검수 대기', tone: 'warning' },
+  { status: 'PASSED', label: '검수 통과', tone: 'success' },
 ];
 
 function itemsOf(request: SampleRequest, items: readonly SampleRequestItem[]) {
@@ -101,14 +105,23 @@ export function SamplesPage() {
   } = useWorkbenchStore();
   const [query, setQuery] = useState('');
   const [factory, setFactory] = useState('ALL');
-  const [status, setStatus] = useState<'ALL' | SampleLifecycle>('ALL');
+  const [status, setStatus] = useState<'ALL' | SampleFilter>('ALL');
   const [view, setView] = useState<'REQUESTS' | 'PARTS'>('REQUESTS');
   const [shippingRequest, setShippingRequest] = useState<SampleRequest>();
+  const [inspection, setInspection] = useState<{
+    requestId: string;
+    itemId?: string;
+  }>();
+  const [inspectionMessage, setInspectionMessage] = useState('');
   const factories = [...new Set(requests.map((request) => request.factory))]
     .sort()
     .filter(Boolean);
   const lifecycle = (request: SampleRequest) =>
     lifecycleOf(request, sampleRequestItems, sampleShipments);
+  const matchesFilter = (request: SampleRequest, filter: SampleFilter) =>
+    filter === 'ARRIVED' || filter === 'PASSED'
+      ? matchesInspectionRequest(itemsOf(request, sampleRequestItems), filter)
+      : lifecycle(request) === filter;
   const normalizedQuery = query.trim().toLowerCase();
   const scopedRequests = requests.filter((request) => {
     const items = itemsOf(request, sampleRequestItems);
@@ -123,7 +136,7 @@ export function SamplesPage() {
     );
   });
   const visibleRequests = scopedRequests.filter(
-    (request) => status === 'ALL' || lifecycle(request) === status,
+    (request) => status === 'ALL' || matchesFilter(request, status),
   );
   const {
     pageItems: pagedRequests,
@@ -132,7 +145,9 @@ export function SamplesPage() {
   } = useWorkbenchPagination(visibleRequests, `${query}|${factory}|${status}`);
   const trackingRows = toSampleTrackingRows({
     requests: visibleRequests,
-    items: sampleRequestItems,
+    items: status === 'ARRIVED' || status === 'PASSED'
+      ? sampleRequestItems.filter((item) => matchesInspectionItem(item, status))
+      : sampleRequestItems,
     projects,
     projectDetails,
   });
@@ -238,8 +253,19 @@ export function SamplesPage() {
             : undefined
         }
       />
-      <InspectionPanel />
-      <div className="summary-grid" role="group" aria-label="샘플 상태 필터">
+      <p className="mb-4 text-sm text-muted-foreground">
+        요청 행 또는 검수 버튼을 선택해 입고·검수를 진행하세요. 저장 결과는
+        목록에 바로 반영됩니다.
+      </p>
+      {inspectionMessage && (
+        <p
+          role="status"
+          className="mb-4 text-sm text-green-700 dark:text-green-400"
+        >
+          {inspectionMessage}
+        </p>
+      )}
+      <div className="summary-grid sample-status-grid" role="group" aria-label="샘플 상태 필터">
         {STATUS_CARDS.map((card) => (
           <button
             type="button"
@@ -260,7 +286,7 @@ export function SamplesPage() {
                 <strong>
                   {
                     scopedRequests.filter(
-                      (request) => lifecycle(request) === card.status,
+                      (request) => matchesFilter(request, card.status),
                     ).length
                   }
                 </strong>
@@ -270,6 +296,11 @@ export function SamplesPage() {
           </button>
         ))}
       </div>
+      <p className="mb-4 text-xs text-muted-foreground" role="status">
+        카드 숫자는 요청 건수입니다. 검수 대기: 입고 후 미검수 항목이 있는 요청 ·
+        검수 통과: 모든 항목이 통과한 요청. 불합격 결과는 필터 초기화 후 전체 목록에서 확인하세요.
+        {status === 'ARRIVED' && ' Part Lines에는 검수 대기 항목만 표시합니다.'}
+      </p>
       <div className="workbench-filters">
         <div className="search-field">
           <Search aria-hidden="true" />
@@ -327,6 +358,13 @@ export function SamplesPage() {
           rows={trackingRows}
           filterKey={`${query}|${factory}|${status}`}
           onOpenProject={openProjectSamples}
+          onInspect={(row) =>
+            setInspection({ requestId: row.requestId, itemId: row.id })
+          }
+          renderInspection={(row) => {
+            const item = sampleRequestItems.find((item) => item.id === row.id);
+            return item ? <InspectionResult item={item} compact /> : null;
+          }}
         />
       ) : visibleRequests.length ? (
         <Card>
@@ -339,6 +377,7 @@ export function SamplesPage() {
                 <TableHead>Request Items</TableHead>
                 <TableHead>Shipment</TableHead>
                 <TableHead>Lifecycle</TableHead>
+                <TableHead>검수 결과</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
@@ -351,9 +390,27 @@ export function SamplesPage() {
                   ...new Set(requestItems.map((item) => item.sampleRound)),
                 ];
                 return (
-                  <TableRow key={request.id}>
+                  <TableRow
+                    key={request.id}
+                    className="cursor-pointer"
+                    onClick={(event) => {
+                      if (
+                        !(event.target as HTMLElement).closest(
+                          'button, a, input, select',
+                        )
+                      )
+                        setInspection({ requestId: request.id });
+                    }}
+                  >
                     <TableCell>
-                      <span className="sample-id">{request.id}</span>
+                      <button
+                        type="button"
+                        className="sample-id text-left underline-offset-4 hover:underline"
+                        aria-label={`${request.id} 입고·검수 열기`}
+                        onClick={() => setInspection({ requestId: request.id })}
+                      >
+                        {request.id}
+                      </button>
                       <div className="vehicle-meta">
                         Created {request.createdAt.slice(0, 10)}
                       </div>
@@ -434,7 +491,20 @@ export function SamplesPage() {
                         }
                       />
                     </TableCell>
+                    <TableCell>
+                      <InspectionSummary
+                        items={requestItems}
+                        onOpen={() => setInspection({ requestId: request.id })}
+                      />
+                    </TableCell>
                     <TableCell className="table-actions">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setInspection({ requestId: request.id })}
+                      >
+                        입고·검수
+                      </Button>
                       {state !== 'ARRIVED' && (
                         <Button
                           size="sm"
@@ -474,6 +544,18 @@ export function SamplesPage() {
           factory={shippingRequest.factory}
           onClose={() => setShippingRequest(undefined)}
           onSubmit={(details) => createShipment(shippingRequest, details)}
+        />
+      )}
+      {inspection && (
+        <InspectionDialog
+          key={inspection.requestId}
+          {...inspection}
+          onClose={() => setInspection(undefined)}
+          onSaved={() =>
+            setInspectionMessage(
+              `${inspection.requestId} 검수 결과가 저장되었습니다.`,
+            )
+          }
         />
       )}
     </section>

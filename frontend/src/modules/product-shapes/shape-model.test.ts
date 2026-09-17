@@ -169,6 +169,15 @@ test('Shape review starts after fitting without requiring an earlier handoff', (
   assert.deepEqual(sizeReviewBlockers(reviewed, [part], [visit]), []);
 });
 
+test('handoff does not require a Shape but still requires current successful fitting', () => {
+  const unissued = { ...zone, productShapeId: undefined, sizeReview: undefined };
+  assert.equal(handoffReady(unissued, [part], [visit]), true);
+  assert.equal(handoffReady(unissued, [part], []), false);
+  assert.equal(handoffReady(unissued, [part], [{ ...visit, result: 'FAIL' }]), false);
+  assert.equal(handoffReady(unissued, [{ ...part, fittingConfirmed: false }], [visit]), false);
+  assert.equal(handoffReady(unissued, [{ ...part, revisions: [{ ...part.revisions[0], createdAt: '2026-09-04' }] }], [visit]), false);
+});
+
 test('document rejection keeps development complete, evidence and original project link', () => {
   const linked = {
     ...reviewedDetail,

@@ -78,7 +78,7 @@ export function ShapeReviewWorkspace() {
             {(showAll ? rows : pending).map(({ project, zone }) => (
               <tr key={zone.id}>
                 <td>
-                  {project.vehicle}
+                  <strong>{project.vehicle}</strong>
                   <small>
                     {project.id} · {zone.code}
                   </small>

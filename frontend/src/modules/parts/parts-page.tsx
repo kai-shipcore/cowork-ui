@@ -91,7 +91,9 @@ export function PartsPage() {
   const parts = usePartLibrary();
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const [tab, setTab] = useState(params.has('part') ? 'list' : 'create');
+  const [tab, setTab] = useState(
+    !params.has('part') && params.get('view') === 'create' ? 'create' : 'list',
+  );
   const [row, setRow] = useState(params.get('zone') ?? 'F');
   const [category, setCategory] = useState('');
   const [partType, setPartType] = useState('');
@@ -257,17 +259,17 @@ export function PartsPage() {
       <div className="segment-filters" role="group" aria-label="Parts 보기">
         <Button
           size="sm"
-          variant={tab === 'create' ? 'mono' : 'outline'}
-          onClick={() => setTab('create')}
-        >
-          생성기
-        </Button>
-        <Button
-          size="sm"
           variant={tab === 'list' ? 'mono' : 'outline'}
           onClick={() => setTab('list')}
         >
           목록 · {parts.length}
+        </Button>
+        <Button
+          size="sm"
+          variant={tab === 'create' ? 'mono' : 'outline'}
+          onClick={() => setTab('create')}
+        >
+          생성기
         </Button>
       </div>
       {message && (

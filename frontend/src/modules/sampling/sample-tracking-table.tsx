@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+import { Button } from '@coverland-engineering/ui/button';
 import { Card } from '@coverland-engineering/ui/card';
 import {
   Table,
@@ -20,6 +22,8 @@ interface SampleTrackingTableProps {
   /** Resets the page when the surrounding filters change. */
   filterKey: string;
   onOpenProject: (projectGroupId: string) => void;
+  onInspect: (row: SampleTrackingRow) => void;
+  renderInspection: (row: SampleTrackingRow) => ReactNode;
 }
 
 /** Sample Tracking sheet view (Stage 8): one part per row, sheet column order. */
@@ -27,6 +31,8 @@ export function SampleTrackingTable({
   rows,
   filterKey,
   onOpenProject,
+  onInspect,
+  renderInspection,
 }: SampleTrackingTableProps) {
   const { pageItems, pagination, setPagination } = useWorkbenchPagination(
     rows,
@@ -59,18 +65,27 @@ export function SampleTrackingTable({
             <TableHead>Sample Round</TableHead>
             <TableHead>Vendor</TableHead>
             <TableHead>Note</TableHead>
+            <TableHead>검수 결과</TableHead>
+            <TableHead>검수</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {pageItems.map((row) => (
-            <TableRow key={row.id}>
+            <TableRow
+              key={row.id}
+              className="cursor-pointer"
+              onClick={(event) => {
+                if (!(event.target as HTMLElement).closest('button, a'))
+                  onInspect(row);
+              }}
+            >
               <TableCell>{row.date}</TableCell>
               <TableCell>
                 <div className="vehicle-name compact">{row.vehicle}</div>
                 <button
                   type="button"
                   className="project-reference project-reference-link"
-                  onClick={() => onOpenProject(row.projectGroupId)}
+                  onClick={() => onInspect(row)}
                 >
                   {row.requestId}
                 </button>
@@ -89,6 +104,23 @@ export function SampleTrackingTable({
               <TableCell>{row.vendor}</TableCell>
               <TableCell>
                 {row.note ? row.note : <span className="muted-text">—</span>}
+              </TableCell>
+              <TableCell>{renderInspection(row)}</TableCell>
+              <TableCell>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onInspect(row)}
+                >
+                  입고·검수
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onOpenProject(row.projectGroupId)}
+                >
+                  프로젝트
+                </Button>
               </TableCell>
             </TableRow>
           ))}

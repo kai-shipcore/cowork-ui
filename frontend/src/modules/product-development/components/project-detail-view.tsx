@@ -70,6 +70,8 @@ import {
   revisionExecutionAccuracy,
 } from '@/shared/domain/revision-control';
 import { sampleRoundLabel } from '@/shared/domain/sample-request';
+import { sampleStatus } from '@/shared/domain/sample-inspection';
+import { mergeProjectSampleItem } from '@/shared/domain/sample-item-sync';
 import { UserAvatar, UserPicker } from '@/shared/domain/user-picker';
 import { PageTables, type TableRef } from '@/shared/components/page-header';
 import { StatusBadge } from '@/shared/components/status-badge';
@@ -100,12 +102,12 @@ import { PartLinkDialog } from '@/modules/parts/part-link-dialog';
 import {
   handoffBlockers,
   handoffReady,
-  hasCurrentFitmentQuality,
-  isSizeReviewCurrent,
   sizeReviewEvidence,
 } from '@/modules/product-shapes/shape-model';
 import { ShipmentDialog } from '@/modules/sampling/shipment-dialog';
 import { ShipmentSummary } from '@/modules/sampling/shipment-summary';
+import { InspectionResult } from '@/modules/sampling/inspection-result';
+import { InspectionDialog } from '@/modules/sampling/inspection-dialog';
 import { CURRENT_USER_ID } from '@/app/current-user';
 import { SEED_SCAN_VISIT_DATE } from '@/app/workbench-mock-data';
 import { isLegacySeedActivity, useWorkbenchStore } from '@/app/workbench-store';
@@ -118,6 +120,8 @@ import {
 } from '../handoff-checklist';
 import { getSampleGate, type SampleGate } from '../sample-gate';
 import { HandoffChecklistForm } from './handoff-checklist-form';
+import { defaultVisitType, visitHistory } from '../visit-history';
+import './project-visits.css';
 import '@/modules/product-shapes/shape-management.css';
 
 const FIXED_DETAIL_TABS = [
@@ -420,7 +424,6 @@ export function ProjectDetailView({
   const [linkZone, setLinkZone] = useState<string>();
   const {
     vehicleProductShapes,
-    fitmentQualities,
     projectDetails,
     saveProjectDetail,
     setProjects,
@@ -648,6 +651,7 @@ export function ProjectDetailView({
   const [dialog, setDialog] = useState<DialogName>();
   const [dialogZone, setDialogZone] = useState<string>();
   const [dialogDesignId, setDialogDesignId] = useState<string>();
+  const [visitDialogType, setVisitDialogType] = useState<ProjectVisit['type']>();
   const [fNumber] = useState<string | undefined>(savedDetail?.fNumber);
   useEffect(() => {
     const snapshot: ProjectDetailSnapshot = {
@@ -828,7 +832,7 @@ export function ProjectDetailView({
                 item.vehicleProductDesignId === design.id,
             );
             return [
-              {
+              mergeProjectSampleItem({
                 id: existing?.id ?? itemId,
                 sampleRequestId: sample.id,
                 vehicleProductDesignId: design.id,
@@ -838,15 +842,6 @@ export function ProjectDetailView({
                 sampleRound: sample.round,
                 priority: 'NORMAL' as const,
                 ...(line.note ? { note: line.note } : {}),
-                ...(existing?.revisionReflected
-                  ? {
-                      revisionReflected: existing.revisionReflected,
-                      verificationNote: existing.verificationNote,
-                      verifiedAt: existing.verifiedAt,
-                      verifiedBy: existing.verifiedBy,
-                      issueSource: existing.issueSource,
-                    }
-                  : {}),
                 ...(sample.status === 'ARRIVED' || sample.status === 'APPROVED'
                   ? {
                       sampleReceivedAt:
@@ -856,7 +851,7 @@ export function ProjectDetailView({
                 ...(sample.status !== 'REQUESTED'
                   ? { sampleShipmentId: `SHIP-${sample.id}` }
                   : {}),
-              },
+              }, existing),
             ];
           });
         }),
@@ -982,6 +977,7 @@ export function ProjectDetailView({
   }
 
   function closeDialog(): void {
+    setVisitDialogType(undefined);
     setDialog(undefined);
     setDialogZone(undefined);
     setDialogDesignId(undefined);
@@ -1053,25 +1049,6 @@ export function ProjectDetailView({
     );
   }
 
-  function shapeHandoffErrors(zone: ZoneProject): string[] {
-    const shape = vehicleProductShapes.find(
-      (row) => row.id === zone.productShapeId,
-    );
-    return [
-      ...(!shape || shape.status !== 'ACTIVE'
-        ? [
-            `${zone.code}: 확정 Shape가 필요합니다. Shape 검토 화면에서 생성·확정하세요.`,
-          ]
-        : []),
-      ...(!isSizeReviewCurrent(zone, designs, visits)
-        ? [`${zone.code}: 현재 구성에 대한 Shape 검토 승인이 필요합니다.`]
-        : []),
-      ...(!hasCurrentFitmentQuality(zone.id, designs, visits, fitmentQualities)
-        ? [`${zone.code}: 전체 제품의 최신 피팅 품질 PASS가 필요합니다.`]
-        : []),
-    ];
-  }
-
   if (!focusedZone) {
     return (
       <section className="project-workspace">
@@ -1098,6 +1075,17 @@ export function ProjectDetailView({
   const scopeDesigns = designs.filter((design) =>
     focusScopeIds.has(design.vehicleProjectId),
   );
+  // A request belongs to the zone(s) its part designs belong to; a bundle
+  // request that spans both Floor Mat zones shows under each.
+  const focusedSamples = samples.filter((sample) => {
+    const designIds =
+      sample.lines?.map((line) => line.designId) ??
+      sample.designIds ??
+      sharedSampleRequestItems
+        .filter((item) => item.sampleRequestId === sample.id)
+        .map((item) => item.vehicleProductDesignId);
+    return focusedDesigns.some((design) => designIds.includes(design.id));
+  });
 
   return (
     <section className="project-workspace">
@@ -1266,13 +1254,15 @@ export function ProjectDetailView({
         </TabsContent>
         <TabsContent value="samples">
           <SamplesTab
+            stage={focusedStage}
+            onCompleteStage={advanceStage}
             sampleGate={sampleGate}
             onResolveGate={(tab) => setActiveTab(tab)}
             product={project.product}
             designs={scopeDesigns.filter((design) =>
               sampleEligibleProjectIds.includes(design.vehicleProjectId),
             )}
-            samples={samples}
+            samples={focusedSamples}
             sampleItems={sharedSampleRequestItems}
             canRequestSample={canRequestSample}
             onRequest={() => openDialog('sample')}
@@ -1418,10 +1408,14 @@ export function ProjectDetailView({
         </TabsContent>
         <TabsContent value="visits">
           <VisitsTab
+            key={`${focusedZone.id}-${focusedStage}`}
+            product={project.product}
+            stage={focusedStage}
             users={activeUsers}
             visits={focusedVisits}
-            canScheduleVisit={canScheduleScan || canScheduleFitting}
-            onAdd={() => openDialog('visit')}
+            canScheduleScan={canScheduleScan}
+            canScheduleFitting={canScheduleFitting}
+            onAdd={(type) => { setVisitDialogType(type); openDialog('visit'); }}
             onCancel={(visitId) => {
               setVisits((current) =>
                 current.map((visit) =>
@@ -1547,7 +1541,7 @@ export function ProjectDetailView({
           )
         }
         handoffErrors={[
-          ...handoffScope.flatMap(shapeHandoffErrors),
+          // Shape approval and its quality review follow development handoff.
           ...handoffScope.flatMap((zone) =>
             handoffBlockers(zone, designs, visits),
           ),
@@ -1578,6 +1572,7 @@ export function ProjectDetailView({
         scanEligibleProjectIds={scanEligibleProjectIds}
         fittingEligibleProjectIds={fittingEligibleProjectIds}
         dialogZone={dialogZone}
+        initialVisitType={visitDialogType}
         dialogDesignId={dialogDesignId}
         onClose={closeDialog}
         onDesign={(input) => {
@@ -1767,7 +1762,6 @@ export function ProjectDetailView({
                 ? sizeReviewEvidence(handoffScope[0].id, designs, visits)
                 : '') ||
             !handoffScope.length ||
-            handoffScope.some((zone) => shapeHandoffErrors(zone).length > 0) ||
             !handoffScope.every((zone) =>
               handoffReady(zone, designs, visits),
             ) ||
@@ -3023,6 +3017,8 @@ function RevisionVerification({
 }
 
 interface SamplesTabProps {
+  stage: ProjectStage;
+  onCompleteStage: () => void;
   sampleGate: SampleGate;
   onResolveGate: (tab: DetailTab) => void;
   product: VehicleProjectGroup['product'];
@@ -3079,6 +3075,8 @@ const SAMPLE_STATUS_GROUPS = [
 ] as const;
 
 function SamplesTab({
+  stage,
+  onCompleteStage,
   sampleGate,
   onResolveGate,
   product,
@@ -3093,6 +3091,8 @@ function SamplesTab({
   onVerifyRevision,
 }: SamplesTabProps) {
   const [shippingSample, setShippingSample] = useState<ProjectSample>();
+  const [inspectionRequest, setInspectionRequest] = useState<string>();
+  const [inspectionMessage, setInspectionMessage] = useState('');
   // Approval is per revision: a Rev 3 can only be approved once a sample that
   // was actually made from Rev 3 has been received.
   const isRevisionArrived = (design: ProjectDesign) =>
@@ -3147,6 +3147,12 @@ function SamplesTab({
     );
   };
   const gatePassed = canRequestSample && sampleGate.ready;
+  const stageCompleted = stage === 'Fitting' || stage === 'Approved';
+  const currentRevisionIds = new Set(designs.map(design => currentRevision(design).id));
+  const pendingInspection = sampleItems.find(item =>
+    currentRevisionIds.has(item.vehicleProductDesignRevisionId) &&
+    ['RECEIVED', 'FACTORY_ISSUE', 'DESIGN_ISSUE'].includes(sampleStatus(item)),
+  );
   const requestableDesigns = samples.length
     ? designs.filter((design) =>
         isRevisionSampleRequestable(design, sampleItems),
@@ -3154,198 +3160,24 @@ function SamplesTab({
     : designs;
   return (
     <div className="project-tab-stack">
-      <div className="detail-help-text">
-        흐름: Sample Request(item = design + revision + round) → Shipment → 입고
-        {product === 'Floor Mat' ? '' : ' → 승인 게이트'} → Fitting.
-      </div>
-      <div className="detail-help-text">
-        Stage 8: 부품별 Note는 Sample Tracker의 Part Lines(부품 1개 = 1행)에
-        등록됩니다. 날짜·차량 정보는 프로젝트에서, Status(Sample → Ready)는
-        Revision 승인에서 자동으로 채워집니다.
-      </div>
-      {!canRequestSample && (
-        <div className="stage-gate-lock">
-          <strong>Sample Gate 잠김</strong>
-          작업 대상 Zone 또는 필수 Floor Mat Bundle의 Design Gate가 완료되어야
-          Sample Request를 생성할 수 있습니다.
+      <section className={gatePassed ? 'sample-progress-summary ready' : 'sample-progress-summary'} aria-label="샘플 단계 요약">
+        <div className="sample-progress-heading">
+          <div>
+            <span className="project-visit-kicker">현재 Revision 기준 · Sample</span>
+            <h3>{gatePassed ? stageCompleted ? '샘플 단계 완료' : '검수·승인 완료 · Fitting 진행 가능' : !canRequestSample ? '샘플 요청 준비' : '샘플 작업 진행 중'}</h3>
+            <p>{gatePassed
+              ? stageCompleted ? '샘플 단계가 완료되었습니다. 아래에서 승인 결과와 지난 요청을 확인할 수 있습니다.' : '필요한 입고·검수·승인 조건을 충족했습니다. Sample 단계를 완료하고 피팅을 진행하세요.'
+              : !canRequestSample ? '먼저 현재 Zone 또는 필수 Bundle의 Design 단계를 완료하세요.'
+              : sampleGate.blockers[0]?.message ?? '현재 Revision의 샘플 진행 상태를 확인하세요.'}</p>
+          </div>
+          {gatePassed && stage === 'Sample' ? <Button variant="primary" onClick={onCompleteStage}>Sample 단계 완료 <ChevronRight /></Button>
+            : gatePassed && stageCompleted ? <Button variant="outline" onClick={() => onResolveGate(stage === 'Fitting' ? 'visits' : 'overview')}>{stage === 'Fitting' ? '피팅 일정·결과 보기' : '개발 완료 내역 보기'}</Button>
+            : !canRequestSample || sampleGate.blockers[0]?.tab === 'designs' ? <Button variant="outline" onClick={() => onResolveGate('designs')}>Part / Design 확인</Button>
+            : pendingInspection ? <Button variant="primary" onClick={() => { setInspectionMessage(''); setInspectionRequest(pendingInspection.sampleRequestId); }}>입고·검수 확인</Button> : null}
         </div>
-      )}
-      <Card className="detail-panel">
-        <CardHeader>
-          <CardTitle>
-            Requests <small>{samples.length}</small>
-          </CardTitle>
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={onRequest}
-            disabled={!requestableDesigns.length || !canRequestSample}
-            title={
-              !canRequestSample
-                ? '작업 대상 Zone 또는 Bundle의 Design Gate를 먼저 완료하세요.'
-                : samples.length && !requestableDesigns.length
-                  ? '두 번째 이후 샘플은 수정 요청이 완료된 부품이 있어야 합니다.'
-                  : undefined
-            }
-          >
-            <Plus /> Sample Request
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {!samples.length && (
-            <div className="empty-inline">
-              요청이 없습니다 — {designLabel(product)} 설계를 선택해 공장에
-              요청하세요.
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      <div className="sample-status-groups">
-        {SAMPLE_STATUS_GROUPS.map((group) => {
-          const groupedSamples = samples.filter(
-            (sample) => sample.status === group.status,
-          );
-          return (
-            <details
-              className="sample-status-group"
-              key={group.status}
-              data-status={group.status}
-              open
-            >
-              <summary>
-                <span className="sample-status-heading">
-                  <span aria-hidden="true" className="text-lg leading-none">
-                    {group.emoji}
-                  </span>
-                  <strong>{group.label}</strong>
-                  <span className="sample-status-count">
-                    {groupedSamples.length}
-                  </span>
-                  <small>{group.description}</small>
-                </span>
-              </summary>
-              <div className="sample-status-content">
-                {!groupedSamples.length && (
-                  <p className="sample-status-empty">
-                    이 상태의 샘플이 없습니다.
-                  </p>
-                )}
-                {groupedSamples.map((sample) => (
-                  <Card className="detail-panel" key={sample.id}>
-                    <CardHeader>
-                      <CardTitle>
-                        {sample.id} · {sample.factory}
-                      </CardTitle>
-                      <StatusBadge
-                        label={group.label}
-                        tone={
-                          sample.status === 'APPROVED'
-                            ? 'success'
-                            : sample.status === 'ARRIVED'
-                              ? 'purple'
-                              : sample.status === 'SHIPPED'
-                                ? 'warning'
-                                : 'progress'
-                        }
-                      />
-                      {sample.status !== 'APPROVED' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={
-                            !canRequestSample ||
-                            (sample.status === 'ARRIVED' &&
-                              !canApproveRequest(sample))
-                          }
-                          title={
-                            sample.status === 'ARRIVED' &&
-                            !canApproveRequest(sample)
-                              ? '수정된 모든 부품이 정확히 반영됨으로 검증되어야 요청을 승인할 수 있습니다.'
-                              : undefined
-                          }
-                          onClick={() =>
-                            sample.status === 'REQUESTED'
-                              ? setShippingSample(sample)
-                              : onAdvance(sample.id)
-                          }
-                        >
-                          {sample.status === 'REQUESTED'
-                            ? 'Mark Shipped'
-                            : sample.status === 'SHIPPED'
-                              ? 'Mark Arrived'
-                              : 'Approve Request'}
-                        </Button>
-                      )}
-                    </CardHeader>
-                    <CardContent>
-                      <div className="sample-items">
-                        {designsOfSample(sample).map((design) => {
-                          const line = lineOf(sample, design);
-                          // Ready once the revision this line was made from
-                          // has its sample approved; until then it is a Sample.
-                          const isReady = Boolean(
-                            design.revisions.find(
-                              (revision) =>
-                                revision.id ===
-                                line?.vehicleProductDesignRevisionId,
-                            )?.sampleApprovedAt,
-                          );
-                          return (
-                            <div key={design.id}>
-                              <strong>{design.name}</strong>
-                              <span>
-                                Rev {requestedRevisionNumber(sample, design)}
-                              </span>
-                              <StatusBadge
-                                label={isReady ? 'Ready' : 'Sample'}
-                                tone={isReady ? 'success' : 'progress'}
-                              />
-                              <span>{sampleRoundLabel(sample.round)}</span>
-                              {line?.note && (
-                                <small className="sample-line-note">
-                                  {line.note}
-                                </small>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {sample.note && (
-                        <p className="detail-help-text">{sample.note}</p>
-                      )}
-                      {sample.shipment && (
-                        <ShipmentSummary shipment={sample.shipment} />
-                      )}
-                      {sample.status === 'ARRIVED' &&
-                        sampleItems
-                          .filter((item) => item.sampleRequestId === sample.id)
-                          .map((item) => {
-                            const design = designs.find(
-                              (candidate) =>
-                                candidate.id === item.vehicleProductDesignId,
-                            );
-                            const revision = design?.revisions.find(
-                              (candidate) =>
-                                candidate.id ===
-                                item.vehicleProductDesignRevisionId,
-                            );
-                            return design && revision?.changeRequest ? (
-                              <RevisionVerification
-                                key={item.id}
-                                design={design}
-                                item={item}
-                                onVerify={onVerifyRevision}
-                              />
-                            ) : null;
-                          })}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </details>
-          );
-        })}
-      </div>
+        {sampleGate.blockers.length > 1 && <details className="sample-progress-blockers"><summary>확인할 항목 {sampleGate.blockers.length}건</summary><ul>{sampleGate.blockers.map((blocker,i)=><li key={i}>{blocker.message}</li>)}</ul></details>}
+      </section>
+      {inspectionMessage && <p role="status" className="text-sm text-green-700">{inspectionMessage}</p>}
       {product !== 'Floor Mat' && (
         <Card className="detail-panel">
           <CardHeader>
@@ -3412,28 +3244,193 @@ function SamplesTab({
           </CardContent>
         </Card>
       )}
-      <div className={gatePassed ? 'sample-gate passed' : 'sample-gate'}>
-        <strong>
-          {gatePassed ? 'Sample 게이트 통과' : 'Fitting 진행 게이트'}
-        </strong>
-        <span>
-          {gatePassed
-            ? '전 design 입고 및 승인 완료 — Overview에서 Fitting 단계로 진행하세요.'
-            : sampleGate.blockers.map((blocker) => blocker.message).join(' ') ||
-              '이 Zone의 이전 개발 단계가 완료되어야 합니다.'}
-        </span>
-        {!gatePassed && sampleGate.blockers.length > 0 && (
+      <Card className="detail-panel">
+        <CardHeader>
+          <CardTitle>
+            Requests <small>{samples.length}</small>
+          </CardTitle>
           <Button
             size="sm"
-            variant="outline"
-            onClick={() =>
-              onResolveGate(sampleGate.blockers[0]?.tab ?? 'samples')
+            variant="primary"
+            onClick={onRequest}
+            disabled={!requestableDesigns.length || !canRequestSample}
+            title={
+              !canRequestSample
+                ? '작업 대상 Zone 또는 Bundle의 Design Gate를 먼저 완료하세요.'
+                : samples.length && !requestableDesigns.length
+                  ? '두 번째 이후 샘플은 수정 요청이 완료된 부품이 있어야 합니다.'
+                  : undefined
             }
           >
-            미완료 항목 확인
+            <Plus /> Sample Request
           </Button>
-        )}
+        </CardHeader>
+        {!samples.length && <CardContent>
+            <div className="empty-inline">
+              요청이 없습니다 — {designLabel(product)} 설계를 선택해 공장에
+              요청하세요.
+            </div>
+        </CardContent>}
+      </Card>
+      <div className="sample-status-groups">
+        {SAMPLE_STATUS_GROUPS.map((group) => {
+          const groupedSamples = samples.filter(
+            (sample) => sample.status === group.status,
+          );
+          if (!groupedSamples.length) return null;
+          return (
+            <details
+              className="sample-status-group"
+              key={group.status}
+              data-status={group.status}
+              open
+            >
+              <summary>
+                <span className="sample-status-heading">
+                  <span aria-hidden="true" className="text-lg leading-none">
+                    {group.emoji}
+                  </span>
+                  <strong>{group.label}</strong>
+                  <span className="sample-status-count">
+                    {groupedSamples.length}
+                  </span>
+                  <small>{group.description}</small>
+                </span>
+              </summary>
+              <div className="sample-status-content">
+                {!groupedSamples.length && (
+                  <p className="sample-status-empty">
+                    이 상태의 샘플이 없습니다.
+                  </p>
+                )}
+                {groupedSamples.map((sample) => (
+                  <details className="project-sample-entry" key={sample.id}>
+                    <summary>
+                      <strong>{sample.id}</strong><span className="project-sample-factory">{sample.factory}</span>
+                      <span>{sample.round}차 · {designsOfSample(sample).length}개 항목</span>
+                      <StatusBadge label={group.label} tone={sample.status === 'APPROVED' ? 'success' : 'neutral'} />
+                      <span className="project-sample-inspection-count">{sampleItems.filter(item => item.sampleRequestId === sample.id && sampleStatus(item) === 'PASSED').length}/{sampleItems.filter(item => item.sampleRequestId === sample.id).length} 검수 통과</span>
+                      <span className="project-visit-expand">상세 <ChevronRight aria-hidden="true" /></span>
+                    </summary>
+                  <Card className="detail-panel">
+                    <CardHeader>
+                      <CardTitle>
+                        {sample.id} · {sample.factory}
+                      </CardTitle>
+                      <StatusBadge
+                        label={group.label}
+                        tone={
+                          sample.status === 'APPROVED'
+                            ? 'success'
+                            : sample.status === 'ARRIVED'
+                              ? 'purple'
+                              : sample.status === 'SHIPPED'
+                                ? 'warning'
+                                : 'progress'
+                        }
+                      />
+                      {sample.status !== 'APPROVED' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={
+                            !canRequestSample ||
+                            (sample.status === 'ARRIVED' &&
+                              !canApproveRequest(sample))
+                          }
+                          title={
+                            sample.status === 'ARRIVED' &&
+                            !canApproveRequest(sample)
+                              ? '항목별 입고·도면 일치·수정 반영 검수를 확인하세요. 요청 승인과 현재 Revision 승인은 별도입니다.'
+                              : undefined
+                          }
+                          onClick={() =>
+                            sample.status === 'REQUESTED'
+                              ? setShippingSample(sample)
+                              : onAdvance(sample.id)
+                          }
+                        >
+                          {sample.status === 'REQUESTED'
+                            ? 'Mark Shipped'
+                            : sample.status === 'SHIPPED'
+                              ? 'Mark Arrived'
+                              : 'Approve Request'}
+                        </Button>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <Button size="sm" variant="outline" onClick={() => { setInspectionMessage(''); setInspectionRequest(sample.id); }}>입고·검수 / 저장 결과 보기</Button>
+                      <div className="sample-items">
+                        {designsOfSample(sample).map((design) => {
+                          const line = lineOf(sample, design);
+                          // Ready once the revision this line was made from
+                          // has its sample approved; until then it is a Sample.
+                          const isReady = Boolean(
+                            design.revisions.find(
+                              (revision) =>
+                                revision.id ===
+                                line?.vehicleProductDesignRevisionId,
+                            )?.sampleApprovedAt,
+                          );
+                          return (
+                            <div key={design.id}>
+                              <strong>{design.name}</strong>
+                              <span>
+                                Rev {requestedRevisionNumber(sample, design)}
+                              </span>
+                              <StatusBadge
+                                label={isReady ? 'Ready' : 'Sample'}
+                                tone={isReady ? 'success' : 'progress'}
+                              />
+                              <span>{sampleRoundLabel(sample.round)}</span>
+                              {line && <InspectionResult item={line} compact />}
+                              {line?.note && (
+                                <small className="sample-line-note">
+                                  {line.note}
+                                </small>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {sample.note && (
+                        <p className="detail-help-text">{sample.note}</p>
+                      )}
+                      {sample.shipment && (
+                        <ShipmentSummary shipment={sample.shipment} />
+                      )}
+                      {sample.status === 'ARRIVED' &&
+                        sampleItems
+                          .filter((item) => item.sampleRequestId === sample.id)
+                          .map((item) => {
+                            const design = designs.find(
+                              (candidate) =>
+                                candidate.id === item.vehicleProductDesignId,
+                            );
+                            const revision = design?.revisions.find(
+                              (candidate) =>
+                                candidate.id ===
+                                item.vehicleProductDesignRevisionId,
+                            );
+                            return design && revision?.changeRequest ? (
+                              <RevisionVerification
+                                key={item.id}
+                                design={design}
+                                item={item}
+                                onVerify={onVerifyRevision}
+                              />
+                            ) : null;
+                          })}
+                    </CardContent>
+                  </Card>
+                  </details>
+                ))}
+              </div>
+            </details>
+          );
+        })}
       </div>
+      {inspectionRequest && <InspectionDialog requestId={inspectionRequest} onClose={() => setInspectionRequest(undefined)} onSaved={() => setInspectionMessage('검수 결과가 저장되었습니다. 현재 Revision 승인 상태를 확인하세요.')} />}
       {shippingSample && (
         <ShipmentDialog
           subject={shippingSample.id}
@@ -3519,95 +3516,99 @@ function rowKeyHandler(onOpen: () => void) {
 interface VisitsTabProps {
   users: readonly AppUser[];
   visits: readonly ProjectVisit[];
-  canScheduleVisit: boolean;
-  onAdd: () => void;
+  product: VehicleProjectGroup['product'];
+  stage: ProjectStage;
+  canScheduleScan: boolean;
+  canScheduleFitting: boolean;
+  onAdd: (type: ProjectVisit['type']) => void;
   onCancel: (visitId: string) => void;
   onComplete: (visitId: string, result?: 'PASS' | 'FAIL') => void;
 }
 
 function VisitsTab({
-  users,
-  visits,
-  canScheduleVisit,
-  onAdd,
-  onCancel,
-  onComplete,
+  users, visits, product, stage, canScheduleScan, canScheduleFitting,
+  onAdd, onCancel, onComplete,
 }: VisitsTabProps) {
-  const upcoming = visits.filter((visit) => visit.status === 'SCHEDULED');
-  const past = visits.filter((visit) => visit.status !== 'SCHEDULED');
-  return (
-    <Card className="detail-panel">
-      <CardHeader>
-        <CardTitle>
-          Visits <small>스캔·피팅 일정과 방문 결과</small>
-        </CardTitle>
-        <Button
-          size="sm"
-          variant="primary"
-          disabled={!canScheduleVisit}
-          title={
-            canScheduleVisit
-              ? undefined
-              : '작업 대상 Zone 또는 필수 Floor Mat Bundle이 Visit Gate에 도달해야 합니다.'
-          }
-          onClick={onAdd}
-        >
-          <Plus /> Schedule Visit
-        </Button>
-      </CardHeader>
-      <CardContent className="visit-sections">
-        <section className="visit-section upcoming">
-          <header>
-            <div className="visit-section-title">
-              <CalendarClock aria-hidden="true" />
-              <div>
-                <h3>Upcoming</h3>
-                <p>예정된 방문 · 취소 및 완료 처리</p>
-              </div>
-            </div>
-            <StatusBadge
-              label={`${upcoming.length} SCHEDULED`}
-              tone="warning"
-            />
-          </header>
-          <div className="visit-section-list">
-            {upcoming.length ? (
-              upcoming.map((visit) => (
-                <VisitCard
-                  users={users}
-                  visit={visit}
-                  key={visit.id}
-                  onCancel={() => onCancel(visit.id)}
-                  onComplete={(result) => onComplete(visit.id, result)}
-                />
-              ))
-            ) : (
-              <div className="empty-inline">예정된 방문이 없습니다.</div>
-            )}
-          </div>
-        </section>
+  const [type, setType] = useState<ProjectVisit['type']>(() => defaultVisitType(product, stage));
+  const [includeCancelled, setIncludeCancelled] = useState(false);
+  const [limit, setLimit] = useState(10);
+  const [upcomingLimit, setUpcomingLimit] = useState(3);
+  const { upcoming, past, latest, rounds, cancelled } = visitHistory(visits, type, includeCancelled);
+  const name = type === 'SCAN' ? 'Scan' : 'Fitting';
+  const canSchedule = type === 'SCAN' ? canScheduleScan : canScheduleFitting;
+  const statusLabel = latest
+    ? type === 'SCAN' ? '측정 완료' : latest.result ?? '결과 미기록'
+    : upcoming.length ? '예정' : '대기';
+  const tone = latest
+    ? type === 'SCAN' || latest.result === 'PASS' ? 'success' : latest.result === 'FAIL' ? 'danger' : 'warning'
+    : 'neutral';
 
-        <section className="visit-section past">
-          <header>
-            <div className="visit-section-title">
-              <History aria-hidden="true" />
-              <div>
-                <h3>Past Visits</h3>
-                <p>완료되거나 취소된 방문 기록</p>
+  function visitRow(visit: ProjectVisit) {
+    const scheduled = visit.status === 'SCHEDULED';
+    const result = visit.status === 'CANCELLED' ? '취소'
+      : scheduled ? '예정'
+      : visit.type === 'FITTING' ? visit.result ?? '결과 미기록' : '측정 완료';
+    return (
+      <details className="project-visit-entry" key={visit.id}>
+        <summary>
+          <span className="project-visit-date">{visit.date} · {visit.time}</span>
+          <span className="project-visit-place">{visit.dealer}</span>
+          <span className="project-visit-staff">{visit.staffIds?.length ? visit.staffIds.map(id => userName(users,id)).join(', ') : '담당자 미지정'}</span>
+          {type === 'FITTING' && rounds.has(visit.id) && <span className="project-visit-round">{rounds.get(visit.id)}차</span>}
+          <StatusBadge label={result} tone={result === 'PASS' || result === '측정 완료' ? 'success' : result === 'FAIL' ? 'danger' : scheduled ? 'warning' : 'neutral'} />
+          <span className="project-visit-expand">상세 <ChevronRight aria-hidden="true" /></span>
+        </summary>
+        <VisitCard users={users} visit={visit}
+          onCancel={scheduled ? () => onCancel(visit.id) : undefined}
+          onComplete={scheduled ? (result) => onComplete(visit.id, result) : undefined} />
+      </details>
+    );
+  }
+
+  return (
+    <Card className="detail-panel project-visits">
+      <CardHeader><CardTitle>Visits <small>이 프로젝트의 스캔·피팅 진행과 이력</small></CardTitle></CardHeader>
+      <CardContent>
+        <Tabs value={type} onValueChange={value => { setType(value as ProjectVisit['type']); setLimit(10); setUpcomingLimit(3); }}>
+          <TabsList variant="button" aria-label="방문 업무 구분">
+            {product !== 'Car Cover' && <TabsTrigger value="SCAN"><ScanLine aria-hidden="true" /> Scan</TabsTrigger>}
+            <TabsTrigger value="FITTING"><Wrench aria-hidden="true" /> Fitting</TabsTrigger>
+          </TabsList>
+          <TabsContent value={type} key={type}>
+            {product === 'Car Cover' && <p className="project-visit-hint">Car Cover는 3D Model·Fit Review를 사용하므로 현장 Scan 탭을 표시하지 않습니다.</p>}
+            <div className="project-visit-current">
+              <div><span className="project-visit-kicker">{name} 현재 상태</span>
+                <div className="project-visit-status"><StatusBadge label={statusLabel} tone={tone} />
+                  <strong>{latest ? '최근 완료 방문 기준' : upcoming.length ? '방문 일정이 잡혀 있습니다' : '아직 완료된 방문이 없습니다'}</strong>
+                </div>
+                <p>{latest ? `${latest.date} · ${latest.dealer}` : '예약과 실제 작업 완료는 별도로 기록합니다.'}</p>
+                {latest && <small>현재 Revision의 적합성·다음 단계 가능 여부는 상단 NEXT ACTION에서 확인하세요.</small>}
               </div>
+              <Button size="sm" variant="primary" disabled={!canSchedule}
+                title={canSchedule ? undefined : `${name} 단계 조건을 먼저 완료하세요.`}
+                onClick={() => onAdd(type)}><Plus /> {name} 일정 등록</Button>
             </div>
-            <StatusBadge label={`${past.length} PAST`} tone="neutral" />
-          </header>
-          <div className="visit-section-list">
-            {past.length ? (
-              past.map((visit) => (
-                <VisitCard users={users} visit={visit} key={visit.id} />
-              ))
-            ) : (
-              <div className="empty-inline">지난 방문 기록이 없습니다.</div>
-            )}
-          </div>
-        </section>
+            <section className="project-visit-section">
+              <h3><CalendarClock aria-hidden="true" /> 다음 일정 <span>{upcoming.length}건</span></h3>
+              {upcoming[0] ? <>
+                <VisitCard users={users} visit={upcoming[0]}
+                  onCancel={() => onCancel(upcoming[0].id)}
+                  onComplete={result => onComplete(upcoming[0].id,result)} />
+                {upcoming.slice(1, upcomingLimit).map(visitRow)}
+                {upcoming.length > upcomingLimit && <Button variant="outline" size="sm" onClick={() => setUpcomingLimit(n=>n+10)}>다른 예정 일정 더 보기 ({upcoming.length-upcomingLimit}건)</Button>}
+              </> : <p className="empty-inline">예정된 {name} 방문이 없습니다.</p>}
+            </section>
+            <section className="project-visit-section">
+              <div className="project-visit-history-heading">
+                <h3><History aria-hidden="true" /> 지난 이력 <span>{past.length}건 · 최근순</span></h3>
+                <label className="project-visit-cancelled"><Checkbox checked={includeCancelled} onCheckedChange={value => { setIncludeCancelled(value === true); setLimit(10); }} /> 취소 이력 포함 ({cancelled})</label>
+              </div>
+              <p className="project-visit-hint">한 줄을 펼치면 상세 정보가 표시됩니다.{type === 'FITTING' ? ' 피팅 차수는 완료 방문의 수행 순서이며, 샘플 차수와 별개입니다.' : ''}</p>
+              {past.length ? past.slice(0,limit).map(visitRow) : <p className="empty-inline">표시할 {name} 이력이 없습니다.</p>}
+              {past.length > limit && <Button variant="outline" size="sm" onClick={() => setLimit(n=>n+10)}>이력 10건 더 보기 ({past.length-limit}건 남음)</Button>}
+            </section>
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );
@@ -3763,6 +3764,7 @@ function ActivityTab({ activity }: ActivityTabProps) {
 }
 
 interface ProjectDialogProps {
+  initialVisitType?: ProjectVisit['type'];
   handoffZoneCodes: string;
   handoffDraft?: HandoffChecklist;
   onHandoffDraft: (value: HandoffChecklist) => void;
@@ -3809,6 +3811,7 @@ interface ProjectDialogProps {
 }
 
 function ProjectDialog({
+  initialVisitType,
   handoffZoneCodes,
   handoffDraft,
   onHandoffDraft,
@@ -3888,11 +3891,11 @@ function ProjectDialog({
   const [isForMiddleSeat, setIsForMiddleSeat] = useState(false);
   const [isCustomPart, setIsCustomPart] = useState(false);
   const [visitType, setVisitType] = useState<ProjectVisit['type']>(
-    canScheduleFitting && selectedZone?.currentStage === 'Fitting'
+    initialVisitType ?? (canScheduleFitting && selectedZone?.currentStage === 'Fitting'
       ? 'FITTING'
       : canScheduleScan
         ? 'SCAN'
-        : 'FITTING',
+        : 'FITTING'),
   );
   const [dealer, setDealer] = useState<(typeof DEALERS)[number]>('Galpin Ford');
   const [date, setDate] = useState(new Date().toLocaleDateString('en-CA'));

@@ -1,0 +1,52 @@
+.project-visits .project-visit-current { display:flex; gap:20px; justify-content:space-between; align-items:center; margin:18px 0; padding:20px; border:1px solid var(--border); border-radius:10px; background:var(--muted); }
+.project-visit-kicker { display:block; font-size:12px; color:var(--muted-foreground); margin-bottom:8px; }
+.project-visit-status { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
+.project-visit-current p { margin-top:8px; font-size:13px; }
+.project-visit-current small,.project-visit-hint { font-size:12px; color:var(--muted-foreground); line-height:1.6; }
+.project-visit-hint { margin:10px 0; }
+.project-visit-section { margin-top:24px; }
+.project-visit-section h3 { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:600; margin:0 0 12px; }
+.project-visit-section h3 svg { width:17px; height:17px; }
+.project-visit-section h3 span { font-size:12px; font-weight:400; color:var(--muted-foreground); }
+.project-visit-history-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+.project-visit-cancelled { display:flex; align-items:center; gap:8px; font-size:12px; }
+.project-visit-entry { margin:8px 0; border:1px solid var(--border); border-radius:8px; background:var(--background); overflow:hidden; }
+.project-visit-entry > summary { display:flex; align-items:center; gap:16px; padding:14px 16px; cursor:pointer; list-style:none; font-size:13px; }
+.project-visit-entry > summary::-webkit-details-marker { display:none; }
+.project-visit-entry > summary:hover { background:var(--muted); }
+.project-visit-entry > summary:focus-visible { outline:2px solid var(--primary); outline-offset:-3px; }
+.project-visit-date { flex-shrink:0; font-variant-numeric:tabular-nums; }
+.project-visit-place { flex:1; min-width:0; font-weight:600; overflow-wrap:anywhere; }
+.project-visit-staff { max-width:180px; overflow-wrap:anywhere; color:var(--muted-foreground); }
+.project-visit-round { white-space:nowrap; font-size:12px; color:var(--muted-foreground); }
+.project-visit-expand { display:flex; align-items:center; gap:4px; font-size:12px; white-space:nowrap; }
+.project-visit-expand svg { width:14px; height:14px; }
+.project-visit-entry[open] .project-visit-expand svg { transform:rotate(90deg); }
+.project-visit-entry > .visit-card { margin:0; border:0; border-top:1px solid var(--border); border-radius:0; box-shadow:none; }
+@media(max-width:700px) {
+ .project-visits .project-visit-current { align-items:stretch; flex-direction:column; }
+ .project-visit-entry > summary { flex-wrap:wrap; gap:8px 12px; }
+ .project-visit-date { width:100%; }
+ .project-visit-staff { max-width:100%; }
+ .project-visit-place { flex-basis:55%; }
+}
+.sample-progress-summary { padding:20px; border:1px solid var(--border); border-radius:10px; background:var(--muted); }
+.sample-progress-summary.ready { border-color:var(--color-green-300, #86efac); background:var(--wb-soft-green, var(--muted)); }
+.sample-progress-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; }
+.sample-progress-heading h3 { margin:0; font-size:16px; font-weight:650; }
+.sample-progress-heading p { margin:8px 0 0; font-size:13px; line-height:1.7; overflow-wrap:anywhere; }
+.sample-progress-heading > button { flex-shrink:0; }
+.sample-progress-blockers { margin-top:12px; font-size:13px; }
+.sample-progress-blockers summary { cursor:pointer; }
+.sample-progress-blockers ul { padding:12px 0 0 20px; list-style:disc; line-height:1.7; }
+.project-sample-entry { border:1px solid var(--border); border-radius:8px; background:var(--background); overflow:hidden; }
+.project-sample-entry > summary { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:14px 16px; cursor:pointer; list-style:none; font-size:12px; }
+.project-sample-entry > summary::-webkit-details-marker { display:none; }
+.project-sample-entry > summary:hover { background:var(--muted); }
+.project-sample-entry > summary:focus-visible { outline:2px solid var(--primary); outline-offset:-3px; }
+.project-sample-entry > summary strong { font-size:13px; overflow-wrap:anywhere; }
+.project-sample-factory { flex:1; min-width:100px; overflow-wrap:anywhere; }
+.project-sample-inspection-count { color:var(--muted-foreground); }
+.project-sample-entry[open] > summary .project-visit-expand svg { transform:rotate(90deg); }
+.project-sample-entry > .detail-panel { border:0; border-top:1px solid var(--border); border-radius:0; box-shadow:none; }
+@media(max-width:700px) { .sample-progress-heading { align-items:stretch; flex-direction:column; } }

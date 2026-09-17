@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { Button } from '@coverland-engineering/ui/button';
+import { Input } from '@coverland-engineering/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@coverland-engineering/ui/select';
 import {
   Dialog,
   DialogBody,
@@ -53,15 +56,15 @@ export function PartLinkDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent>
+      <DialogContent className="part-link-dialog">
         <DialogHeader>
           <DialogTitle>기존 Part 연결</DialogTitle>
         </DialogHeader>
         <DialogBody>
-          <div className="parts-form">
+          <div className="part-link-form">
             <label>
               Part 검색
-              <input
+              <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="이름 / Part Type"
@@ -69,14 +72,15 @@ export function PartLinkDialog({
             </label>
             <label>
               Part
-              <select
+              <Select
                 value={id}
-                onChange={(e) => {
-                  setId(e.target.value);
+                onValueChange={(value) => {
+                  setId(value);
                   setRevisionId('');
                 }}
               >
-                <option value="">Part 선택</option>
+                <SelectTrigger aria-label="Part 선택"><SelectValue placeholder="연결할 Part를 선택하세요" /></SelectTrigger>
+                <SelectContent className="part-link-options" position="popper">
                 {library
                   .filter((p) =>
                     `${p.name} ${p.type}`
@@ -84,11 +88,12 @@ export function PartLinkDialog({
                       .includes(search.toLowerCase()),
                   )
                   .map((p) => (
-                    <option key={p.id} value={p.id}>
+                    <SelectItem key={p.id} value={p.id}>
                       {p.name}
-                    </option>
+                    </SelectItem>
                   ))}
-              </select>
+                </SelectContent>
+              </Select>
             </label>
             {!library.length && (
               <p>
@@ -97,23 +102,24 @@ export function PartLinkDialog({
             )}
             <label>
               적용 버전
-              <select
+              <Select
                 value={revision?.id ?? ''}
-                onChange={(e) => setRevisionId(e.target.value)}
+                onValueChange={setRevisionId}
+                disabled={!part?.revisions.length}
               >
-                <option value="" disabled>
-                  버전 선택
-                </option>
+                <SelectTrigger aria-label="적용 버전"><SelectValue placeholder="Part를 먼저 선택하세요" /></SelectTrigger>
+                <SelectContent className="part-link-options" position="popper">
                 {part?.revisions.map((r) => (
-                  <option key={r.id} value={r.id}>
+                  <SelectItem key={r.id} value={r.id}>
                     v{r.revisionNumber} · {r.note}
-                  </option>
+                  </SelectItem>
                 ))}
-              </select>
+                </SelectContent>
+              </Select>
             </label>
             <label>
               프로젝트 수량
-              <input
+              <Input
                 type="number"
                 min="1"
                 step="1"
@@ -121,25 +127,25 @@ export function PartLinkDialog({
                 onChange={(e) => setQuantity(Number(e.target.value))}
               />
             </label>
-            <p>
+            <p className="part-link-note">
               선택한 버전이 고정됩니다. 이 차량에서의 피팅은 별도로 확인합니다.
             </p>
             {duplicate && <p role="alert">이미 연결된 Part입니다.</p>}
           </div>
         </DialogBody>
-        <DialogFooter>
-          <button
+        <DialogFooter className="part-link-footer">
+          <Button variant="outline"
             onClick={() =>
               navigate(
-                `/parts?${new URLSearchParams({ product, returnTo, zone: new URLSearchParams(returnTo.split('?')[1]).get('zone') ?? 'F' })}`,
+                `/parts?${new URLSearchParams({ view: 'create', product, returnTo, zone: new URLSearchParams(returnTo.split('?')[1]).get('zone') ?? 'F' })}`,
               )
             }
           >
             새 Part 만들기
-          </button>
-          <button onClick={onClose}>취소</button>
-          <button
-            className="parts-primary"
+          </Button>
+          <Button variant="outline" onClick={onClose}>취소</Button>
+          <Button
+            variant="primary"
             disabled={
               !part ||
               !revision ||
@@ -179,7 +185,7 @@ export function PartLinkDialog({
             }}
           >
             프로젝트에 연결
-          </button>
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
