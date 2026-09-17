@@ -1,19 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@coverland-engineering/ui/card';
+import { Card } from '@coverland-engineering/ui/card';
 import { Input } from '@coverland-engineering/ui/input';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@coverland-engineering/ui/select';
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@coverland-engineering/ui/sheet';
 import {
   Table,
   TableBody,
@@ -22,7 +18,18 @@ import {
   TableHeader,
   TableRow,
 } from '@coverland-engineering/ui/table';
-import { History, Search, X } from 'lucide-react';
+import {
+  CalendarClock,
+  CheckCircle2,
+  FileClock,
+  FileImage,
+  History,
+  Link2,
+  Plus,
+  RotateCcw,
+  Search,
+  UserRound,
+} from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { fileFingerprint } from '@/shared/domain/revision-control';
 import { PageHeader } from '@/shared/components/page-header';
@@ -91,8 +98,8 @@ export function PartsPage() {
   const parts = usePartLibrary();
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const [tab, setTab] = useState(
-    !params.has('part') && params.get('view') === 'create' ? 'create' : 'list',
+  const [createOpen, setCreateOpen] = useState(
+    !params.has('part') && params.get('view') === 'create',
   );
   const [row, setRow] = useState(params.get('zone') ?? 'F');
   const [category, setCategory] = useState('');
@@ -161,15 +168,23 @@ export function PartsPage() {
     parts.find((p) => p.name === params.get('name'));
   const products = [...new Set(parts.map((p) => p.product))].sort();
   const normalizedSearch = search.trim().toLowerCase();
-  const visibleParts = parts
-    .filter(
-      (p) =>
-        (product === 'ALL' || p.product === product) &&
-        (!normalizedSearch ||
-          `${p.name} ${p.product} ${p.type}`
-            .toLowerCase()
-            .includes(normalizedSearch)),
-    )
+  const searchedParts = parts.filter(
+    (p) =>
+      !normalizedSearch ||
+      `${p.name} ${p.product} ${p.type}`
+        .toLowerCase()
+        .includes(normalizedSearch),
+  );
+  const productFilters = [
+    { label: 'All', value: 'ALL', count: searchedParts.length },
+    ...products.map((item) => ({
+      label: item,
+      value: item,
+      count: searchedParts.filter((p) => p.product === item).length,
+    })),
+  ];
+  const visibleParts = searchedParts
+    .filter((p) => product === 'ALL' || p.product === product)
     .sort((left, right) =>
       (latestRevision(right)?.createdAt ?? '').localeCompare(
         latestRevision(left)?.createdAt ?? '',
@@ -223,7 +238,7 @@ export function PartsPage() {
         return;
       }
       setSelected(id);
-      setTab('list');
+      setCreateOpen(false);
       setMessage('Part를 생성했습니다.');
       setNote('');
       setDxfFileName('');
@@ -236,13 +251,6 @@ export function PartsPage() {
     <section className="parts-workspace">
       <PageHeader
         description="부품 라이브러리 · Name Generator · Version History"
-        actions={
-          safeReturn ? (
-            <Button variant="outline" onClick={() => navigate(safeReturn)}>
-              프로젝트로 돌아가기
-            </Button>
-          ) : undefined
-        }
         tables={
           import.meta.env.DEV
             ? [
@@ -256,369 +264,402 @@ export function PartsPage() {
             : undefined
         }
       />
-      <div className="segment-filters" role="group" aria-label="Parts 보기">
-        <Button
-          size="sm"
-          variant={tab === 'list' ? 'mono' : 'outline'}
-          onClick={() => setTab('list')}
-        >
-          목록 · {parts.length}
-        </Button>
-        <Button
-          size="sm"
-          variant={tab === 'create' ? 'mono' : 'outline'}
-          onClick={() => setTab('create')}
-        >
-          생성기
-        </Button>
-      </div>
       {message && (
         <p className="detail-help-text" role="status">
           {message}
         </p>
       )}
-      {tab === 'create' ? (
-        <div className="parts-generator">
-          <div className="parts-diagram-panel">
-            <div className="parts-tabs">
-              {[
-                ['F', '1열 (Front)'],
-                ['B', '2열 (Rear)'],
-                ['E', '3열 (Third Row)'],
-              ].map(([value, label]) => (
-                <button
-                  key={value}
-                  aria-pressed={row === value}
-                  onClick={() => setRow(value)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <h2>부위 선택</h2>
-            <>
-              <div className="seat-diagram">
-                {SEAT_POSITIONS.map((position) => {
-                  const letter = SEAT_POSITION_LETTERS[position];
-                  return (
-                    <div
-                      className={`seat seat-${position.toLowerCase()}`}
-                      key={position}
-                    >
-                      {SEAT_PIECES.filter(
-                        (piece) => !piece.sideOnly || position !== 'CENTER',
-                      ).map((piece) => {
-                        const label =
-                          position === 'CENTER'
-                            ? (piece.centerLabel ?? piece.label)
-                            : piece.label;
-                        return (
-                          <button
-                            key={piece.category}
-                            type="button"
-                            className={`seat-piece seat-${piece.category.toLowerCase()}`}
-                            aria-label={`${SEAT_POSITION_LABELS[position]} ${label}`}
-                            aria-pressed={
-                              side === position && category === piece.category
-                            }
-                            onClick={() => {
-                              setSide(position);
-                              setCategory(piece.category);
-                              setPartType('');
-                            }}
-                          >
-                            {piece.category === 'HEADREST' && letter ? (
-                              <>
-                                <b>{letter}</b>
-                                <small>{label}</small>
-                              </>
-                            ) : (
-                              label
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
+      <Sheet open={createOpen} onOpenChange={setCreateOpen}>
+        <SheetContent
+          side="right"
+          className="parts-create-sheet w-[min(1120px,96vw)] sm:max-w-none p-0 gap-0"
+          accessibleTitle="Part 생성"
+          accessibleDescription="공용 Part를 생성합니다."
+        >
+          <SheetHeader className="workbench-sheet-header">
+            <div className="parts-sheet-heading">
+              <span className="parts-sheet-icon" aria-hidden="true">
+                <Plus />
+              </span>
+              <div>
+                <SheetTitle>새 Part 생성</SheetTitle>
+                <p>부위와 사양을 선택해 공용 Part와 첫 버전을 등록합니다.</p>
               </div>
-              <p>부위를 선택한 뒤 오른쪽에서 Part Type을 선택하세요.</p>
-              <button
-                onClick={() => {
-                  setCategory('');
-                  setPartType('');
-                }}
-              >
-                부위 필터 해제
-              </button>
-            </>
-            <p className="parts-hint">
-              공용 Part를 생성한 후 각 프로젝트에서 버전과 수량을 선택해
-              연결합니다.
-            </p>
-          </div>
-          <form
-            className="parts-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              create();
-            }}
-          >
-            <div className="parts-tabs">
-              <button
-                type="button"
-                aria-pressed={custom}
-                onClick={() => {
-                  setCustom(true);
-                  setPartType('');
-                }}
-              >
-                커스텀
-              </button>
-              <button
-                type="button"
-                aria-pressed={!custom}
-                onClick={() => {
-                  setCustom(false);
-                  setPartType('');
-                }}
-              >
-                유니버설
-              </button>
             </div>
-            <>
-              <label>
-                Part Type
-                <select
-                  required
-                  value={partType}
-                  onChange={(e) => setPartType(e.target.value)}
-                >
-                  <option value="">Part 선택</option>
-                  {types.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} · {p.category}
-                    </option>
+          </SheetHeader>
+          <SheetBody className="workbench-sheet-body">
+            <div className="parts-generator">
+              <div className="parts-diagram-panel">
+                <div className="parts-section-heading">
+                  <span>01</span>
+                  <div>
+                    <h2>시트 부위 선택</h2>
+                    <p>열과 부위를 선택하면 등록 가능한 Part가 필터링됩니다.</p>
+                  </div>
+                </div>
+                <div className="parts-tabs">
+                  {[
+                    ['F', '1열 (Front)'],
+                    ['B', '2열 (Rear)'],
+                    ['E', '3열 (Third Row)'],
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      aria-pressed={row === value}
+                      onClick={() => setRow(value)}
+                    >
+                      {label}
+                    </button>
                   ))}
-                </select>
-              </label>
-              {types.length === 0 && (
-                <p>
-                  조건에 맞는 Part Type이 없습니다. 부위 필터를 해제하거나
-                  Reference Data에서 등록하세요.
-                </p>
-              )}
-            </>
-            {custom && (
-              <>
-                <label>
-                  Make Abbreviation
-                  <input
-                    required
-                    value={make}
-                    placeholder="AC"
-                    onChange={(e) => setMake(e.target.value)}
-                  />
-                </label>
-                <label>
-                  Model Abbreviation
-                  <input
-                    required
-                    value={model}
-                    placeholder="MX"
-                    onChange={(e) => setModel(e.target.value)}
-                  />
-                </label>
-              </>
-            )}
-            <label>
-              Initial
-              <input
-                required
-                value={initial}
-                placeholder="W"
-                onChange={(e) => setInitial(e.target.value)}
-              />
-            </label>
-            <>
-              <label>
-                Code
-                <select
-                  required
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                >
-                  <option value="">Code 선택</option>
-                  {seatCoverCodes
-                    .filter((c) => c.status === 'ACTIVE')
-                    .map((c) => (
-                      <option key={c.id}>{c.code}</option>
-                    ))}
-                </select>
-              </label>
-              <label>
-                Side
-                <select
-                  value={side}
-                  onChange={(e) => setSide(e.target.value as typeof side)}
-                >
-                  {['DRIVER', 'PASSENGER', 'CENTER', 'UNIVERSAL'].map((s) => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </select>
-              </label>
-            </>
-            <label>
-              Version note
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-              />
-            </label>
-            <label>
-              초기 DXF 파일
-              <input
-                required
-                type="file"
-                accept=".dxf"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (!file) {
-                    setDxfFileName('');
-                    setDxfFingerprint('');
-                    return;
-                  }
-                  setDxfFileName(file.name);
-                  void fileFingerprint(file).then(setDxfFingerprint);
-                }}
-              />
-            </label>
-            <label>
-              Part Name 미리보기
-              <output className="part-name-preview">
-                {name || '필수 항목을 선택하세요'}
-              </output>
-            </label>
-            <p role="status">
-              {duplicate
-                ? '동일한 Part Name이 있습니다. 기존 Part를 사용하세요.'
-                : valid
-                  ? '중복 없음 · 생성 가능'
-                  : '필수 항목을 입력하세요.'}
-            </p>
-            <button className="parts-primary" disabled={!valid || duplicate}>
-              {safeReturn ? '생성 후 프로젝트에서 연결' : '+ Part 생성'}
-            </button>
-          </form>
-        </div>
-      ) : (
-        <div className="parts-list">
-          <div className="workbench-filters">
-            <div className="search-field">
-              <Search aria-hidden="true" />
-              <Input
-                aria-label="Part 이름, 제품군, Part Type 검색"
-                placeholder="Part 이름 / 제품군 / Part Type"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            <Select value={product} onValueChange={setProduct}>
-              <SelectTrigger
-                aria-label="제품군 필터"
-                className="filter-select wide"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Product: All</SelectItem>
-                {products.map((item) => (
-                  <SelectItem value={item} key={item}>
-                    {item}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {(search || product !== 'ALL') && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setSearch('');
-                  setProduct('ALL');
-                }}
-              >
-                <X /> 필터 초기화
-              </Button>
-            )}
-            <span className="filter-count">
-              {visibleParts.length} / {parts.length} Parts
-            </span>
-          </div>
-          {visibleParts.length ? (
-            <Card>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Part Name</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Part Type</TableHead>
-                    <TableHead>Version</TableHead>
-                    <TableHead>Last Updated</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pagedParts.map((p) => {
-                    const latest = latestRevision(p);
-                    const isSelected = active?.id === p.id;
+                </div>
+                <div className="seat-diagram">
+                  {SEAT_POSITIONS.map((position) => {
+                    const letter = SEAT_POSITION_LETTERS[position];
                     return (
-                      <TableRow
-                        key={p.id}
-                        data-state={isSelected ? 'selected' : undefined}
+                      <div
+                        className={`seat seat-${position.toLowerCase()}`}
+                        key={position}
                       >
-                        <TableCell>
-                          <code className="part-name">{p.name}</code>
-                        </TableCell>
-                        <TableCell>{p.product}</TableCell>
-                        <TableCell>{p.type}</TableCell>
-                        <TableCell>
-                          <strong>v{latest?.revisionNumber ?? 1}</strong>
-                          <div className="vehicle-meta">
-                            {p.revisions.length} revisions
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {latest ? latest.createdAt.slice(0, 10) : '—'}
-                          <div className="vehicle-meta">
-                            {latest?.createdBy}
-                          </div>
-                        </TableCell>
-                        <TableCell className="table-actions">
-                          <Button
-                            size="sm"
-                            variant={isSelected ? 'mono' : 'outline'}
-                            aria-pressed={isSelected}
-                            onClick={() => {
-                              setSelected(p.id);
-                              setNote('');
-                            }}
-                          >
-                            <History /> Version History
-                          </Button>
-                        </TableCell>
-                      </TableRow>
+                        {SEAT_PIECES.filter(
+                          (piece) => !piece.sideOnly || position !== 'CENTER',
+                        ).map((piece) => {
+                          const label =
+                            position === 'CENTER'
+                              ? (piece.centerLabel ?? piece.label)
+                              : piece.label;
+                          return (
+                            <button
+                              key={piece.category}
+                              type="button"
+                              className={`seat-piece seat-${piece.category.toLowerCase()}`}
+                              aria-label={`${SEAT_POSITION_LABELS[position]} ${label}`}
+                              aria-pressed={
+                                side === position && category === piece.category
+                              }
+                              onClick={() => {
+                                setSide(position);
+                                setCategory(piece.category);
+                                setPartType('');
+                              }}
+                            >
+                              {piece.category === 'HEADREST' && letter ? (
+                                <>
+                                  <b>{letter}</b>
+                                  <small>{label}</small>
+                                </>
+                              ) : (
+                                label
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
                     );
                   })}
-                </TableBody>
-              </Table>
-              <WorkbenchPagination
-                recordCount={visibleParts.length}
-                pagination={pagination}
-                onPaginationChange={setPagination}
-                itemLabel="parts"
-              />
-            </Card>
+                </div>
+                <div className="parts-selection-guide">
+                  <div>
+                    <strong>원하는 부위를 선택하세요</strong>
+                    <p>선택한 조건에 맞는 Part Type만 오른쪽에 표시됩니다.</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="parts-reset-filter"
+                    disabled={!category}
+                    onClick={() => {
+                      setCategory('');
+                      setPartType('');
+                    }}
+                  >
+                    <RotateCcw aria-hidden="true" />
+                    부위 필터 해제
+                  </button>
+                </div>
+                <div className="parts-workflow-note">
+                  <span aria-hidden="true">
+                    <Link2 />
+                  </span>
+                  <p>
+                    생성한 공용 Part는 각 프로젝트에서 필요한{' '}
+                    <strong>버전과 수량</strong>을 선택해 연결할 수 있습니다.
+                  </p>
+                </div>
+              </div>
+              <form
+                id="part-create-form"
+                className="parts-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  create();
+                }}
+              >
+                <div className="parts-section-heading">
+                  <span>02</span>
+                  <div>
+                    <h2>Part 정보</h2>
+                    <p>식별 정보와 초기 버전 파일을 입력하세요.</p>
+                  </div>
+                </div>
+                <div className="parts-tabs">
+                  <button
+                    type="button"
+                    aria-pressed={custom}
+                    onClick={() => {
+                      setCustom(true);
+                      setPartType('');
+                    }}
+                  >
+                    커스텀
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={!custom}
+                    onClick={() => {
+                      setCustom(false);
+                      setPartType('');
+                    }}
+                  >
+                    유니버설
+                  </button>
+                </div>
+                <>
+                  <label>
+                    Part Type
+                    <select
+                      required
+                      value={partType}
+                      onChange={(e) => setPartType(e.target.value)}
+                    >
+                      <option value="">Part 선택</option>
+                      {types.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} · {p.category}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {types.length === 0 && (
+                    <p>
+                      조건에 맞는 Part Type이 없습니다. 부위 필터를 해제하거나
+                      Reference Data에서 등록하세요.
+                    </p>
+                  )}
+                </>
+                {custom && (
+                  <>
+                    <label>
+                      Make Abbreviation
+                      <input
+                        required
+                        value={make}
+                        placeholder="AC"
+                        onChange={(e) => setMake(e.target.value)}
+                      />
+                    </label>
+                    <label>
+                      Model Abbreviation
+                      <input
+                        required
+                        value={model}
+                        placeholder="MX"
+                        onChange={(e) => setModel(e.target.value)}
+                      />
+                    </label>
+                  </>
+                )}
+                <label>
+                  Initial
+                  <input
+                    required
+                    value={initial}
+                    placeholder="W"
+                    onChange={(e) => setInitial(e.target.value)}
+                  />
+                </label>
+                <>
+                  <label>
+                    Code
+                    <select
+                      required
+                      value={code}
+                      onChange={(e) => setCode(e.target.value)}
+                    >
+                      <option value="">Code 선택</option>
+                      {seatCoverCodes
+                        .filter((c) => c.status === 'ACTIVE')
+                        .map((c) => (
+                          <option key={c.id}>{c.code}</option>
+                        ))}
+                    </select>
+                  </label>
+                  <label>
+                    Side
+                    <select
+                      value={side}
+                      onChange={(e) => setSide(e.target.value as typeof side)}
+                    >
+                      {['DRIVER', 'PASSENGER', 'CENTER', 'UNIVERSAL'].map(
+                        (s) => (
+                          <option key={s}>{s}</option>
+                        ),
+                      )}
+                    </select>
+                  </label>
+                </>
+                <label>
+                  Version note
+                  <textarea
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                  />
+                </label>
+                <label>
+                  초기 DXF 파일
+                  <input
+                    required
+                    type="file"
+                    accept=".dxf"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (!file) {
+                        setDxfFileName('');
+                        setDxfFingerprint('');
+                        return;
+                      }
+                      setDxfFileName(file.name);
+                      void fileFingerprint(file).then(setDxfFingerprint);
+                    }}
+                  />
+                </label>
+                <label>
+                  Part Name 미리보기
+                  <output className="part-name-preview">
+                    {name || '필수 항목을 선택하세요'}
+                  </output>
+                </label>
+                <p role="status">
+                  {duplicate
+                    ? '동일한 Part Name이 있습니다. 기존 Part를 사용하세요.'
+                    : valid
+                      ? '중복 없음 · 생성 가능'
+                      : '필수 항목을 입력하세요.'}
+                </p>
+              </form>
+            </div>
+          </SheetBody>
+          <SheetFooter className="workbench-sheet-footer">
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              className="parts-primary-action"
+              type="submit"
+              form="part-create-form"
+              disabled={!valid || duplicate}
+            >
+              {safeReturn ? '생성 후 프로젝트에서 연결' : 'Part 생성'}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+      <div className="parts-list">
+        <Card>
+          <div className="grid-toolbar">
+            <div className="grid-toolbar-filters">
+              <div className="search-field">
+                <Search aria-hidden="true" />
+                <Input
+                  aria-label="Part 이름, 제품군, Part Type 검색"
+                  placeholder="Part 이름 / 제품군 / Part Type"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <div className="stage-tabs" role="group" aria-label="제품군 필터">
+                {productFilters.map((filter) => (
+                  <button
+                    type="button"
+                    key={filter.value}
+                    className="stage-tab"
+                    aria-pressed={product === filter.value}
+                    onClick={() => setProduct(filter.value)}
+                  >
+                    {filter.label}
+                    <span className="stage-tab-count">{filter.count}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid-toolbar-actions">
+              {safeReturn && (
+                <Button variant="outline" onClick={() => navigate(safeReturn)}>
+                  프로젝트로 돌아가기
+                </Button>
+              )}
+              <Button
+                variant="primary"
+                className="parts-primary-action"
+                onClick={() => setCreateOpen(true)}
+              >
+                <Plus /> Part 생성
+              </Button>
+            </div>
+          </div>
+          {visibleParts.length ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Part Name</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Part Type</TableHead>
+                  <TableHead>Version</TableHead>
+                  <TableHead>Last Updated</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pagedParts.map((p) => {
+                  const latest = latestRevision(p);
+                  const isSelected = active?.id === p.id;
+                  return (
+                    <TableRow
+                      key={p.id}
+                      data-state={isSelected ? 'selected' : undefined}
+                    >
+                      <TableCell>
+                        <code className="part-name">{p.name}</code>
+                      </TableCell>
+                      <TableCell>{p.product}</TableCell>
+                      <TableCell>{p.type}</TableCell>
+                      <TableCell>
+                        <strong>v{latest?.revisionNumber ?? 1}</strong>
+                        <div className="vehicle-meta">
+                          {p.revisions.length} revisions
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {latest ? latest.createdAt.slice(0, 10) : '—'}
+                        <div className="vehicle-meta">{latest?.createdBy}</div>
+                      </TableCell>
+                      <TableCell className="table-actions">
+                        <Button
+                          size="sm"
+                          variant={isSelected ? 'mono' : 'outline'}
+                          aria-pressed={isSelected}
+                          onClick={() => {
+                            setSelected(p.id);
+                            setNote('');
+                          }}
+                        >
+                          <History /> Version History
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           ) : (
             <div className="empty-state">
               <div className="empty-icon">🧩</div>
@@ -630,91 +671,150 @@ export function PartsPage() {
               <p>
                 {parts.length
                   ? '검색어나 제품군 필터를 바꿔 보세요.'
-                  : '생성기에서 첫 Part를 추가하세요.'}
+                  : 'Part 생성 버튼으로 첫 Part를 추가하세요.'}
               </p>
             </div>
           )}
+          <WorkbenchPagination
+            recordCount={visibleParts.length}
+            pagination={pagination}
+            onPaginationChange={setPagination}
+          />
+        </Card>
+        <Sheet
+          open={Boolean(active)}
+          onOpenChange={(open) => {
+            if (!open) setSelected('');
+          }}
+        >
           {active && (
-            <Card className="detail-panel part-history-panel">
-              <CardHeader>
-                <CardTitle>
-                  <code className="part-name">{active.name}</code>
-                  <small>Version History · {active.revisions.length}</small>
-                </CardTitle>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  aria-label="Version History 닫기"
-                  onClick={() => setSelected('')}
-                >
-                  <X />
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {[...active.revisions].reverse().map((r) => (
-                  <article className="part-version" key={r.id}>
-                    <strong>v{r.revisionNumber}</strong>
-                    <p>{r.note}</p>
-                    {r.changeRequest && (
-                      <dl className="part-revision-change">
-                        <div>
-                          <dt>문제 출처</dt>
-                          <dd>{r.changeRequest.issueSource}</dd>
+            <SheetContent
+              side="right"
+              className="part-history-sheet w-[min(620px,96vw)] sm:max-w-none p-0 gap-0"
+              accessibleTitle={`${active.name} Version History`}
+              accessibleDescription={`${active.revisions.length}개의 버전 이력을 확인합니다.`}
+            >
+              <SheetHeader className="part-history-sheet-header">
+                <div className="parts-sheet-heading">
+                  <span className="parts-sheet-icon" aria-hidden="true">
+                    <FileClock />
+                  </span>
+                  <div>
+                    <SheetTitle>Version History</SheetTitle>
+                    <code className="part-name">{active.name}</code>
+                  </div>
+                </div>
+                <span className="part-history-count">
+                  {active.revisions.length} revisions
+                </span>
+              </SheetHeader>
+              <SheetBody className="part-history-sheet-body">
+                <div className="part-history-timeline">
+                  {[...active.revisions].reverse().map((r) => (
+                    <article className="part-version" key={r.id}>
+                      <div className="part-version-heading">
+                        <span className="part-version-badge">
+                          v{r.revisionNumber}
+                        </span>
+                        <div className="part-version-meta">
+                          <span>
+                            <CalendarClock aria-hidden="true" />
+                            <time dateTime={r.createdAt}>
+                              {new Date(r.createdAt).toLocaleString()}
+                            </time>
+                          </span>
+                          <span>
+                            <UserRound aria-hidden="true" />
+                            {r.createdBy}
+                          </span>
                         </div>
-                        <div>
-                          <dt>문제 부위</dt>
-                          <dd>{r.changeRequest.issueArea}</dd>
-                        </div>
-                        <div>
-                          <dt>수정 지시</dt>
-                          <dd>{r.changeRequest.instruction}</dd>
-                        </div>
-                        <div>
-                          <dt>참고 이미지</dt>
-                          <dd>{r.changeRequest.referenceImageName}</dd>
-                        </div>
-                        <div>
-                          <dt>DXF</dt>
-                          <dd>
-                            {r.changeRequest.previousDxfFileName} →{' '}
-                            {r.changeRequest.newDxfFileName}
-                          </dd>
-                        </div>
-                      </dl>
-                    )}
-                    {r.executionVerifications?.map((verification) => (
-                      <div
-                        className="part-revision-verification"
-                        key={verification.sampleRequestItemId}
-                      >
-                        <strong>
-                          {verification.verdict === 'CORRECT'
-                            ? '정확히 반영'
-                            : verification.verdict === 'PARTIAL'
-                              ? '일부 반영'
-                              : '전혀 미반영'}
-                        </strong>
-                        <span>{verification.note}</span>
-                        <small>
-                          {new Date(verification.verifiedAt).toLocaleString()} ·{' '}
-                          {verification.verifiedBy}
-                        </small>
                       </div>
-                    ))}
-                    <small>
-                      {new Date(r.createdAt).toLocaleString()} · {r.createdBy}
-                    </small>
-                  </article>
-                ))}
-                <p className="detail-help-text">
+                      <div className="part-version-note">
+                        <span>버전 메모</span>
+                        <p>{r.note || '변경 메모 없음'}</p>
+                      </div>
+                      {r.changeRequest && (
+                        <section className="part-revision-section">
+                          <h3>변경 요청</h3>
+                          <dl className="part-revision-change">
+                            <div>
+                              <dt>문제 출처</dt>
+                              <dd>{r.changeRequest.issueSource || '—'}</dd>
+                            </div>
+                            <div>
+                              <dt>문제 부위</dt>
+                              <dd>{r.changeRequest.issueArea || '—'}</dd>
+                            </div>
+                            <div className="part-revision-wide">
+                              <dt>수정 지시</dt>
+                              <dd>{r.changeRequest.instruction || '—'}</dd>
+                            </div>
+                          </dl>
+                          <div className="part-revision-files">
+                            <div>
+                              <FileImage aria-hidden="true" />
+                              <span>참고 이미지</span>
+                              <strong>
+                                {r.changeRequest.referenceImageName || '없음'}
+                              </strong>
+                            </div>
+                            <div>
+                              <FileClock aria-hidden="true" />
+                              <span>DXF 변경</span>
+                              <strong>
+                                {r.changeRequest.previousDxfFileName} →{' '}
+                                {r.changeRequest.newDxfFileName}
+                              </strong>
+                            </div>
+                          </div>
+                        </section>
+                      )}
+                      {Boolean(r.executionVerifications?.length) && (
+                        <section className="part-revision-section">
+                          <h3>반영 검증</h3>
+                          <div className="part-revision-verifications">
+                            {r.executionVerifications?.map((verification) => (
+                              <div
+                                className="part-revision-verification"
+                                data-verdict={verification.verdict}
+                                key={verification.sampleRequestItemId}
+                              >
+                                <CheckCircle2 aria-hidden="true" />
+                                <div>
+                                  <strong>
+                                    {verification.verdict === 'CORRECT'
+                                      ? '정확히 반영'
+                                      : verification.verdict === 'PARTIAL'
+                                        ? '일부 반영'
+                                        : '전혀 미반영'}
+                                  </strong>
+                                  <p>{verification.note || '검증 메모 없음'}</p>
+                                  <small>
+                                    {new Date(
+                                      verification.verifiedAt,
+                                    ).toLocaleString()}{' '}
+                                    · {verification.verifiedBy}
+                                  </small>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              </SheetBody>
+              <SheetFooter className="part-history-sheet-footer">
+                <p>
                   새 Revision과 수정 요청은 프로젝트 상세의 Revision Control에서
                   생성합니다. 검증 결과는 이 이력에 자동으로 연결됩니다.
                 </p>
-              </CardContent>
-            </Card>
+              </SheetFooter>
+            </SheetContent>
           )}
-        </div>
-      )}
+        </Sheet>
+      </div>
     </section>
   );
 }

@@ -276,21 +276,20 @@ export function UniqueVehiclesPage() {
           {message}
         </p>
       )}
-      <div className="workbench-filters">
-        <div className="search-field">
-          <Search aria-hidden="true" />
-          <Input
-            aria-label="F Number 또는 Vehicle 검색"
-            placeholder="F Number / Vehicle 검색"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </div>
-        <span className="filter-count">
-          {visibleVehicles.length} active vehicles
-        </span>
-      </div>
       <Card>
+        <div className="grid-toolbar">
+          <div className="grid-toolbar-filters">
+            <div className="search-field">
+              <Search aria-hidden="true" />
+              <Input
+                aria-label="F Number 또는 Vehicle 검색"
+                placeholder="F Number / Vehicle 검색"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </div>
+          </div>
+        </div>
         <Table>
           <TableHeader>
             <TableRow>
@@ -394,7 +393,6 @@ export function UniqueVehiclesPage() {
           recordCount={visibleVehicles.length}
           pagination={pagination}
           onPaginationChange={setPagination}
-          itemLabel="vehicles"
         />
       </Card>
 

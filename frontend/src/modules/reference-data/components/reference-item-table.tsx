@@ -1,5 +1,4 @@
 import { Button } from '@coverland-engineering/ui/button';
-import { Card } from '@coverland-engineering/ui/card';
 import {
   Table,
   TableBody,
@@ -59,7 +58,7 @@ export function ReferenceItemTable({
   }
 
   return (
-    <Card>
+    <>
       <Table>
         <TableHeader>
           <TableRow>
@@ -114,8 +113,7 @@ export function ReferenceItemTable({
         recordCount={items.length}
         pagination={pagination}
         onPaginationChange={setPagination}
-        itemLabel="items"
       />
-    </Card>
+    </>
   );
 }

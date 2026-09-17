@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
-import { Card } from '@coverland-engineering/ui/card';
 import { Checkbox } from '@coverland-engineering/ui/checkbox';
 import {
   Dialog,
@@ -26,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from '@coverland-engineering/ui/table';
-import { Plus } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { StatusBadge } from '@/shared/components/status-badge';
 import {
   useWorkbenchPagination,
@@ -50,7 +49,13 @@ const CATEGORY_SUGGESTIONS = [
  * from. The legacy universal set (`isCustom: false`) is closed: those parts
  * are their own pattern, so new rows are always custom.
  */
-export function SeatCoverPartPanel({ query }: { query: string }) {
+export function SeatCoverPartPanel({
+  query,
+  onQueryChange,
+}: {
+  query: string;
+  onQueryChange: (query: string) => void;
+}) {
   const { seatCoverParts, setSeatCoverParts, vehicleZones } =
     useWorkbenchStore();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -123,17 +128,27 @@ export function SeatCoverPartPanel({ query }: { query: string }) {
 
   return (
     <>
-      <div className="panel-actions">
-        <span className="filter-count">
-          {visible.length} / {seatCoverParts.length} parts
-        </span>
-        <Button size="sm" variant="primary" onClick={() => setDialogOpen(true)}>
-          <Plus /> Part 등록
-        </Button>
+      <div className="grid-toolbar">
+        <div className="grid-toolbar-filters">
+          <div className="search-field">
+            <Search aria-hidden="true" />
+            <Input
+              aria-label="Part 이름 또는 설명 검색"
+              placeholder="Part 검색"
+              value={query}
+              onChange={(event) => onQueryChange(event.target.value)}
+            />
+          </div>
+        </div>
+        <div className="grid-toolbar-actions">
+          <Button variant="primary" onClick={() => setDialogOpen(true)}>
+            <Plus /> Part 등록
+          </Button>
+        </div>
       </div>
 
       {visible.length ? (
-        <Card>
+        <>
           <Table>
             <TableHeader>
               <TableRow>
@@ -199,9 +214,8 @@ export function SeatCoverPartPanel({ query }: { query: string }) {
             recordCount={visible.length}
             pagination={pagination}
             onPaginationChange={setPagination}
-            itemLabel="parts"
           />
-        </Card>
+        </>
       ) : (
         <div className="empty-state">
           <div className="empty-icon">🔍</div>

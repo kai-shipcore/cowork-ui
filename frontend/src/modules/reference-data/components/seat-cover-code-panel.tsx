@@ -1,12 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@coverland-engineering/ui/card';
-import {
   Dialog,
   DialogBody,
   DialogContent,
@@ -22,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@coverland-engineering/ui/select';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Search, Trash2 } from 'lucide-react';
 import { StatusBadge } from '@/shared/components/status-badge';
 import {
   useWorkbenchPagination,
@@ -42,7 +36,13 @@ import { useWorkbenchStore } from '@/app/workbench-store';
  * code can be suggested from a research vehicle's options. A code with no
  * links can never be suggested.
  */
-export function SeatCoverCodePanel({ query }: { query: string }) {
+export function SeatCoverCodePanel({
+  query,
+  onQueryChange,
+}: {
+  query: string;
+  onQueryChange: (query: string) => void;
+}) {
   const {
     seatCoverCodes,
     setSeatCoverCodes,
@@ -144,34 +144,69 @@ export function SeatCoverCodePanel({ query }: { query: string }) {
 
   return (
     <>
-      <div className="panel-actions">
-        <span className="filter-count">
-          {visible.length} / {seatCoverCodes.length} codes
-        </span>
-        <Button
-          size="sm"
-          variant="primary"
-          onClick={() => setCodeDialogOpen(true)}
-        >
-          <Plus /> Code 등록
-        </Button>
+      <div className="grid-toolbar">
+        <div className="grid-toolbar-filters">
+          <div className="search-field">
+            <Search aria-hidden="true" />
+            <Input
+              aria-label="Code 또는 설명 검색"
+              placeholder="Code 검색"
+              value={query}
+              onChange={(event) => onQueryChange(event.target.value)}
+            />
+          </div>
+        </div>
+        <div className="grid-toolbar-actions">
+          <Button variant="primary" onClick={() => setCodeDialogOpen(true)}>
+            <Plus /> Code 등록
+          </Button>
+        </div>
       </div>
 
       {visible.length ? (
-        <div className="option-key-list">
-          {pagedCodes.map((styleCode) => {
-            const links = linksOf(styleCode);
-            return (
-              <Card className="detail-panel" key={styleCode.id}>
-                <CardHeader>
-                  <CardTitle>
-                    <span className="reference-code">{styleCode.code}</span>{' '}
+        <>
+          <div className="option-key-rows">
+            {pagedCodes.map((styleCode) => {
+              const links = linksOf(styleCode);
+              return (
+                <div className="option-key-row" key={styleCode.id}>
+                  <div className="option-key-name">
+                    <span className="option-key-title">
+                      <span className="reference-code">{styleCode.code}</span>
+                      <StatusBadge
+                        label={styleCode.status}
+                        tone={
+                          styleCode.status === 'ACTIVE' ? 'success' : 'neutral'
+                        }
+                      />
+                    </span>
                     <small>{styleCode.description ?? '설명 없음'}</small>
-                  </CardTitle>
-                  <StatusBadge
-                    label={styleCode.status}
-                    tone={styleCode.status === 'ACTIVE' ? 'success' : 'neutral'}
-                  />
+                  </div>
+                  <div className="option-value-list">
+                    {links.length ? (
+                      links.map((link) => {
+                        const named = keyNameOf(link.vehicleOptionValueId);
+                        return (
+                          <span className="option-value-chip" key={link.id}>
+                            <em>{named.key}</em>
+                            {named.value}
+                            <button
+                              type="button"
+                              aria-label={`${named.value} 연결 해제`}
+                              onClick={() => removeLink(link.id)}
+                            >
+                              <Trash2 />
+                            </button>
+                          </span>
+                        );
+                      })
+                    ) : (
+                      <span className="muted-text">
+                        연결된 옵션 값이 없습니다. 연결하지 않으면 research
+                        차량의 옵션으로부터 이 코드를 추천할 수 없습니다.
+                      </span>
+                    )}
+                  </div>
                   <Button
                     size="sm"
                     variant="outline"
@@ -182,50 +217,16 @@ export function SeatCoverCodePanel({ query }: { query: string }) {
                   >
                     <Plus /> 옵션 값 연결
                   </Button>
-                </CardHeader>
-                <CardContent>
-                  {links.length ? (
-                    <dl className="detail-rows">
-                      {links.map((link) => {
-                        const named = keyNameOf(link.vehicleOptionValueId);
-                        return (
-                          <div key={link.id}>
-                            <dt>{named.key}</dt>
-                            <dd className="link-row">
-                              <span>{named.value}</span>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                mode="icon"
-                                aria-label={`${named.value} 연결 해제`}
-                                onClick={() => removeLink(link.id)}
-                              >
-                                <Trash2 />
-                              </Button>
-                            </dd>
-                          </div>
-                        );
-                      })}
-                    </dl>
-                  ) : (
-                    <div className="visit-no-task-note">
-                      연결된 옵션 값이 없습니다. 연결하지 않으면 research 차량의
-                      옵션으로부터 이 코드를 추천할 수 없습니다.
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-          <Card>
-            <WorkbenchPagination
-              recordCount={visible.length}
-              pagination={pagination}
-              onPaginationChange={setPagination}
-              itemLabel="codes"
-            />
-          </Card>
-        </div>
+                </div>
+              );
+            })}
+          </div>
+          <WorkbenchPagination
+            recordCount={visible.length}
+            pagination={pagination}
+            onPaginationChange={setPagination}
+          />
+        </>
       ) : (
         <div className="empty-state">
           <div className="empty-icon">🔍</div>

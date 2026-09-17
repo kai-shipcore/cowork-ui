@@ -1,57 +1,12 @@
-.hunt-work-list {
-  display: grid;
-  gap: 16px;
-}
-.hunt-work-list [role='tablist'] {
-  width: fit-content;
-  gap: 8px;
-}
-.hunt-list-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: 12px;
-}
-.hunt-list-filters label {
-  display: grid;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-}
-.hunt-list-search {
-  flex: 1 1 260px;
-  max-width: 440px;
-}
-.hunt-list-filters select {
-  height: 36px;
-  min-width: 140px;
-  border: 1px solid var(--border, #ddd);
-  border-radius: 6px;
-  padding: 0 10px;
-  background: var(--background, white);
-  color: inherit;
-}
-.hunt-list-summary {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-.hunt-list-summary h2 {
-  font-size: 16px;
-  font-weight: 600;
-}
-.hunt-list-summary small {
-  margin-left: auto;
-  color: var(--wb-muted);
-}
-.hunt-list-table {
-  overflow-x: auto;
-  border: 1px solid var(--border, #e2e8f0);
-  border-radius: 8px;
-}
-.hunt-list-table table {
+.hunt-work-list table {
   min-width: 900px;
+}
+.hunt-work-list .hunt-date-input {
+  width: 150px;
+}
+.hunt-list-note {
+  margin: 0 20px 10px;
+  font-size: 12px;
 }
 .hunt-tabs > [role='tabpanel'][data-state='inactive'] {
   display: none;

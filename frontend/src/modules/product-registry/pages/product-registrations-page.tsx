@@ -11,6 +11,13 @@ import {
 } from '@coverland-engineering/ui/dialog';
 import { Input } from '@coverland-engineering/ui/input';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@coverland-engineering/ui/select';
+import {
   Table,
   TableBody,
   TableCell,
@@ -18,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from '@coverland-engineering/ui/table';
+import { Search } from 'lucide-react';
 import { userName } from '@/shared/domain/app-user';
 import { PageHeader } from '@/shared/components/page-header';
 import {
@@ -91,32 +99,43 @@ export function ProductRegistrationsPage() {
         현재 브라우저 저장 기반의 승인 흐름입니다. 실제 사용자 인증과 서버
         트랜잭션은 연결 전입니다.
       </p>
-      <div className="shape-filters">
-        <Input
-          aria-label="등록 번호, 요청자, SKU 검색"
-          placeholder="등록 번호 / 요청자 / SKU 검색"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <select
-          aria-label="승인 상태"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        >
-          {[
-            'ALL',
-            'NOT_SUBMITTED',
-            'PENDING',
-            'APPROVED',
-            'REJECTED',
-            'CANCELLED',
-            'LEGACY_APPROVED',
-          ].map((status) => (
-            <option key={status}>{status}</option>
-          ))}
-        </select>
-      </div>
       <Card>
+        <div className="grid-toolbar">
+          <div className="grid-toolbar-filters">
+            <div className="search-field">
+              <Search aria-hidden="true" />
+              <Input
+                aria-label="등록 번호, 요청자, SKU 검색"
+                placeholder="등록 번호 / 요청자 / SKU 검색"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+            <Select value={filter} onValueChange={setFilter}>
+              <SelectTrigger
+                aria-label="승인 상태"
+                className="filter-select wide"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Status: All</SelectItem>
+                {[
+                  'NOT_SUBMITTED',
+                  'PENDING',
+                  'APPROVED',
+                  'REJECTED',
+                  'CANCELLED',
+                  'LEGACY_APPROVED',
+                ].map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <Table>
           <TableHeader>
             <TableRow>
@@ -131,8 +150,10 @@ export function ProductRegistrationsPage() {
             {pageItems.map((row) => (
               <TableRow key={row.id}>
                 <TableCell>
-                  {row.id}
-                  <small>{row.requestedAt}</small>
+                  <strong>{row.id}</strong>
+                  <div className="vehicle-meta">
+                    {row.requestedAt.slice(0, 10)}
+                  </div>
                 </TableCell>
                 <TableCell>{userName(appUsers, row.requestedBy)}</TableCell>
                 <TableCell>
@@ -157,14 +178,19 @@ export function ProductRegistrationsPage() {
             ))}
           </TableBody>
         </Table>
+        {!visible.length && (
+          <div className="empty-state">
+            <div className="empty-icon">🔍</div>
+            <strong>표시할 등록 요청이 없습니다.</strong>
+            <p>검색어나 승인 상태 필터를 바꿔 보세요.</p>
+          </div>
+        )}
         <WorkbenchPagination
           recordCount={visible.length}
           pagination={pagination}
           onPaginationChange={setPagination}
-          itemLabel="registrations"
         />
       </Card>
-      {!visible.length && <p>표시할 등록 요청이 없습니다.</p>}
       <Dialog
         open={Boolean(reviewing)}
         onOpenChange={(open) => !open && setReviewing('')}

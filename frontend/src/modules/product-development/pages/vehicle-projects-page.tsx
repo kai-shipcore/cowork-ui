@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@coverland-engineering/ui/select';
+import { Switch } from '@coverland-engineering/ui/switch';
 import {
   Table,
   TableBody,
@@ -72,6 +73,20 @@ const PROJECT_STAGE_FILTERS = [
   { label: '개발 완료', value: 'Approved' },
 ] as const;
 type ProjectStageFilter = (typeof PROJECT_STAGE_FILTERS)[number]['value'];
+
+function matchesStageFilter(
+  project: VehicleProjectGroup,
+  zoneProject: VehicleZoneProject,
+  filter: ProjectStageFilter,
+): boolean {
+  if (filter === 'ALL') return true;
+  if (filter === 'PENDING') {
+    return (
+      project.status === 'PENDING' || zoneProject.currentStage === 'Research'
+    );
+  }
+  return zoneProject.currentStage === filter;
+}
 const INITIAL_CONFIGURATION_IDS = new Set(
   INITIAL_CONFIGURATIONS.map((configuration) => configuration.id),
 );
@@ -190,22 +205,35 @@ export function VehicleProjectsPage() {
     () => new Set(),
   );
 
-  const visibleProjects = projects.flatMap((project) => {
+  const searchedProjects = projects.filter((project) => {
     const matchesProduct = product === 'ALL' || project.product === product;
     const matchesQuery = project.vehicle
       .toLowerCase()
       .includes(query.toLowerCase());
-    if (!matchesProduct || !matchesQuery) return [];
+    return matchesProduct && matchesQuery;
+  });
+  const stageCounts = new Map(
+    PROJECT_STAGE_FILTERS.map((filter) => [
+      filter.value,
+      searchedProjects.reduce(
+        (count, project) =>
+          count +
+          project.zoneProjects.filter((zoneProject) =>
+            matchesStageFilter(project, zoneProject, filter.value),
+          ).length,
+        0,
+      ),
+    ]),
+  );
+  const visibleProjects = searchedProjects.flatMap((project) => {
     const zoneProjects = project.zoneProjects.filter((zoneProject) =>
-      stageFilter === 'ALL'
-        ? true
-        : stageFilter === 'PENDING'
-          ? project.status === 'PENDING' ||
-            zoneProject.currentStage === 'Research'
-          : zoneProject.currentStage === stageFilter,
+      matchesStageFilter(project, zoneProject, stageFilter),
     );
     return zoneProjects.length ? [{ ...project, zoneProjects }] : [];
   });
+  const allCollapsed =
+    projects.length > 0 &&
+    projects.every((project) => collapsedGroups.has(project.id));
   const {
     pageItems: pagedProjects,
     pagination,
@@ -267,6 +295,12 @@ export function VehicleProjectsPage() {
       next.delete('tab');
       return next;
     });
+  };
+
+  const setAllCollapsed = (collapsed: boolean) => {
+    setCollapsedGroups(
+      collapsed ? new Set(projects.map((project) => project.id)) : new Set(),
+    );
   };
 
   const toggleGroup = (projectId: string) => {
@@ -414,8 +448,60 @@ export function VehicleProjectsPage() {
               ]
             : undefined
         }
-        actions={
-          <>
+      />
+
+      <Card>
+        <div className="grid-toolbar">
+          <div className="grid-toolbar-filters">
+            <label className="collapse-all-toggle">
+              <Switch
+                size="sm"
+                checked={allCollapsed}
+                onCheckedChange={setAllCollapsed}
+              />
+              All Collapse
+            </label>
+            <div className="search-field">
+              <Search aria-hidden="true" />
+              <Input
+                aria-label="Make 또는 Model 검색"
+                placeholder="Make / Model 검색"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </div>
+            <Select value={product} onValueChange={setProduct}>
+              <SelectTrigger
+                aria-label="Product filter"
+                className="filter-select wide"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Product: All</SelectItem>
+                <SelectItem value="Seat Cover">Seat Cover</SelectItem>
+                <SelectItem value="Car Cover">Car Cover</SelectItem>
+                <SelectItem value="Floor Mat">Floor Mat</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="stage-tabs" role="group" aria-label="Project stage">
+              {PROJECT_STAGE_FILTERS.map((filter) => (
+                <button
+                  type="button"
+                  key={filter.value}
+                  className="stage-tab"
+                  aria-pressed={stageFilter === filter.value}
+                  onClick={() => setStageFilter(filter.value)}
+                >
+                  {filter.label}
+                  <span className="stage-tab-count">
+                    {stageCounts.get(filter.value) ?? 0}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid-toolbar-actions">
             <Button
               variant="outline"
               onClick={() => {
@@ -428,49 +514,8 @@ export function VehicleProjectsPage() {
             <Button variant="primary" onClick={openWizard}>
               <Plus /> New Project
             </Button>
-          </>
-        }
-      />
-
-      <div className="segment-filters" role="group" aria-label="Project stage">
-        {PROJECT_STAGE_FILTERS.map((filter) => (
-          <Button
-            key={filter.value}
-            size="sm"
-            variant={stageFilter === filter.value ? 'mono' : 'outline'}
-            onClick={() => setStageFilter(filter.value)}
-          >
-            {filter.label}
-          </Button>
-        ))}
-      </div>
-      <div className="workbench-filters">
-        <Select value={product} onValueChange={setProduct}>
-          <SelectTrigger
-            aria-label="Product filter"
-            className="filter-select wide"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Product: All</SelectItem>
-            <SelectItem value="Seat Cover">Seat Cover</SelectItem>
-            <SelectItem value="Car Cover">Car Cover</SelectItem>
-            <SelectItem value="Floor Mat">Floor Mat</SelectItem>
-          </SelectContent>
-        </Select>
-        <div className="search-field">
-          <Search aria-hidden="true" />
-          <Input
-            aria-label="Make 또는 Model 검색"
-            placeholder="Make / Model 검색"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
+          </div>
         </div>
-      </div>
-
-      <Card>
         <Table className="zone-project-grid">
           <TableHeader>
             <TableRow>
@@ -615,7 +660,6 @@ export function VehicleProjectsPage() {
           recordCount={visibleProjects.length}
           pagination={pagination}
           onPaginationChange={setPagination}
-          itemLabel="projects"
         />
       </Card>
 

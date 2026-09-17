@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from '@coverland-engineering/ui/dialog';
 import { Input } from '@coverland-engineering/ui/input';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { userName } from '@/shared/domain/app-user';
 import { StatusBadge } from '@/shared/components/status-badge';
 import { PRODUCT_TYPES } from '@/shared/types/workbench';
@@ -53,7 +53,6 @@ interface ProductDetailViewProps {
   packagingHistory: readonly MasterProductPackaging[];
   registration?: VehicleProductRegistration;
   registrationItem?: VehicleProductRegistrationItem;
-  onBack: () => void;
   onIssueSku: (version: NewSkuVersion) => readonly string[];
   onIssuePackaging: (version: NewPackagingVersion) => readonly string[];
 }
@@ -87,7 +86,6 @@ export function ProductDetailView({
   packagingHistory,
   registration,
   registrationItem,
-  onBack,
   onIssueSku,
   onIssuePackaging,
 }: ProductDetailViewProps) {
@@ -103,11 +101,7 @@ export function ProductDetailView({
   const [weight, setWeight] = useState('3.4');
 
   return (
-    <section>
-      <Button variant="outline" className="detail-back" onClick={onBack}>
-        <ArrowLeft /> Product Catalog
-      </Button>
-
+    <div className="product-detail-stack">
       <Card className="detail-panel">
         <CardHeader>
           <CardTitle>
@@ -421,6 +415,6 @@ export function ProductDetailView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </section>
+    </div>
   );
 }

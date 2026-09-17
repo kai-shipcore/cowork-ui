@@ -1,11 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@coverland-engineering/ui/card';
+import { Card } from '@coverland-engineering/ui/card';
 import {
   Dialog,
   DialogBody,
@@ -170,139 +165,137 @@ export function VehicleOptionsPage() {
             ? [{ name: 'vehicle_option_key' }, { name: 'vehicle_option_value' }]
             : undefined
         }
-        actions={
-          <Button
-            variant="primary"
-            onClick={() => {
-              setKeyName('');
-              setKeyDialogOpen(true);
-            }}
-          >
-            <Plus /> 옵션 키 등록
-          </Button>
-        }
       />
 
-      <div className="workbench-filters">
-        <div className="search-field">
-          <Search aria-hidden="true" />
-          <Input
-            aria-label="옵션 키 또는 값 검색"
-            placeholder="키 / 값 검색"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
+      <Card>
+        <div className="grid-toolbar">
+          <div className="grid-toolbar-filters">
+            <div className="search-field">
+              <Search aria-hidden="true" />
+              <Input
+                aria-label="옵션 키 또는 값 검색"
+                placeholder="키 / 값 검색"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </div>
+            <Select
+              value={productType}
+              onValueChange={(value) =>
+                setProductType(value as 'ALL' | ProductTypeId)
+              }
+            >
+              <SelectTrigger
+                aria-label="Product Type 필터"
+                className="filter-select wide"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Product Type: All</SelectItem>
+                {PRODUCT_TYPES.map((type) => (
+                  <SelectItem value={type.id} key={type.id}>
+                    {type.product}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {hasActiveFilter && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setQuery('');
+                  setProductType('ALL');
+                }}
+              >
+                <X /> 필터 초기화
+              </Button>
+            )}
+          </div>
+          <div className="grid-toolbar-actions">
+            <Button
+              variant="primary"
+              onClick={() => {
+                setKeyName('');
+                setKeyDialogOpen(true);
+              }}
+            >
+              <Plus /> 옵션 키 등록
+            </Button>
+          </div>
         </div>
-        <Select
-          value={productType}
-          onValueChange={(value) =>
-            setProductType(value as 'ALL' | ProductTypeId)
-          }
-        >
-          <SelectTrigger
-            aria-label="Product Type 필터"
-            className="filter-select wide"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Product Type: All</SelectItem>
-            {PRODUCT_TYPES.map((type) => (
-              <SelectItem value={type.id} key={type.id}>
-                {type.product}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {hasActiveFilter && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              setQuery('');
-              setProductType('ALL');
-            }}
-          >
-            <X /> 필터 초기화
-          </Button>
-        )}
-        <span className="filter-count">
-          {visibleKeys.length} / {vehicleOptionKeys.length} 키 ·{' '}
-          {vehicleOptionValues.length} 값
-        </span>
-      </div>
 
-      {visibleKeys.length ? (
-        <div className="option-key-list">
-          {pagedKeys.map((optionKey) => {
-            const values = valuesOf(optionKey);
-            const productName =
-              PRODUCT_TYPES.find((type) => type.id === optionKey.productTypeId)
-                ?.product ?? optionKey.productTypeId;
-            return (
-              <Card className="detail-panel" key={optionKey.id}>
-                <CardHeader>
-                  <CardTitle>
-                    {optionKey.name}{' '}
-                    <small>
-                      {productName} · {values.length} 값
-                    </small>
-                  </CardTitle>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setValueText('');
-                      setValueDialogFor(optionKey);
-                    }}
-                  >
-                    <Plus /> 값 추가
-                  </Button>
-                </CardHeader>
-                <CardContent className="option-value-list">
-                  {values.length ? (
-                    values.map((value) => (
-                      <span className="option-value-chip" key={value.id}>
-                        {value.value}
-                        {codeLinkCount(value) > 0 && (
-                          <em title="Seat Cover Code가 참조 중">
-                            {codeLinkCount(value)}
-                          </em>
-                        )}
-                        <button
-                          type="button"
-                          aria-label={`${value.value} 삭제`}
-                          onClick={() => setPendingDelete(value)}
-                        >
-                          <Trash2 />
-                        </button>
-                      </span>
-                    ))
-                  ) : (
-                    <span className="muted-text">
-                      값이 없습니다. Configuration에서 선택할 수 없습니다.
-                    </span>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-          <Card>
+        {visibleKeys.length ? (
+          <>
+            <div className="option-key-rows">
+              {pagedKeys.map((optionKey) => {
+                const values = valuesOf(optionKey);
+                const productName =
+                  PRODUCT_TYPES.find(
+                    (type) => type.id === optionKey.productTypeId,
+                  )?.product ?? optionKey.productTypeId;
+                return (
+                  <div className="option-key-row" key={optionKey.id}>
+                    <div className="option-key-name">
+                      <strong>{optionKey.name}</strong>
+                      <small>
+                        {productName} · {values.length} 값
+                      </small>
+                    </div>
+                    <div className="option-value-list">
+                      {values.length ? (
+                        values.map((value) => (
+                          <span className="option-value-chip" key={value.id}>
+                            {value.value}
+                            {codeLinkCount(value) > 0 && (
+                              <em title="Seat Cover Code가 참조 중">
+                                {codeLinkCount(value)}
+                              </em>
+                            )}
+                            <button
+                              type="button"
+                              aria-label={`${value.value} 삭제`}
+                              onClick={() => setPendingDelete(value)}
+                            >
+                              <Trash2 />
+                            </button>
+                          </span>
+                        ))
+                      ) : (
+                        <span className="muted-text">
+                          값이 없습니다. Configuration에서 선택할 수 없습니다.
+                        </span>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setValueText('');
+                        setValueDialogFor(optionKey);
+                      }}
+                    >
+                      <Plus /> 값 추가
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
             <WorkbenchPagination
               recordCount={visibleKeys.length}
               pagination={pagination}
               onPaginationChange={setPagination}
-              itemLabel="keys"
             />
-          </Card>
-        </div>
-      ) : (
-        <div className="empty-state">
-          <div className="empty-icon">🔍</div>
-          <strong>조건에 맞는 옵션 키가 없습니다.</strong>
-          <p>검색어나 Product Type 필터를 바꿔 보세요.</p>
-        </div>
-      )}
+          </>
+        ) : (
+          <div className="empty-state">
+            <div className="empty-icon">🔍</div>
+            <strong>조건에 맞는 옵션 키가 없습니다.</strong>
+            <p>검색어나 Product Type 필터를 바꿔 보세요.</p>
+          </div>
+        )}
+      </Card>
 
       <Dialog open={keyDialogOpen} onOpenChange={setKeyDialogOpen}>
         <DialogContent>

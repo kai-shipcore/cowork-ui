@@ -10,6 +10,14 @@ import {
   SelectValue,
 } from '@coverland-engineering/ui/select';
 import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@coverland-engineering/ui/sheet';
+import {
   Table,
   TableBody,
   TableCell,
@@ -240,31 +248,7 @@ export function ProductCatalogPage() {
     return [];
   }
 
-  if (selected) {
-    const item = itemOf(selected);
-    return (
-      <ProductDetailView
-        key={selected.id}
-        product={selected}
-        material={materialOf(selected)}
-        users={appUsers}
-        shapeNames={shapesOf(selected)}
-        skuHistory={masterProductSkus.filter(
-          (row) => row.masterProductId === selected.id,
-        )}
-        packagingHistory={masterProductPackagings.filter(
-          (row) => row.masterProductId === selected.id,
-        )}
-        registration={registrations.find(
-          (registration) => registration.id === item?.registrationId,
-        )}
-        registrationItem={item}
-        onBack={closeProduct}
-        onIssueSku={(version) => issueSku(selected, version)}
-        onIssuePackaging={(version) => issuePackaging(selected, version)}
-      />
-    );
-  }
+  const selectedItem = selected ? itemOf(selected) : undefined;
 
   return (
     <section>
@@ -313,139 +297,190 @@ export function ProductCatalogPage() {
         ))}
       </div>
 
-      <div className="workbench-filters">
-        <div className="search-field">
-          <Search aria-hidden="true" />
-          <Input
-            aria-label="SKU 또는 F# 검색"
-            placeholder="SKU / F# 검색"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
+      <Card>
+        <div className="grid-toolbar">
+          <div className="grid-toolbar-filters">
+            <div className="search-field">
+              <Search aria-hidden="true" />
+              <Input
+                aria-label="SKU 또는 F# 검색"
+                placeholder="SKU / F# 검색"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </div>
+            <Select value={productType} onValueChange={setProductType}>
+              <SelectTrigger
+                aria-label="Product Type 필터"
+                className="filter-select wide"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Product Type: All</SelectItem>
+                {PRODUCT_TYPES.map((type) => (
+                  <SelectItem value={type.id} key={type.id}>
+                    {type.product}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {hasActiveFilter && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setQuery('');
+                  setProductType('ALL');
+                  setStatus('ALL');
+                }}
+              >
+                <X /> 필터 초기화
+              </Button>
+            )}
+          </div>
         </div>
-        <Select value={productType} onValueChange={setProductType}>
-          <SelectTrigger
-            aria-label="Product Type 필터"
-            className="filter-select wide"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Product Type: All</SelectItem>
-            {PRODUCT_TYPES.map((type) => (
-              <SelectItem value={type.id} key={type.id}>
-                {type.product}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {hasActiveFilter && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              setQuery('');
-              setProductType('ALL');
-              setStatus('ALL');
-            }}
-          >
-            <X /> 필터 초기화
-          </Button>
-        )}
-        <span className="filter-count">
-          {visible.length} / {masterProducts.length} products
-        </span>
-      </div>
-
-      {visible.length ? (
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>SKU</TableHead>
-                <TableHead>F#</TableHead>
-                <TableHead>재질</TableHead>
-                <TableHead>Shape</TableHead>
-                <TableHead>Packaging</TableHead>
-                <TableHead>출처 등록</TableHead>
-                <TableHead>상태</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pagedProducts.map((product) => {
-                const packaging = currentPackaging(product);
-                return (
-                  <TableRow
-                    key={product.id}
-                    className="row-link"
-                    onClick={() => openProduct(product.id)}
-                  >
-                    <TableCell>
-                      <span className="generated-sku compact">
-                        {product.sku}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="f-number">{product.fNumber}</span>
-                    </TableCell>
-                    <TableCell>
-                      {materialOf(product)?.code ?? '—'}
-                      <div className="vehicle-meta">
-                        {materialOf(product)?.name}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="shape-list">
-                        {shapesOf(product).map((name) => (
-                          <span key={name}>{name}</span>
-                        ))}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {packaging ? (
-                        <span className="vehicle-meta">
-                          {packaging.length}×{packaging.width}×
-                          {packaging.height} {packaging.dimensionUnit} ·{' '}
-                          {packaging.weight}
-                          {packaging.weightUnit}
+        {visible.length ? (
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>F#</TableHead>
+                  <TableHead>재질</TableHead>
+                  <TableHead>Shape</TableHead>
+                  <TableHead>Packaging</TableHead>
+                  <TableHead>출처 등록</TableHead>
+                  <TableHead>상태</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pagedProducts.map((product) => {
+                  const packaging = currentPackaging(product);
+                  return (
+                    <TableRow
+                      key={product.id}
+                      className="row-link"
+                      onClick={() => openProduct(product.id)}
+                    >
+                      <TableCell>
+                        <span className="generated-sku compact">
+                          {product.sku}
                         </span>
-                      ) : (
-                        <StatusBadge label="미등록" tone="warning" />
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <span className="visit-reference">
-                        {itemOf(product)?.registrationId ?? '—'}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        label={product.status}
-                        tone={STATUS_TONES[product.status]}
-                      />
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-          <WorkbenchPagination
-            recordCount={visible.length}
-            pagination={pagination}
-            onPaginationChange={setPagination}
-            itemLabel="products"
-          />
-        </Card>
-      ) : (
-        <div className="empty-state">
-          <div className="empty-icon">📦</div>
-          <strong>Product가 없습니다.</strong>
-          <p>
-            Unique Vehicles / F#에서 등록을 요청하고 Product Registrations에서
-            승인하면 여기에 나타납니다.
-          </p>
-        </div>
-      )}
+                      </TableCell>
+                      <TableCell>
+                        <span className="f-number">{product.fNumber}</span>
+                      </TableCell>
+                      <TableCell>
+                        {materialOf(product)?.code ?? '—'}
+                        <div className="vehicle-meta">
+                          {materialOf(product)?.name}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="shape-list">
+                          {shapesOf(product).map((name) => (
+                            <span key={name}>{name}</span>
+                          ))}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {packaging ? (
+                          <span className="vehicle-meta">
+                            {packaging.length}×{packaging.width}×
+                            {packaging.height} {packaging.dimensionUnit} ·{' '}
+                            {packaging.weight}
+                            {packaging.weightUnit}
+                          </span>
+                        ) : (
+                          <StatusBadge label="미등록" tone="warning" />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span className="visit-reference">
+                          {itemOf(product)?.registrationId ?? '—'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          label={product.status}
+                          tone={STATUS_TONES[product.status]}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            <WorkbenchPagination
+              recordCount={visible.length}
+              pagination={pagination}
+              onPaginationChange={setPagination}
+            />
+          </>
+        ) : (
+          <div className="empty-state">
+            <div className="empty-icon">📦</div>
+            <strong>Product가 없습니다.</strong>
+            <p>
+              Unique Vehicles / F#에서 등록을 요청하고 Product Registrations에서
+              승인하면 여기에 나타납니다.
+            </p>
+          </div>
+        )}
+      </Card>
+
+      <Sheet
+        open={selected !== undefined}
+        onOpenChange={(open) => {
+          if (!open) closeProduct();
+        }}
+      >
+        <SheetContent
+          side="right"
+          className="w-[min(1120px,96vw)] sm:max-w-none p-0 gap-0"
+          accessibleTitle="Product 상세"
+          accessibleDescription="선택한 Product의 SKU와 Packaging 버전 이력"
+        >
+          {selected && (
+            <>
+              <SheetHeader className="workbench-sheet-header">
+                <SheetTitle>
+                  <span className="generated-sku">{selected.sku}</span>
+                </SheetTitle>
+                <SheetDescription>
+                  {selected.fNumber} · SKU와 Packaging은 시점별 버전으로
+                  관리됩니다.
+                </SheetDescription>
+              </SheetHeader>
+              <SheetBody className="workbench-sheet-body">
+                <ProductDetailView
+                  key={selected.id}
+                  product={selected}
+                  material={materialOf(selected)}
+                  users={appUsers}
+                  shapeNames={shapesOf(selected)}
+                  skuHistory={masterProductSkus.filter(
+                    (row) => row.masterProductId === selected.id,
+                  )}
+                  packagingHistory={masterProductPackagings.filter(
+                    (row) => row.masterProductId === selected.id,
+                  )}
+                  registration={registrations.find(
+                    (registration) =>
+                      registration.id === selectedItem?.registrationId,
+                  )}
+                  registrationItem={selectedItem}
+                  onIssueSku={(version) => issueSku(selected, version)}
+                  onIssuePackaging={(version) =>
+                    issuePackaging(selected, version)
+                  }
+                />
+              </SheetBody>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </section>
   );
 }

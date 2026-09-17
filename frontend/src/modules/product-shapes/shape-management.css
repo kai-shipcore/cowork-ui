@@ -384,3 +384,8 @@
     padding: 16px;
   }
 }
+
+/* Grid card: the issued-view note sits between the toolbar and the table. */
+.shape-management [data-slot='card'] > .shape-info {
+  margin: 0 10px 10px;
+}

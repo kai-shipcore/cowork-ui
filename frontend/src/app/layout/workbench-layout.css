@@ -164,48 +164,6 @@
   margin-bottom: 12px;
 }
 
-.reference-data-filters {
-  margin-top: 16px;
-}
-
-/* Label above control, bottom-aligned — matches the hunt work list filters. */
-.hunt-board-filters {
-  align-items: end;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.hunt-date-filter {
-  display: grid;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.hunt-date-filter input {
-  width: 170px;
-}
-
-.hunt-board-search {
-  flex: 1 1 260px;
-  max-width: 440px;
-}
-
-.hunt-board-search input {
-  width: 100%;
-}
-
-/* --wb-line is scoped to the workbench shell, which this page sits outside. */
-.hunt-date-filter select {
-  height: 36px;
-  min-width: 140px;
-  border: 1px solid var(--border, #e2e8f0);
-  border-radius: 6px;
-  padding: 0 10px;
-  background: var(--card);
-  color: inherit;
-}
-
 .segment-filters {
   margin-bottom: 8px;
 }
@@ -220,11 +178,6 @@
   border-top: 1px solid var(--wb-line);
   background: var(--card);
   padding: 10px 14px;
-}
-
-.research-vehicle-list > .workbench-pagination {
-  border: 1px solid var(--wb-line);
-  border-radius: 10px;
 }
 
 .workbench-pagination [data-slot='data-grid-pagination'] {
@@ -292,6 +245,11 @@
 
 .table-actions {
   text-align: right;
+  white-space: nowrap;
+}
+
+.table-actions > button + button {
+  margin-left: 6px;
 }
 
 .table-actions > svg {
@@ -1094,33 +1052,38 @@
   overflow: hidden;
 }
 
-.hunt-tab-list {
+.grid-tabs-list {
   width: 100%;
   justify-content: flex-start;
+  gap: 16px;
   border-bottom: 1px solid var(--border);
   border-radius: 0;
-  padding: 8px 14px 0;
+  padding: 0 20px;
 }
 
-.hunt-tab-list button {
-  height: 42px;
-  padding: 9px 15px 10px;
-  font-size: 12.5px;
+.grid-tabs-list button {
+  gap: 6px;
+  height: 46px;
+  padding: 0 2px;
+  font-size: 13px;
 }
 
-.tab-count {
-  margin-left: 6px;
-  border: 1px solid var(--wb-line);
-  border-radius: 10px;
-  background: var(--muted);
-  padding: 0 7px;
-  font-family: Consolas, monospace;
-  font-size: 10px;
+.grid-tabs-list button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.grid-tabs-list button[data-state='active'] .stage-tab-count {
+  background: var(--wb-soft-blue);
+  color: var(--primary);
 }
 
 .hunt-tab-content {
   min-height: 430px;
-  padding: 16px 18px;
+}
+
+.hunt-tab-body {
+  padding: 0 18px 16px;
 }
 
 .scan-status-panel {
@@ -1261,6 +1224,151 @@
 
 .zone-project-grid {
   min-width: 1180px;
+}
+
+/* Filters, then actions, on one row inside the grid's own border. The
+   filter group gives way (and scrolls) before the actions wrap. */
+.grid-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.grid-toolbar-filters,
+.grid-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.grid-toolbar-filters {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.grid-toolbar-filters > * {
+  flex-shrink: 0;
+}
+
+.grid-toolbar .search-field {
+  width: 200px;
+}
+
+.collapse-all-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 4px;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* Borderless stage tabs: the active one carries a primary underline. */
+.stage-tabs {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  gap: 2px;
+}
+
+.stage-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  min-height: 36px;
+  padding: 0 6px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--wb-muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.stage-tab svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Right-side detail / create sheet: header, scrolling body, optional footer
+   (Metronic product-details style). Used by Parts, Shape review, Products. */
+.workbench-sheet-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.workbench-sheet-header a {
+  color: var(--primary);
+  font-size: 12.5px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.workbench-sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+
+.workbench-sheet-footer {
+  padding: 14px 24px;
+  border-top: 1px solid var(--border);
+}
+
+.product-detail-stack {
+  display: grid;
+  gap: 16px;
+}
+
+/* Tabs on their own row above the toolbar, Metronic list-page style. */
+.grid-tabs-row {
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.grid-tabs-row .stage-tabs {
+  gap: 16px;
+}
+
+.grid-tabs-row .stage-tab {
+  min-height: 46px;
+  padding: 0 2px;
+  font-size: 13px;
+}
+
+.stage-tab:hover {
+  color: var(--wb-ink);
+}
+
+.stage-tab[aria-pressed='true'] {
+  border-bottom-color: var(--primary);
+  color: var(--primary);
+}
+
+.stage-tab-count {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--muted);
+  color: var(--wb-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.stage-tab[aria-pressed='true'] .stage-tab-count {
+  background: var(--wb-soft-blue);
+  color: var(--primary);
 }
 
 .project-group-header-row > td {
@@ -1443,11 +1551,6 @@
 .research-project-links .project-reference-link:hover {
   border-color: #60a5fa;
   background: var(--wb-soft-blue);
-}
-
-.research-vehicle-list {
-  display: grid;
-  gap: 16px;
 }
 
 .research-vehicle-card {
@@ -1809,7 +1912,25 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   white-space: nowrap;
+  cursor: pointer;
+}
+
+.calendar-legend-item:hover {
+  color: var(--wb-ink);
+}
+
+.calendar-legend-item[aria-pressed='true'] {
+  border-color: var(--border);
+  background: var(--muted);
+  color: var(--wb-ink);
+  font-weight: 600;
 }
 
 .calendar-legend .calendar-legend-dot {
@@ -2410,17 +2531,42 @@
   font-weight: 800;
 }
 
-.option-key-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
 .option-value-list {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+/* Vehicle Options: one row per key — name, its value chips, add button. */
+.option-key-row {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.option-key-name {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.option-key-name strong {
+  font-size: 13px;
+}
+
+.option-key-name small {
+  color: var(--wb-muted);
+  font-size: 11px;
+}
+
+.option-key-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .option-value-chip {
@@ -2464,32 +2610,11 @@
   height: 12px;
 }
 
-.panel-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.panel-actions .filter-count {
-  margin-left: 0;
-}
-
-.panel-actions button {
-  margin-left: auto;
-}
-
 .checkbox-field {
   display: flex !important;
   align-items: center;
   gap: 8px;
   align-self: end;
-}
-
-.link-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .project-manager-field {

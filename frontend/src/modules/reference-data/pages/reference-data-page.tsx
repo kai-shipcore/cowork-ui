@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
+import { Card } from '@coverland-engineering/ui/card';
 import {
   Dialog,
   DialogBody,
@@ -22,7 +23,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@coverland-engineering/ui/tabs';
-import { Plus, Search, X } from 'lucide-react';
+import { Armchair, Layers, Palette, Plus, Search, Tag, X } from 'lucide-react';
 import { PageHeader } from '@/shared/components/page-header';
 import { PRODUCT_TYPES } from '@/shared/types/workbench';
 import type { ProductReferenceItem } from '@/shared/types/workbench';
@@ -163,102 +164,107 @@ export function ReferenceDataPage() {
               ]
             : undefined
         }
-        actions={
-          isGeneric ? (
-            <Button variant="primary" onClick={openCreate}>
-              <Plus /> {entityLabel} 등록
-            </Button>
-          ) : undefined
-        }
       />
 
-      <Tabs
-        value={kind}
-        onValueChange={(value) => setKind(value as ReferenceKind)}
-      >
-        <TabsList variant="line">
-          <TabsTrigger value="colors">
-            색상 <span className="tab-count">{productColors.length}</span>
-          </TabsTrigger>
-          <TabsTrigger value="materials">
-            재질 <span className="tab-count">{productMaterials.length}</span>
-          </TabsTrigger>
-          <TabsTrigger value="parts">
-            Seat Cover Part{' '}
-            <span className="tab-count">{seatCoverParts.length}</span>
-          </TabsTrigger>
-          <TabsTrigger value="codes">
-            Seat Cover Code{' '}
-            <span className="tab-count">{seatCoverCodes.length}</span>
-          </TabsTrigger>
-        </TabsList>
+      <Card>
+        <Tabs
+          value={kind}
+          onValueChange={(value) => setKind(value as ReferenceKind)}
+        >
+          <TabsList variant="line" className="grid-tabs-list">
+            <TabsTrigger value="colors">
+              <Palette aria-hidden="true" />
+              색상
+              <span className="stage-tab-count">{productColors.length}</span>
+            </TabsTrigger>
+            <TabsTrigger value="materials">
+              <Layers aria-hidden="true" />
+              재질
+              <span className="stage-tab-count">{productMaterials.length}</span>
+            </TabsTrigger>
+            <TabsTrigger value="parts">
+              <Armchair aria-hidden="true" />
+              Seat Cover Part
+              <span className="stage-tab-count">{seatCoverParts.length}</span>
+            </TabsTrigger>
+            <TabsTrigger value="codes">
+              <Tag aria-hidden="true" />
+              Seat Cover Code
+              <span className="stage-tab-count">{seatCoverCodes.length}</span>
+            </TabsTrigger>
+          </TabsList>
 
-        <div className="workbench-filters reference-data-filters">
-          <div className="search-field">
-            <Search aria-hidden="true" />
-            <Input
-              aria-label="Code 또는 이름 검색"
-              placeholder="Code / 이름 검색"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </div>
-          {isGeneric && (
-            <>
-              <Select
-                value={productTypeFilter}
-                onValueChange={setProductTypeFilter}
-              >
-                <SelectTrigger
-                  aria-label="Product Type 필터"
-                  className="filter-select wide"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Product Type: All</SelectItem>
-                  {PRODUCT_TYPES.map((productType) => (
-                    <SelectItem value={productType.id} key={productType.id}>
-                      {productType.product}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {hasActiveFilter && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setQuery('');
-                    setProductTypeFilter('ALL');
-                  }}
-                >
-                  <X /> 필터 초기화
-                </Button>
-              )}
-              <span className="filter-count">
-                {visibleItems.length} / {items.length} {entityLabel}
-              </span>
-            </>
-          )}
-        </div>
-
-        <TabsContent value={kind}>
-          {isGeneric ? (
-            <ReferenceItemTable
-              items={visibleItems}
-              entityLabel={entityLabel}
-              filterKey={`${kind}|${query}|${productTypeFilter}`}
-              onEdit={openEdit}
-              onDelete={setPendingDelete}
-            />
-          ) : kind === 'parts' ? (
-            <SeatCoverPartPanel query={query} />
-          ) : (
-            <SeatCoverCodePanel query={query} />
-          )}
-        </TabsContent>
-      </Tabs>
+          <TabsContent value={kind} className="mt-0">
+            {isGeneric ? (
+              <>
+                <div className="grid-toolbar">
+                  <div className="grid-toolbar-filters">
+                    <div className="search-field">
+                      <Search aria-hidden="true" />
+                      <Input
+                        aria-label="Code 또는 이름 검색"
+                        placeholder="Code / 이름 검색"
+                        value={query}
+                        onChange={(event) => setQuery(event.target.value)}
+                      />
+                    </div>
+                    <Select
+                      value={productTypeFilter}
+                      onValueChange={setProductTypeFilter}
+                    >
+                      <SelectTrigger
+                        aria-label="Product Type 필터"
+                        className="filter-select wide"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ALL">Product Type: All</SelectItem>
+                        {PRODUCT_TYPES.map((productType) => (
+                          <SelectItem
+                            value={productType.id}
+                            key={productType.id}
+                          >
+                            {productType.product}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {hasActiveFilter && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setQuery('');
+                          setProductTypeFilter('ALL');
+                        }}
+                      >
+                        <X /> 필터 초기화
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid-toolbar-actions">
+                    <Button variant="primary" onClick={openCreate}>
+                      <Plus /> {entityLabel} 등록
+                    </Button>
+                  </div>
+                </div>
+                <ReferenceItemTable
+                  items={visibleItems}
+                  entityLabel={entityLabel}
+                  filterKey={`${kind}|${query}|${productTypeFilter}`}
+                  onEdit={openEdit}
+                  onDelete={setPendingDelete}
+                />
+              </>
+            ) : kind === 'parts' ? (
+              <SeatCoverPartPanel query={query} onQueryChange={setQuery} />
+            ) : (
+              <SeatCoverCodePanel query={query} onQueryChange={setQuery} />
+            )}
+          </TabsContent>
+        </Tabs>
+      </Card>
 
       {dialogOpen && isGeneric && (
         <ReferenceItemDialog

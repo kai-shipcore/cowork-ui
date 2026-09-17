@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
-import { Card } from '@coverland-engineering/ui/card';
 import {
   Table,
   TableBody,
@@ -26,7 +25,10 @@ interface SampleTrackingTableProps {
   renderInspection: (row: SampleTrackingRow) => ReactNode;
 }
 
-/** Sample Tracking sheet view (Stage 8): one part per row, sheet column order. */
+/**
+ * Sample Tracking sheet view (Stage 8): one part per row, sheet column order.
+ * Renders the table and its pagination; the caller supplies the grid card.
+ */
 export function SampleTrackingTable({
   rows,
   filterKey,
@@ -53,7 +55,7 @@ export function SampleTrackingTable({
   }
 
   return (
-    <Card>
+    <>
       <Table>
         <TableHeader>
           <TableRow>
@@ -66,7 +68,7 @@ export function SampleTrackingTable({
             <TableHead>Vendor</TableHead>
             <TableHead>Note</TableHead>
             <TableHead>검수 결과</TableHead>
-            <TableHead>검수</TableHead>
+            <TableHead className="action-column" />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -106,7 +108,7 @@ export function SampleTrackingTable({
                 {row.note ? row.note : <span className="muted-text">—</span>}
               </TableCell>
               <TableCell>{renderInspection(row)}</TableCell>
-              <TableCell>
+              <TableCell className="table-actions">
                 <Button
                   size="sm"
                   variant="outline"
@@ -130,8 +132,7 @@ export function SampleTrackingTable({
         recordCount={rows.length}
         pagination={pagination}
         onPaginationChange={setPagination}
-        itemLabel="rows"
       />
-    </Card>
+    </>
   );
 }

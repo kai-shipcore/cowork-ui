@@ -20,7 +20,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@coverland-engineering/ui/select';
-import { CalendarPlus, MapPin, Phone, Plus, Search, X } from 'lucide-react';
+import {
+  CalendarDays,
+  CalendarPlus,
+  MapPin,
+  Phone,
+  Plus,
+  Ruler,
+  ScanLine,
+  Search,
+  Store,
+  X,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { userName } from '@/shared/domain/app-user';
@@ -54,6 +65,21 @@ function workbenchToday() {
 const TODAY = workbenchToday();
 
 type DealerTypeFilter = 'ALL' | Dealer['type'];
+/** Radix Select cannot hold an empty value, so "all" is spelled out. */
+const ALL_FILTER = 'ALL';
+/** Calendar legend entries; each doubles as a click-to-filter toggle. */
+const CALENDAR_LEGEND = [
+  { value: 'SCAN', label: '스캔', dot: 'scan' },
+  { value: 'FITTING', label: '피팅', dot: 'fitting' },
+  { value: 'COMPLETED', label: '완료', dot: 'completed' },
+] as const;
+type CalendarLegend = (typeof CALENDAR_LEGEND)[number]['value'];
+
+function matchesCalendarLegend(visit: Visit, legend?: CalendarLegend): boolean {
+  if (!legend) return true;
+  if (legend === 'COMPLETED') return visit.status === 'COMPLETED';
+  return visit.kind === legend && visit.status !== 'COMPLETED';
+}
 
 const DEALER_TYPE_FILTERS: readonly {
   value: DealerTypeFilter;
@@ -95,6 +121,7 @@ export function HuntBoardPage() {
   const [filterQuery, setFilterQuery] = useState('');
   const [calendarDealer, setCalendarDealer] = useState('');
   const [calendarAssignee, setCalendarAssignee] = useState('');
+  const [calendarLegend, setCalendarLegend] = useState<CalendarLegend>();
   const [dealerQuery, setDealerQuery] = useState('');
   const [dealerType, setDealerType] = useState<DealerTypeFilter>('ALL');
   const [selectedDealerId, setSelectedDealerId] = useState<string>();
@@ -126,7 +153,8 @@ export function HuntBoardPage() {
         .toLowerCase()
         .includes(normalizedQuery)) &&
     (!calendarDealer || visit.dealer === calendarDealer) &&
-    (!calendarAssignee || (visit.staffIds ?? []).includes(calendarAssignee));
+    (!calendarAssignee || (visit.staffIds ?? []).includes(calendarAssignee)) &&
+    matchesCalendarLegend(visit, calendarLegend);
   const visibleVisits = visits.filter(matchesVisitFilters);
   const scanRows = projects
     .map((project) =>
@@ -151,13 +179,15 @@ export function HuntBoardPage() {
         Number(visit.date.slice(-2)) === day,
     );
   const normalizedDealerQuery = dealerQuery.trim().toLowerCase();
-  const visibleDealers = dealers.filter(
+  const searchedDealers = dealers.filter(
     (dealer) =>
-      (!normalizedDealerQuery ||
-        `${dealer.name} ${dealer.brand} ${dealer.address} ${dealer.contact} ${dealer.note}`
-          .toLowerCase()
-          .includes(normalizedDealerQuery)) &&
-      (dealerType === 'ALL' || dealer.type === dealerType),
+      !normalizedDealerQuery ||
+      `${dealer.name} ${dealer.brand} ${dealer.address} ${dealer.contact} ${dealer.note}`
+        .toLowerCase()
+        .includes(normalizedDealerQuery),
+  );
+  const visibleDealers = searchedDealers.filter(
+    (dealer) => dealerType === 'ALL' || dealer.type === dealerType,
   );
   const visitProject = projects.find(
     (project) => project.id === visitProjectId,
@@ -292,20 +322,28 @@ export function HuntBoardPage() {
       />
 
       <Tabs defaultValue="scan" className="hunt-tabs">
-        <TabsList variant="line" className="hunt-tab-list">
+        <TabsList variant="line" className="grid-tabs-list">
           <TabsTrigger value="scan">
-            스캔 <span className="tab-count">{scanWaitingProjects.length}</span>
+            <ScanLine aria-hidden="true" />
+            스캔
+            <span className="stage-tab-count">
+              {scanWaitingProjects.length}
+            </span>
           </TabsTrigger>
           <TabsTrigger value="fitting">
-            피팅 <span className="tab-count">{fittingProjects.length}</span>
+            <Ruler aria-hidden="true" />
+            피팅
+            <span className="stage-tab-count">{fittingProjects.length}</span>
           </TabsTrigger>
           <TabsTrigger value="calendar">
-            월간 스케줄{' '}
-            <span className="tab-count">{visibleVisits.length}</span>
+            <CalendarDays aria-hidden="true" />
+            월간 스케줄
+            <span className="stage-tab-count">{visibleVisits.length}</span>
           </TabsTrigger>
           <TabsTrigger value="dealers">
-            딜러 디렉토리{' '}
-            <span className="tab-count">{visibleDealers.length}</span>
+            <Store aria-hidden="true" />
+            딜러 디렉토리
+            <span className="stage-tab-count">{visibleDealers.length}</span>
           </TabsTrigger>
         </TabsList>
 
@@ -347,314 +385,342 @@ export function HuntBoardPage() {
         </TabsContent>
 
         <TabsContent value="calendar" className="hunt-tab-content">
-          <div className="workbench-filters hunt-board-filters">
-            <label className="hunt-date-filter hunt-board-search">
-              Visit 검색
-              <Input
-                placeholder="차량명 · 프로젝트 ID 검색"
-                value={filterQuery}
-                onChange={(event) => setFilterQuery(event.target.value)}
-              />
-            </label>
-            <label className="hunt-date-filter">
-              딜러
-              <select
-                value={calendarDealer}
-                onChange={(e) => setCalendarDealer(e.target.value)}
+          <div className="grid-toolbar">
+            <div className="grid-toolbar-filters">
+              <div className="search-field">
+                <Search aria-hidden="true" />
+                <Input
+                  aria-label="Visit 검색"
+                  placeholder="차량명 · 프로젝트 ID 검색"
+                  value={filterQuery}
+                  onChange={(event) => setFilterQuery(event.target.value)}
+                />
+              </div>
+              <Select
+                value={calendarDealer || ALL_FILTER}
+                onValueChange={(value) =>
+                  setCalendarDealer(value === ALL_FILTER ? '' : value)
+                }
               >
-                <option value="">전체 딜러</option>
-                {dealers.map((dealer) => (
-                  <option key={dealer.id} value={dealer.name}>
-                    {dealer.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="hunt-date-filter">
-              담당자
-              <select
-                value={calendarAssignee}
-                onChange={(e) => setCalendarAssignee(e.target.value)}
+                <SelectTrigger aria-label="딜러" className="filter-select wide">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_FILTER}>전체 딜러</SelectItem>
+                  {dealers.map((dealer) => (
+                    <SelectItem key={dealer.id} value={dealer.name}>
+                      {dealer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={calendarAssignee || ALL_FILTER}
+                onValueChange={(value) =>
+                  setCalendarAssignee(value === ALL_FILTER ? '' : value)
+                }
               >
-                <option value="">전체 담당자</option>
-                {appUsers.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {(filterQuery || calendarDealer || calendarAssignee) && (
+                <SelectTrigger aria-label="담당자" className="filter-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_FILTER}>전체 담당자</SelectItem>
+                  {appUsers.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(filterQuery ||
+                calendarDealer ||
+                calendarAssignee ||
+                calendarLegend) && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setFilterQuery('');
+                    setCalendarDealer('');
+                    setCalendarAssignee('');
+                    setCalendarLegend(undefined);
+                  }}
+                >
+                  <X /> 초기화
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="hunt-tab-body">
+            <div className="calendar-toolbar">
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  setFilterQuery('');
-                  setCalendarDealer('');
-                  setCalendarAssignee('');
+                  setSelectedDay(undefined);
+                  setCalendarMonth(
+                    (current) =>
+                      new Date(
+                        current.getFullYear(),
+                        current.getMonth() - 1,
+                        1,
+                      ),
+                  );
                 }}
               >
-                <X /> 초기화
+                ← 이전 달
               </Button>
-            )}
-          </div>
-
-          <div className="calendar-toolbar">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setSelectedDay(undefined);
-                setCalendarMonth(
-                  (current) =>
-                    new Date(current.getFullYear(), current.getMonth() - 1, 1),
-                );
-              }}
-            >
-              ← 이전 달
-            </Button>
-            <h2>
-              {calendarYear}년 {calendarMonthNumber}월
-            </h2>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setSelectedDay(undefined);
-                setCalendarMonth(
-                  (current) =>
-                    new Date(current.getFullYear(), current.getMonth() + 1, 1),
-                );
-              }}
-            >
-              다음 달 →
-            </Button>
-            <Input
-              className="calendar-month-picker"
-              aria-label="표시할 월 선택"
-              type="month"
-              value={calendarMonthKey}
-              onChange={(event) => {
-                const [year, month] = event.target.value.split('-').map(Number);
-                if (!year || !month) return;
-                setSelectedDay(undefined);
-                setCalendarMonth(new Date(year, month - 1, 1));
-              }}
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={
-                calendarYear === TODAY.year &&
-                calendarMonthNumber === TODAY.month
-              }
-              onClick={() => {
-                setSelectedDay(undefined);
-                setCalendarMonth(new Date(TODAY.year, TODAY.month - 1, 1));
-              }}
-            >
-              오늘
-            </Button>
-            <div className="calendar-legend">
-              <span className="calendar-legend-item">
-                <i className="calendar-legend-dot scan" /> 스캔
-              </span>
-              <span className="calendar-legend-item">
-                <i className="calendar-legend-dot fitting" /> 피팅
-              </span>
-              <span className="calendar-legend-item">
-                <i className="calendar-legend-dot completed" /> 완료
-              </span>
-            </div>
-          </div>
-          <div className="month-grid">
-            {['일', '월', '화', '수', '목', '금', '토'].map((day) => (
-              <div className="weekday" key={day}>
-                {day}
+              <h2>
+                {calendarYear}년 {calendarMonthNumber}월
+              </h2>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setSelectedDay(undefined);
+                  setCalendarMonth(
+                    (current) =>
+                      new Date(
+                        current.getFullYear(),
+                        current.getMonth() + 1,
+                        1,
+                      ),
+                  );
+                }}
+              >
+                다음 달 →
+              </Button>
+              <Input
+                className="calendar-month-picker"
+                aria-label="표시할 월 선택"
+                type="month"
+                value={calendarMonthKey}
+                onChange={(event) => {
+                  const [year, month] = event.target.value
+                    .split('-')
+                    .map(Number);
+                  if (!year || !month) return;
+                  setSelectedDay(undefined);
+                  setCalendarMonth(new Date(year, month - 1, 1));
+                }}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={
+                  calendarYear === TODAY.year &&
+                  calendarMonthNumber === TODAY.month
+                }
+                onClick={() => {
+                  setSelectedDay(undefined);
+                  setCalendarMonth(new Date(TODAY.year, TODAY.month - 1, 1));
+                }}
+              >
+                오늘
+              </Button>
+              <div
+                className="calendar-legend"
+                role="group"
+                aria-label="일정 유형 필터"
+              >
+                {CALENDAR_LEGEND.map((legend) => (
+                  <button
+                    type="button"
+                    key={legend.value}
+                    className="calendar-legend-item"
+                    aria-pressed={calendarLegend === legend.value}
+                    onClick={() =>
+                      setCalendarLegend((current) =>
+                        current === legend.value ? undefined : legend.value,
+                      )
+                    }
+                  >
+                    <i className={`calendar-legend-dot ${legend.dot}`} />{' '}
+                    {legend.label}
+                  </button>
+                ))}
               </div>
-            ))}
-            {calendarBlanks.map((blank) => (
-              <div key={blank} />
-            ))}
-            {calendarDays.map((day) => {
-              const dayVisits = visitsOnDay(day);
-              const isToday =
-                day === TODAY.day &&
-                calendarMonthNumber === TODAY.month &&
-                calendarYear === TODAY.year;
-              const dayClass = isToday ? 'calendar-day today' : 'calendar-day';
-              const dayContent = (
-                <>
-                  <span className="day-number">
-                    {day}
-                    {isToday ? ' · 오늘' : ''}
-                  </span>
-                  {dayVisits.map((visit) => (
-                    <span
-                      className={`calendar-event ${visit.kind.toLowerCase()}${
-                        visit.status === 'COMPLETED' ? ' completed' : ''
-                      }`}
-                      key={visit.id}
-                    >
-                      <small className="calendar-event-kind">
-                        {visit.time} · {visit.kind === 'SCAN' ? '스캔' : '피팅'}
-                      </small>
-                      <strong>{visit.dealer}</strong>
-                      <small>
-                        {visitAssigneeNames(visit)} · {visit.projectGroupId}
-                      </small>
+            </div>
+            <div className="month-grid">
+              {['일', '월', '화', '수', '목', '금', '토'].map((day) => (
+                <div className="weekday" key={day}>
+                  {day}
+                </div>
+              ))}
+              {calendarBlanks.map((blank) => (
+                <div key={blank} />
+              ))}
+              {calendarDays.map((day) => {
+                const dayVisits = visitsOnDay(day);
+                const isToday =
+                  day === TODAY.day &&
+                  calendarMonthNumber === TODAY.month &&
+                  calendarYear === TODAY.year;
+                const dayClass = isToday
+                  ? 'calendar-day today'
+                  : 'calendar-day';
+                const dayContent = (
+                  <>
+                    <span className="day-number">
+                      {day}
+                      {isToday ? ' · 오늘' : ''}
                     </span>
-                  ))}
-                </>
-              );
-
-              if (!dayVisits.length) {
-                return (
-                  <div className={dayClass} key={day}>
-                    {dayContent}
-                  </div>
+                    {dayVisits.map((visit) => (
+                      <span
+                        className={`calendar-event ${visit.kind.toLowerCase()}${
+                          visit.status === 'COMPLETED' ? ' completed' : ''
+                        }`}
+                        key={visit.id}
+                      >
+                        <small className="calendar-event-kind">
+                          {visit.time} ·{' '}
+                          {visit.kind === 'SCAN' ? '스캔' : '피팅'}
+                        </small>
+                        <strong>{visit.dealer}</strong>
+                        <small>
+                          {visitAssigneeNames(visit)} · {visit.projectGroupId}
+                        </small>
+                      </span>
+                    ))}
+                  </>
                 );
-              }
-              return (
-                <button
-                  type="button"
-                  className={`${dayClass} has-visits`}
-                  key={day}
-                  aria-label={`${calendarMonthNumber}월 ${day}일 일정 ${dayVisits.length}건 상세 보기`}
-                  onClick={() => setSelectedDay(day)}
-                >
-                  {dayContent}
-                </button>
-              );
-            })}
+
+                if (!dayVisits.length) {
+                  return (
+                    <div className={dayClass} key={day}>
+                      {dayContent}
+                    </div>
+                  );
+                }
+                return (
+                  <button
+                    type="button"
+                    className={`${dayClass} has-visits`}
+                    key={day}
+                    aria-label={`${calendarMonthNumber}월 ${day}일 일정 ${dayVisits.length}건 상세 보기`}
+                    onClick={() => setSelectedDay(day)}
+                  >
+                    {dayContent}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </TabsContent>
 
         <TabsContent value="dealers" className="hunt-tab-content">
-          <div className="section-heading">
-            <h2>딜러 디렉토리</h2>
-            <span>실차 확보처 주소록 — 스캔·피팅 공용</span>
-            <Button
-              size="sm"
-              variant="outline"
-              className="push-right"
-              onClick={openDealerDialog}
-            >
-              <Plus /> 확보처 등록
-            </Button>
-          </div>
-
-          <div
-            className="segment-filters"
-            role="group"
-            aria-label="확보처 유형"
-          >
-            {DEALER_TYPE_FILTERS.map((filter) => (
-              <Button
-                key={filter.value}
-                size="sm"
-                variant={dealerType === filter.value ? 'mono' : 'outline'}
-                onClick={() => setDealerType(filter.value)}
-              >
-                {filter.label}
-              </Button>
-            ))}
-          </div>
-          <div className="workbench-filters">
-            <div className="search-field">
-              <Search aria-hidden="true" />
-              <Input
-                aria-label="확보처 이름, 브랜드, 주소, 연락처 검색"
-                placeholder="이름 / 브랜드 / 주소 / 연락처"
-                value={dealerQuery}
-                onChange={(event) => setDealerQuery(event.target.value)}
-              />
-            </div>
-            {(dealerQuery || dealerType !== 'ALL') && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setDealerQuery('');
-                  setDealerType('ALL');
-                }}
-              >
-                <X /> 필터 초기화
-              </Button>
-            )}
-            <span className="filter-count">
-              {visibleDealers.length} / {dealers.length} 확보처
-            </span>
-          </div>
-
-          {visibleDealers.length ? (
-            <div className="dealer-grid">
-              {visibleDealers.map((dealer) => (
-                <Card key={dealer.id}>
-                  <CardContent
-                    className="dealer-card-content selectable"
-                    onClick={() => setSelectedDealerId(dealer.id)}
+          <div className="grid-toolbar">
+            <div className="grid-toolbar-filters">
+              <div className="search-field">
+                <Search aria-hidden="true" />
+                <Input
+                  aria-label="확보처 이름, 브랜드, 주소, 연락처 검색"
+                  placeholder="이름 / 브랜드 / 주소 / 연락처"
+                  value={dealerQuery}
+                  onChange={(event) => setDealerQuery(event.target.value)}
+                />
+              </div>
+              <div className="stage-tabs" role="group" aria-label="확보처 유형">
+                {DEALER_TYPE_FILTERS.map((filter) => (
+                  <button
+                    type="button"
+                    key={filter.value}
+                    className="stage-tab"
+                    aria-pressed={dealerType === filter.value}
+                    onClick={() => setDealerType(filter.value)}
                   >
-                    <div className="dealer-title">
-                      <div>
-                        <h3>
-                          <button
-                            type="button"
-                            className="dealer-name-button"
-                            onClick={() => setSelectedDealerId(dealer.id)}
-                          >
-                            {dealer.name}
-                          </button>
-                        </h3>
-                        <p>{dealer.brand}</p>
+                    {filter.label}
+                    <span className="stage-tab-count">
+                      {
+                        searchedDealers.filter(
+                          (dealer) =>
+                            filter.value === 'ALL' ||
+                            dealer.type === filter.value,
+                        ).length
+                      }
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid-toolbar-actions">
+              <Button variant="primary" onClick={openDealerDialog}>
+                <Plus /> 확보처 등록
+              </Button>
+            </div>
+          </div>
+
+          <div className="hunt-tab-body">
+            {visibleDealers.length ? (
+              <div className="dealer-grid">
+                {visibleDealers.map((dealer) => (
+                  <Card key={dealer.id}>
+                    <CardContent
+                      className="dealer-card-content selectable"
+                      onClick={() => setSelectedDealerId(dealer.id)}
+                    >
+                      <div className="dealer-title">
+                        <div>
+                          <h3>
+                            <button
+                              type="button"
+                              className="dealer-name-button"
+                              onClick={() => setSelectedDealerId(dealer.id)}
+                            >
+                              {dealer.name}
+                            </button>
+                          </h3>
+                          <p>{dealer.brand}</p>
+                        </div>
+                        <StatusBadge
+                          label={dealer.type}
+                          tone={
+                            dealer.type === 'Dealer'
+                              ? 'progress'
+                              : dealer.type === 'Rental'
+                                ? 'warning'
+                                : 'purple'
+                          }
+                        />
                       </div>
-                      <StatusBadge
-                        label={dealer.type}
-                        tone={
-                          dealer.type === 'Dealer'
-                            ? 'progress'
-                            : dealer.type === 'Rental'
-                              ? 'warning'
-                              : 'purple'
-                        }
-                      />
-                    </div>
-                    <div className="dealer-info">
-                      <span>
-                        <MapPin />
-                        {dealer.address}
-                      </span>
-                      <span>
-                        <Phone />
-                        {dealer.contact}
-                      </span>
-                      <em>※ {dealer.note}</em>
-                    </div>
-                    <div className="dealer-footer">
-                      <span>최근 방문 {dealer.lastVisit}</span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setVisitDealer(dealer.name);
-                          openVisitDialog();
-                        }}
-                      >
-                        방문 잡기
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <div className="empty-icon">🔍</div>
-              <strong>조건에 맞는 확보처가 없습니다.</strong>
-              <p>검색어나 유형 필터를 바꿔 보세요.</p>
-            </div>
-          )}
+                      <div className="dealer-info">
+                        <span>
+                          <MapPin />
+                          {dealer.address}
+                        </span>
+                        <span>
+                          <Phone />
+                          {dealer.contact}
+                        </span>
+                        <em>※ {dealer.note}</em>
+                      </div>
+                      <div className="dealer-footer">
+                        <span>최근 방문 {dealer.lastVisit}</span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setVisitDealer(dealer.name);
+                            openVisitDialog();
+                          }}
+                        >
+                          방문 잡기
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <div className="empty-icon">🔍</div>
+                <strong>조건에 맞는 확보처가 없습니다.</strong>
+                <p>검색어나 유형 필터를 바꿔 보세요.</p>
+              </div>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
 

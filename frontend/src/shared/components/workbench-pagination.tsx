@@ -20,7 +20,8 @@ interface WorkbenchPaginationProps {
   recordCount: number;
   pagination: PaginationState;
   onPaginationChange: Dispatch<SetStateAction<PaginationState>>;
-  itemLabel: string;
+  /** Appended to the range summary; omit for the plain `1 - 10 of 25` form. */
+  itemLabel?: string;
 }
 
 export function useWorkbenchPagination<T>(
@@ -85,7 +86,11 @@ export function WorkbenchPagination({
       <div className="workbench-pagination">
         <DataGridPagination
           sizes={[5, 10, 25]}
-          info={`{from} - {to} / {count} ${itemLabel}`}
+          info={
+            itemLabel
+              ? `{from} - {to} / {count} ${itemLabel}`
+              : '{from} - {to} of {count}'
+          }
         />
       </div>
     </DataGridProvider>
