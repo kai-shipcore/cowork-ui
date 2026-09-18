@@ -2,6 +2,46 @@
 
 This is the React SPA frontend for Coverland Workbench. It uses a module-oriented structure that separates application-wide configuration, business modules, the API layer, and shared code.
 
+## Local shared-grid preview (Workbench Test only)
+
+This checkout links `@coverland-engineering/ui` to the sibling
+`../../Coverland_Storybook` directory relative to `frontend/`. Build that package
+with `npm run build:lib` in Coverland_Storybook before installing or running this
+app; repeat that build after editing library components. The existing Tailwind
+`@source` scans its linked `dist/` output. Vite deduplicates React and React DOM
+so the local library and this app share one runtime.
+
+- `/vehicle-projects` imports `GroupedDataGrid`: existing stage/product filters,
+  group counts, owner/status information and project-detail links are retained.
+  Sorting applies to zones within each group. Collapse controls use the shared
+  grid's current-page scope and preserve collapse state for other pages.
+- `/parts` imports `FlatDataGrid`: search, creation and version-history actions
+  are retained. Sorting happens before pagination across all matching parts.
+- `/vehicle-research` imports `GroupedDataGrid`: vehicles remain the paging unit,
+  with configurations sorted within each vehicle. Search/product/status filters,
+  configuration creation, research completion and development links are retained.
+  Collapse controls act on the current page and preserve other pages' state.
+- The remaining flat tables also import `FlatDataGrid`: Samples (Requests and
+  Part Lines), Hunt Board (scan and fitting), Products, Product Registrations,
+  Unique Vehicles, Shapes (issued shapes, review queue and part composition),
+  and reference data (colors/materials and Seat Cover Parts).
+- Existing search/filter controls, row actions and detail dialogs are retained.
+  Flat tables sort the full filtered result before pagination using the existing
+  TanStack row model; the unpaginated part-composition grid uses client sorting.
+  Columns without a meaningful scalar value (such as inspection widgets) are
+  not sortable. Column visibility/order/pinning and pagers use the shared grid.
+  Grouped grids and card-based lists are unchanged by the flat-table migration.
+
+Run `pnpm --filter frontend exec vite --port 5174 --strictPort` from this checkout
+for the test app.
+`pnpm --filter frontend test` uses `tsconfig.app.json` so the component-render
+regression tests use the same automatic JSX runtime as the app.
+The test-only `test-react-runtime.mjs` resolver deduplicates React from the local
+UI link, matching Vite's existing `resolve.dedupe` setting (Node 24).
+This local link requires both sibling directories; it is not a published package
+upgrade and must not be used as production deployment configuration. A later
+published UI release can replace the local dependency when explicitly approved.
+
 ## Project Structure
 
 ```text

@@ -9,6 +9,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@coverland-engineering/ui/dialog';
+import {
+  FlatDataGrid,
+  type FlatDataGridColumn,
+} from '@coverland-engineering/ui/flat-data-grid';
 import { Input } from '@coverland-engineering/ui/input';
 import {
   Select,
@@ -18,19 +22,13 @@ import {
   SelectValue,
 } from '@coverland-engineering/ui/select';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@coverland-engineering/ui/table';
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
 import { Plus, Search } from 'lucide-react';
 import { StatusBadge } from '@/shared/components/status-badge';
-import {
-  useWorkbenchPagination,
-  WorkbenchPagination,
-} from '@/shared/components/workbench-pagination';
+import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import type { SeatCoverPart, VehicleZone } from '@/shared/types/workbench';
 import { useWorkbenchStore } from '@/app/workbench-store';
 
@@ -80,11 +78,121 @@ export function SeatCoverPartPanel({
         .toLowerCase()
         .includes(normalized),
   );
+  const columns: FlatDataGridColumn<(typeof visible)[number]>[] = [
+    {
+      id: 'name',
+      header: 'Name',
+      width: 210,
+      sortValue: (part) => part.name,
+      cell: (part) => (
+        <>
+          <span className="reference-code">{part.name}</span>
+          {part.description && (
+            <div className="vehicle-meta">{part.description}</div>
+          )}
+        </>
+      ),
+    },
+    {
+      id: 'zone',
+      header: 'Zone',
+      width: 180,
+      sortValue: (part) => zoneLabel(part.vehicleZoneId),
+      cell: (part) => <>{zoneLabel(part.vehicleZoneId)}</>,
+    },
+    {
+      id: 'category',
+      header: 'Category',
+      width: 180,
+      sortValue: (part) => part.category,
+      cell: (part) => <>{part.category}</>,
+    },
+    {
+      id: 'middle-seat',
+      header: '중간석',
+      width: 180,
+      sortValue: (part) => Number(part.isForMiddleSeat),
+      cell: (part) => (
+        <>
+          {part.isForMiddleSeat ? (
+            <StatusBadge label="중간석" tone="purple" />
+          ) : (
+            <span className="muted-text">—</span>
+          )}
+        </>
+      ),
+    },
+    {
+      id: 'type',
+      header: '구분',
+      width: 180,
+      sortValue: (part) => Number(part.isCustom),
+      cell: (part) => (
+        <>
+          {part.isCustom ? (
+            <StatusBadge label="Custom" tone="progress" />
+          ) : (
+            <>
+              <StatusBadge label="Legacy universal" tone="neutral" />
+              <div className="vehicle-meta">{part.vehicleProductDesignId}</div>
+            </>
+          )}
+        </>
+      ),
+    },
+    {
+      id: 'status',
+      header: '상태',
+      width: 180,
+      sortValue: (part) => part.status,
+      cell: (part) => (
+        <>
+          <StatusBadge
+            label={part.status}
+            tone={part.status === 'ACTIVE' ? 'success' : 'neutral'}
+          />
+        </>
+      ),
+    },
+    {
+      id: 'actions',
+      header: '작업',
+      width: 180,
+      hideable: false,
+      cell: (part) => (
+        <div className="table-actions">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              toggleStatus(part);
+            }}
+          >
+            {part.status === 'ACTIVE' ? '비활성' : '활성'}
+          </Button>
+        </div>
+      ),
+    },
+  ];
+  const gridTable = useReactTable({
+    // Paging is owned by the surrounding filters and the shared grid pager.
+    autoResetPageIndex: false,
+    data: [...visible],
+    columns: columns.map((column) => ({
+      id: column.id,
+      accessorFn: column.sortValue,
+      sortUndefined: 'last',
+    })),
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+  const sortedRows = gridTable.getRowModel().rows.map((row) => row.original);
+  const activeSort = gridTable.getState().sorting.slice(0, 1).pop();
   const {
     pageItems: pagedParts,
     pagination,
     setPagination,
-  } = useWorkbenchPagination(visible, query);
+  } = useWorkbenchPagination(sortedRows, query);
   const duplicate = seatCoverParts.some(
     (part) => part.name.toLowerCase() === name.trim().toLowerCase(),
   );
@@ -136,12 +244,19 @@ export function SeatCoverPartPanel({
               aria-label="Part 이름 또는 설명 검색"
               placeholder="Part 검색"
               value={query}
-              onChange={(event) => onQueryChange(event.target.value)}
+              onChange={(event) => {
+                onQueryChange(event.target.value);
+              }}
             />
           </div>
         </div>
         <div className="grid-toolbar-actions">
-          <Button variant="primary" onClick={() => setDialogOpen(true)}>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setDialogOpen(true);
+            }}
+          >
             <Plus /> Part 등록
           </Button>
         </div>
@@ -149,71 +264,44 @@ export function SeatCoverPartPanel({
 
       {visible.length ? (
         <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Zone</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>중간석</TableHead>
-                <TableHead>구분</TableHead>
-                <TableHead>상태</TableHead>
-                <TableHead className="action-column" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pagedParts.map((part) => (
-                <TableRow key={part.id}>
-                  <TableCell>
-                    <span className="reference-code">{part.name}</span>
-                    {part.description && (
-                      <div className="vehicle-meta">{part.description}</div>
-                    )}
-                  </TableCell>
-                  <TableCell>{zoneLabel(part.vehicleZoneId)}</TableCell>
-                  <TableCell>{part.category}</TableCell>
-                  <TableCell>
-                    {part.isForMiddleSeat ? (
-                      <StatusBadge label="중간석" tone="purple" />
-                    ) : (
-                      <span className="muted-text">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {part.isCustom ? (
-                      <StatusBadge label="Custom" tone="progress" />
-                    ) : (
-                      <>
-                        <StatusBadge label="Legacy universal" tone="neutral" />
-                        <div className="vehicle-meta">
-                          {part.vehicleProductDesignId}
-                        </div>
-                      </>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge
-                      label={part.status}
-                      tone={part.status === 'ACTIVE' ? 'success' : 'neutral'}
-                    />
-                  </TableCell>
-                  <TableCell className="table-actions">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => toggleStatus(part)}
-                    >
-                      {part.status === 'ACTIVE' ? '비활성' : '활성'}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <WorkbenchPagination
-            recordCount={visible.length}
-            pagination={pagination}
-            onPaginationChange={setPagination}
+          <FlatDataGrid
+            embedded
+            label="Seat Cover Parts"
+            columns={columns}
+            rows={pagedParts}
+            getRowId={(part) => part.id}
+
+            pagination={{
+              page: pagination.pageIndex + 1,
+              pageSize: pagination.pageSize,
+              totalCount: visible.length,
+              pageSizeOptions: [5, 10, 25],
+              onPageChange: (page) => {
+                setPagination((current) => ({
+                  ...current,
+                  pageIndex: page - 1,
+                }));
+              },
+              onPageSizeChange: (pageSize) => {
+                setPagination({ pageIndex: 0, pageSize });
+              },
+            }}
+            sorting={{
+              mode: 'manual',
+              value: activeSort
+                ? {
+                    id: activeSort.id,
+                    direction: activeSort.desc ? 'desc' : 'asc',
+                  }
+                : null,
+              onChange: (sort) => {
+                gridTable.setSorting(
+                  sort
+                    ? [{ id: sort.id, desc: sort.direction === 'desc' }]
+                    : [],
+                );
+              },
+            }}
           />
         </>
       ) : (
@@ -235,7 +323,9 @@ export function SeatCoverPartPanel({
               <Input
                 placeholder="예: FMB"
                 value={name}
-                onChange={(event) => setName(event.target.value)}
+                onChange={(event) => {
+                  setName(event.target.value);
+                }}
               />
             </label>
             <label>
@@ -271,9 +361,9 @@ export function SeatCoverPartPanel({
             <label className="checkbox-field">
               <Checkbox
                 checked={isForMiddleSeat}
-                onCheckedChange={(checked) =>
-                  setIsForMiddleSeat(Boolean(checked))
-                }
+                onCheckedChange={(checked) => {
+                  setIsForMiddleSeat(Boolean(checked));
+                }}
               />
               중간석 변형 (FMB vs FB)
             </label>
@@ -281,7 +371,9 @@ export function SeatCoverPartPanel({
               설명 (선택)
               <Input
                 value={description}
-                onChange={(event) => setDescription(event.target.value)}
+                onChange={(event) => {
+                  setDescription(event.target.value);
+                }}
               />
             </label>
             <div className="dialog-note">
@@ -296,7 +388,12 @@ export function SeatCoverPartPanel({
             )}
           </DialogBody>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogOpen(false);
+              }}
+            >
               취소
             </Button>
             <Button

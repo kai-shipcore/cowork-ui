@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
 import { Card } from '@coverland-engineering/ui/card';
+import {
+  FlatDataGrid,
+  type FlatDataGridColumn,
+} from '@coverland-engineering/ui/flat-data-grid';
 import { Input } from '@coverland-engineering/ui/input';
 import {
   Select,
@@ -18,13 +22,10 @@ import {
   SheetTitle,
 } from '@coverland-engineering/ui/sheet';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@coverland-engineering/ui/table';
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
 import { PackageCheck, Search, X } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -34,10 +35,7 @@ import {
 } from '@/shared/domain/catalog-validation';
 import { PageHeader } from '@/shared/components/page-header';
 import { StatusBadge } from '@/shared/components/status-badge';
-import {
-  useWorkbenchPagination,
-  WorkbenchPagination,
-} from '@/shared/components/workbench-pagination';
+import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import { PRODUCT_TYPES } from '@/shared/types/workbench';
 import type {
   MasterProduct,
@@ -111,11 +109,124 @@ export function ProductCatalogPage() {
   );
   const hasActiveFilter =
     normalizedQuery.length > 0 || productType !== 'ALL' || status !== 'ALL';
+  const columns: FlatDataGridColumn<(typeof visible)[number]>[] = [
+    {
+      id: 'sku',
+      header: 'SKU',
+      width: 210,
+      sortValue: (product) => product.sku,
+      cell: (product) => (
+        <>
+          <span className="generated-sku compact">{product.sku}</span>
+        </>
+      ),
+    },
+    {
+      id: 'f-number',
+      header: 'F#',
+      width: 180,
+      sortValue: (product) => product.fNumber,
+      cell: (product) => (
+        <>
+          <span className="f-number">{product.fNumber}</span>
+        </>
+      ),
+    },
+    {
+      id: 'material',
+      header: '재질',
+      width: 180,
+      sortValue: (product) => materialOf(product)?.code,
+      cell: (product) => (
+        <>
+          {materialOf(product)?.code ?? '—'}
+          <div className="vehicle-meta">{materialOf(product)?.name}</div>
+        </>
+      ),
+    },
+    {
+      id: 'shapes',
+      header: 'Shape',
+      width: 180,
+      sortValue: (product) => shapesOf(product).join(', '),
+      cell: (product) => (
+        <>
+          <span className="shape-list">
+            {shapesOf(product).map((name) => (
+              <span key={name}>{name}</span>
+            ))}
+          </span>
+        </>
+      ),
+    },
+    {
+      id: 'packaging',
+      header: 'Packaging',
+      width: 180,
+      cell: (product) => {
+        const packaging = currentPackaging(product);
+        return (
+          <>
+            {packaging ? (
+              <span className="vehicle-meta">
+                {packaging.length}×{packaging.width}×{packaging.height}{' '}
+                {packaging.dimensionUnit} · {packaging.weight}
+                {packaging.weightUnit}
+              </span>
+            ) : (
+              <StatusBadge label="미등록" tone="warning" />
+            )}
+          </>
+        );
+      },
+    },
+    {
+      id: 'registration',
+      header: '출처 등록',
+      width: 180,
+      sortValue: (product) => itemOf(product)?.registrationId,
+      cell: (product) => (
+        <>
+          <span className="visit-reference">
+            {itemOf(product)?.registrationId ?? '—'}
+          </span>
+        </>
+      ),
+    },
+    {
+      id: 'status',
+      header: '상태',
+      width: 180,
+      sortValue: (product) => product.status,
+      cell: (product) => (
+        <>
+          <StatusBadge
+            label={product.status}
+            tone={STATUS_TONES[product.status]}
+          />
+        </>
+      ),
+    },
+  ];
+  const gridTable = useReactTable({
+    // Paging is owned by the surrounding filters and the shared grid pager.
+    autoResetPageIndex: false,
+    data: [...visible],
+    columns: columns.map((column) => ({
+      id: column.id,
+      accessorFn: column.sortValue,
+      sortUndefined: 'last',
+    })),
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+  const sortedRows = gridTable.getRowModel().rows.map((row) => row.original);
+  const activeSort = gridTable.getState().sorting.slice(0, 1).pop();
   const {
     pageItems: pagedProducts,
     pagination,
     setPagination,
-  } = useWorkbenchPagination(visible, `${query}|${productType}|${status}`);
+  } = useWorkbenchPagination(sortedRows, `${query}|${productType}|${status}`);
 
   const materialOf = (product: MasterProduct) =>
     productMaterials.find((item) => item.id === product.productMaterialId);
@@ -177,9 +288,10 @@ export function ProductCatalogPage() {
       )?.validFrom,
     );
     if (errors.length) return errors;
-    const validFrom = businessDateInstant(version.validFrom)!;
+    const validFrom = businessDateInstant(version.validFrom);
+    if (!validFrom) return ['유효한 적용 시작일을 입력하세요.'];
     const row: MasterProductSku = {
-      id: `MPS-${version.sku}-${masterProductSkus.length + 1}`,
+      id: `MPS-${version.sku}-${String(masterProductSkus.length + 1)}`,
       masterProductId: product.id,
       sku: version.sku,
       validFrom,
@@ -223,9 +335,10 @@ export function ProductCatalogPage() {
       currentPackaging(product)?.validFrom,
     );
     if (errors.length) return errors;
-    const validFrom = businessDateInstant(version.validFrom)!;
+    const validFrom = businessDateInstant(version.validFrom);
+    if (!validFrom) return ['유효한 적용 시작일을 입력하세요.'];
     const row: MasterProductPackaging = {
-      id: `MPP-${product.id}-${masterProductPackagings.length + 1}`,
+      id: `MPP-${product.id}-${String(masterProductPackagings.length + 1)}`,
       masterProductId: product.id,
       length: Number(version.length),
       width: Number(version.width),
@@ -273,11 +386,11 @@ export function ProductCatalogPage() {
             className="summary-card-button"
             key={card.status}
             aria-pressed={status === card.status}
-            onClick={() =>
+            onClick={() => {
               setStatus((current) =>
                 current === card.status ? 'ALL' : card.status,
-              )
-            }
+              );
+            }}
           >
             <Card
               className={`summary-card summary-${card.tone}${status === card.status ? ' active' : ''}`}
@@ -306,7 +419,9 @@ export function ProductCatalogPage() {
                 aria-label="SKU 또는 F# 검색"
                 placeholder="SKU / F# 검색"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                }}
               />
             </div>
             <Select value={productType} onValueChange={setProductType}>
@@ -342,80 +457,47 @@ export function ProductCatalogPage() {
         </div>
         {visible.length ? (
           <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>F#</TableHead>
-                  <TableHead>재질</TableHead>
-                  <TableHead>Shape</TableHead>
-                  <TableHead>Packaging</TableHead>
-                  <TableHead>출처 등록</TableHead>
-                  <TableHead>상태</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pagedProducts.map((product) => {
-                  const packaging = currentPackaging(product);
-                  return (
-                    <TableRow
-                      key={product.id}
-                      className="row-link"
-                      onClick={() => openProduct(product.id)}
-                    >
-                      <TableCell>
-                        <span className="generated-sku compact">
-                          {product.sku}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="f-number">{product.fNumber}</span>
-                      </TableCell>
-                      <TableCell>
-                        {materialOf(product)?.code ?? '—'}
-                        <div className="vehicle-meta">
-                          {materialOf(product)?.name}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="shape-list">
-                          {shapesOf(product).map((name) => (
-                            <span key={name}>{name}</span>
-                          ))}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {packaging ? (
-                          <span className="vehicle-meta">
-                            {packaging.length}×{packaging.width}×
-                            {packaging.height} {packaging.dimensionUnit} ·{' '}
-                            {packaging.weight}
-                            {packaging.weightUnit}
-                          </span>
-                        ) : (
-                          <StatusBadge label="미등록" tone="warning" />
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <span className="visit-reference">
-                          {itemOf(product)?.registrationId ?? '—'}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge
-                          label={product.status}
-                          tone={STATUS_TONES[product.status]}
-                        />
-                      </TableCell>
-                    </TableRow>
+            <FlatDataGrid
+              embedded
+              label="Products"
+              columns={columns}
+              rows={pagedProducts}
+              getRowId={(product) => product.id}
+              onRowClick={(product) => {
+                openProduct(product.id);
+              }}
+              rowActionLabel={(product) => `${product.sku} 상세 열기`}
+              pagination={{
+                page: pagination.pageIndex + 1,
+                pageSize: pagination.pageSize,
+                totalCount: visible.length,
+                pageSizeOptions: [5, 10, 25],
+                onPageChange: (page) => {
+                  setPagination((current) => ({
+                    ...current,
+                    pageIndex: page - 1,
+                  }));
+                },
+                onPageSizeChange: (pageSize) => {
+                  setPagination({ pageIndex: 0, pageSize });
+                },
+              }}
+              sorting={{
+                mode: 'manual',
+                value: activeSort
+                  ? {
+                      id: activeSort.id,
+                      direction: activeSort.desc ? 'desc' : 'asc',
+                    }
+                  : null,
+                onChange: (sort) => {
+                  gridTable.setSorting(
+                    sort
+                      ? [{ id: sort.id, desc: sort.direction === 'desc' }]
+                      : [],
                   );
-                })}
-              </TableBody>
-            </Table>
-            <WorkbenchPagination
-              recordCount={visible.length}
-              pagination={pagination}
-              onPaginationChange={setPagination}
+                },
+              }}
             />
           </>
         ) : (

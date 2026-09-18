@@ -20,7 +20,7 @@ export function huntRow(
         ['Design', 'Sample', 'Fitting', 'Approved'].includes(
           zone.currentStage,
         ) ||
-        detail?.zones.some((z) => z.id === zone.id && z.scanned) ||
+        (detail?.zones.some((z) => z.id === zone.id && z.scanned) ?? false) ||
         relevant.some(
           (v) =>
             v.status === 'COMPLETED' && v.vehicleProjectIds.includes(zone.id),
@@ -58,16 +58,16 @@ export function huntRow(
         v.status === 'SCHEDULED' &&
         v.vehicleProjectIds.some((id) => remaining.some((z) => z.id === id)),
     )
-    .sort((a, b) =>
-      `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`),
-    )[0];
+    .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))
+    .slice(0, 1)
+    .pop();
   // A visit date is evidence of the visit, not an invented project completion timestamp.
   const completedDate =
     relevant
       .filter((v) => v.status === 'COMPLETED' && v.result !== 'FAIL')
       .map((v) => v.date)
       .sort()
-      .slice(-1)[0] ?? '';
+      .pop() ?? '';
   return {
     project,
     completed,

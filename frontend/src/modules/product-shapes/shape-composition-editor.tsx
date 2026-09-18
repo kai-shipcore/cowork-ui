@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
 import { Checkbox } from '@coverland-engineering/ui/checkbox';
+import {
+  FlatDataGrid,
+  type FlatDataGridColumn,
+} from '@coverland-engineering/ui/flat-data-grid';
 import { Input } from '@coverland-engineering/ui/input';
 import type { VehicleProductShape } from '@/shared/types/workbench';
 import { CURRENT_USER_ID } from '@/app/current-user';
@@ -16,8 +20,9 @@ export function ShapeCompositionEditor({
 }) {
   const { projectDetails, projects, setVehicleProductShapes } =
     useWorkbenchStore();
+  const snapshots = new Map(Object.entries(projectDetails));
   const sources = projects.flatMap((project) =>
-    (projectDetails[project.id]?.zones ?? [])
+    (snapshots.get(project.id)?.zones ?? [])
       .filter(
         (zone) =>
           zone.productShapeId === shape.id &&
@@ -30,12 +35,35 @@ export function ShapeCompositionEditor({
       .map((zone) => ({ project, zone })),
   );
   const [sourceId, setSourceId] = useState(
-    shape.composition?.sourceZoneId ?? sources[0]?.zone.id ?? '',
+    shape.composition?.sourceZoneId ?? sources.slice(0, 1).pop()?.zone.id ?? '',
   );
   const [blueprint, setBlueprint] = useState(
     shape.composition?.blueprintUrl ?? '',
   );
   const [parts, setParts] = useState(shape.composition?.parts ?? []);
+  const columns: FlatDataGridColumn<(typeof parts)[number]>[] = [
+    {
+      id: 'name',
+      header: 'Part Name',
+      width: 210,
+      sortValue: (part) => part.name,
+      cell: (part) => <>{part.name}</>,
+    },
+    {
+      id: 'revision',
+      header: 'Revision',
+      width: 180,
+      sortValue: (part) => part.revisionNumber,
+      cell: (part) => <>{part.revisionNumber}</>,
+    },
+    {
+      id: 'quantity',
+      header: '수량',
+      width: 180,
+      sortValue: (part) => part.quantity,
+      cell: (part) => <>{part.quantity}</>,
+    },
+  ];
   const [confirmed, setConfirmed] = useState(false);
   const [message, setMessage] = useState('');
   const source = sources.find(({ zone }) => zone.id === sourceId);
@@ -47,9 +75,10 @@ export function ShapeCompositionEditor({
             part.status === 'ACTIVE',
         )
         .map((part) => {
-          const revision = [...part.revisions].sort(
-            (a, b) => b.revisionNumber - a.revisionNumber,
-          )[0];
+          const revision = [...part.revisions]
+            .sort((a, b) => b.revisionNumber - a.revisionNumber)
+            .slice(0, 1)
+            .pop();
           return {
             designId: part.id,
             partId: part.libraryPartId,
@@ -144,31 +173,13 @@ export function ShapeCompositionEditor({
         <span>{parts.length} Parts</span>
       </div>
       <div className="shape-table-scroll">
-        <table className="shape-table">
-          <thead>
-            <tr>
-              <th>Part Name</th>
-              <th>Revision</th>
-              <th>수량</th>
-            </tr>
-          </thead>
-          <tbody>
-            {!parts.length && (
-              <tr>
-                <td colSpan={3} className="shape-composition-empty">
-                  원본 프로젝트를 선택하고 승인된 Part 목록을 가져오세요.
-                </td>
-              </tr>
-            )}
-            {parts.map((part) => (
-              <tr key={part.designId}>
-                <td>{part.name}</td>
-                <td>{part.revisionNumber}</td>
-                <td>{part.quantity}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <FlatDataGrid
+          label="Part 구성"
+          columns={columns}
+          rows={parts}
+          getRowId={(part) => part.designId}
+          emptyMessage="원본 프로젝트를 선택하고 승인된 Part 목록을 가져오세요."
+        />
       </div>
       {!matches && (
         <p className="shape-errors">
@@ -198,7 +209,9 @@ export function ShapeCompositionEditor({
       <label className="shape-check">
         <Checkbox
           checked={confirmed}
-          onCheckedChange={(value) => setConfirmed(value === true)}
+          onCheckedChange={(value) => {
+            setConfirmed(value === true);
+          }}
         />
         전체 Part 목록과 Blueprint가 일치하며 링크가 열리는지 확인했습니다.
         저장하면 이 Shape를 사용하는 프로젝트가 같은 구성을 참조합니다.
@@ -210,14 +223,18 @@ export function ShapeCompositionEditor({
         <Button
           variant="outline"
           disabled={!source}
-          onClick={() => save(false)}
+          onClick={() => {
+            save(false);
+          }}
         >
           임시 저장
         </Button>
         <Button
           variant="primary"
           disabled={!source || !matches || !validUrl || !confirmed}
-          onClick={() => save(true)}
+          onClick={() => {
+            save(true);
+          }}
         >
           구성 등록 완료
         </Button>

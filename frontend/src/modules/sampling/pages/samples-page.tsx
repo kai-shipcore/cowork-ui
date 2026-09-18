@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
 import { Card } from '@coverland-engineering/ui/card';
+import {
+  FlatDataGrid,
+  type FlatDataGridColumn,
+} from '@coverland-engineering/ui/flat-data-grid';
 import { Input } from '@coverland-engineering/ui/input';
 import {
   Select,
@@ -10,13 +14,10 @@ import {
   SelectValue,
 } from '@coverland-engineering/ui/select';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@coverland-engineering/ui/table';
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
 import { ClipboardList, List, PackageCheck, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
@@ -27,10 +28,7 @@ import {
 import { sampleRoundLabel } from '@/shared/domain/sample-request';
 import { PageHeader } from '@/shared/components/page-header';
 import { StatusBadge } from '@/shared/components/status-badge';
-import {
-  useWorkbenchPagination,
-  WorkbenchPagination,
-} from '@/shared/components/workbench-pagination';
+import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import type {
   SampleRequest,
   SampleRequestItem,
@@ -141,11 +139,224 @@ export function SamplesPage() {
   const visibleRequests = scopedRequests.filter(
     (request) => status === 'ALL' || matchesFilter(request, status),
   );
+  const columns: FlatDataGridColumn<(typeof visibleRequests)[number]>[] = [
+    {
+      id: 'request',
+      header: 'Request',
+      width: 210,
+      sortValue: (request) => request.id,
+      cell: (request) => (
+        <>
+          <button
+            type="button"
+            className="sample-id text-left underline-offset-4 hover:underline"
+            aria-label={`${request.id} 입고·검수 열기`}
+            onClick={() => {
+              setInspection({ requestId: request.id });
+            }}
+          >
+            {request.id}
+          </button>
+          <div className="vehicle-meta">
+            Created {request.createdAt.slice(0, 10)}
+          </div>
+        </>
+      ),
+    },
+    {
+      id: 'vehicle',
+      header: 'Project / Vehicle',
+      width: 180,
+      sortValue: (request) => request.vehicle,
+      cell: (request) => (
+        <>
+          <button
+            type="button"
+            disabled={!projectIds.has(request.projectGroupId)}
+            className="project-reference project-reference-link"
+            onClick={() => {
+              openProjectSamples(request.projectGroupId);
+            }}
+          >
+            {request.projectGroupId}
+          </button>
+          <div className="vehicle-name compact">{request.vehicle}</div>
+          <div className="vehicle-meta">{request.product}</div>
+        </>
+      ),
+    },
+    {
+      id: 'factory',
+      header: 'Factory / Sent',
+      width: 180,
+      sortValue: (request) => request.factory,
+      cell: (request) => (
+        <>
+          <strong>{request.factory}</strong>
+          <div className="vehicle-meta">
+            {request.sentAt
+              ? `Sent ${request.sentAt.slice(0, 10)} · ${request.sentBy ?? '—'}`
+              : 'Not sent'}
+          </div>
+        </>
+      ),
+    },
+    {
+      id: 'items',
+      header: 'Request Items',
+      width: 180,
+      sortValue: (request) => itemsOf(request, sampleRequestItems).length,
+      cell: (request) => {
+        const requestItems = itemsOf(request, sampleRequestItems);
+        const rounds = [
+          ...new Set(requestItems.map((item) => item.sampleRound)),
+        ];
+        return (
+          <>
+            <strong>{requestItems.length} lines</strong>
+            <div className="vehicle-meta">
+              Round {rounds.join(', ') || '—'} ·{' '}
+              {requestItems.filter((item) => item.priority === 'URGENT').length}{' '}
+              urgent
+            </div>
+            <div className="sample-line-list">
+              {requestItems.map((item) => (
+                <span key={item.id}>
+                  <code>{item.vehicleProductDesignId}</code>
+                  <small>
+                    {item.vehicleProductDesignRevisionId} ·{' '}
+                    {sampleRoundLabel(item.sampleRound)}
+                  </small>
+                  {item.priority === 'URGENT' && (
+                    <StatusBadge label="URGENT" tone="danger" />
+                  )}
+                </span>
+              ))}
+            </div>
+          </>
+        );
+      },
+    },
+    {
+      id: 'shipment',
+      header: 'Shipment',
+      width: 180,
+      cell: (request) => {
+        const requestItems = itemsOf(request, sampleRequestItems);
+        const shipments = shipmentsOf(requestItems, sampleShipments);
+        return (
+          <>
+            {shipments.length ? (
+              shipments.map((shipment) => (
+                <ShipmentSummary key={shipment.id} shipment={shipment} />
+              ))
+            ) : (
+              <span className="muted-text">Not assigned</span>
+            )}
+          </>
+        );
+      },
+    },
+    {
+      id: 'lifecycle',
+      header: 'Lifecycle',
+      width: 180,
+      sortValue: (request) => lifecycle(request),
+      cell: (request) => {
+        const state = lifecycle(request);
+        return (
+          <>
+            <StatusBadge
+              label={state.replace('_', ' ')}
+              tone={
+                state === 'ARRIVED'
+                  ? 'success'
+                  : state === 'IN_TRANSIT'
+                    ? 'progress'
+                    : state === 'SENT'
+                      ? 'warning'
+                      : 'neutral'
+              }
+            />
+          </>
+        );
+      },
+    },
+    {
+      id: 'inspection',
+      header: '검수 결과',
+      width: 180,
+      cell: (request) => {
+        const requestItems = itemsOf(request, sampleRequestItems);
+        return (
+          <>
+            <InspectionSummary
+              items={requestItems}
+              onOpen={() => {
+                setInspection({ requestId: request.id });
+              }}
+            />
+          </>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      header: '작업',
+      width: 180,
+      hideable: false,
+      cell: (request) => {
+        const state = lifecycle(request);
+        return (
+          <div className="table-actions">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setInspection({ requestId: request.id });
+              }}
+            >
+              입고·검수
+            </Button>
+            {state !== 'ARRIVED' && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  advance(request);
+                }}
+              >
+                {state === 'DRAFT'
+                  ? 'Send Request'
+                  : state === 'SENT'
+                    ? 'Create Shipment'
+                    : 'Mark Arrived'}
+              </Button>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
+  const gridTable = useReactTable({
+    // Paging is owned by the surrounding filters and the shared grid pager.
+    autoResetPageIndex: false,
+    data: [...visibleRequests],
+    columns: columns.map((column) => ({
+      id: column.id,
+      accessorFn: column.sortValue,
+      sortUndefined: 'last',
+    })),
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+  const sortedRows = gridTable.getRowModel().rows.map((row) => row.original);
+  const activeSort = gridTable.getState().sorting.slice(0, 1).pop();
   const {
     pageItems: pagedRequests,
     pagination,
     setPagination,
-  } = useWorkbenchPagination(visibleRequests, `${query}|${factory}|${status}`);
+  } = useWorkbenchPagination(sortedRows, `${query}|${factory}|${status}`);
   const trackingRows = toSampleTrackingRows({
     requests: visibleRequests,
     items:
@@ -161,7 +372,7 @@ export function SamplesPage() {
 
   function openProjectSamples(projectId: string): void {
     if (projectIds.has(projectId))
-      navigate(
+      void navigate(
         `${ROUTES.vehicleProjects}?project=${encodeURIComponent(projectId)}&tab=samples`,
       );
   }
@@ -281,11 +492,11 @@ export function SamplesPage() {
             type="button"
             className="summary-card-button"
             aria-pressed={status === card.status}
-            onClick={() =>
+            onClick={() => {
               setStatus((current) =>
                 current === card.status ? 'ALL' : card.status,
-              )
-            }
+              );
+            }}
             key={card.status}
           >
             <Card
@@ -319,7 +530,9 @@ export function SamplesPage() {
               type="button"
               className="stage-tab"
               aria-pressed={view === 'REQUESTS'}
-              onClick={() => setView('REQUESTS')}
+              onClick={() => {
+                setView('REQUESTS');
+              }}
             >
               <ClipboardList aria-hidden="true" />
               Requests
@@ -329,7 +542,9 @@ export function SamplesPage() {
               type="button"
               className="stage-tab"
               aria-pressed={view === 'PARTS'}
-              onClick={() => setView('PARTS')}
+              onClick={() => {
+                setView('PARTS');
+              }}
             >
               <List aria-hidden="true" />
               Part Lines
@@ -345,7 +560,9 @@ export function SamplesPage() {
                 aria-label="Request, Project, 차량, 공장, 송장번호 검색"
                 placeholder="Request / Project / 차량 / 송장번호"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                }}
               />
             </div>
             <Select value={factory} onValueChange={setFactory}>
@@ -382,9 +599,9 @@ export function SamplesPage() {
             rows={trackingRows}
             filterKey={`${query}|${factory}|${status}`}
             onOpenProject={openProjectSamples}
-            onInspect={(row) =>
-              setInspection({ requestId: row.requestId, itemId: row.id })
-            }
+            onInspect={(row) => {
+              setInspection({ requestId: row.requestId, itemId: row.id });
+            }}
             renderInspection={(row) => {
               const item = sampleRequestItems.find(
                 (item) => item.id === row.id,
@@ -394,172 +611,47 @@ export function SamplesPage() {
           />
         ) : visibleRequests.length ? (
           <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Request</TableHead>
-                  <TableHead>Project / Vehicle</TableHead>
-                  <TableHead>Factory / Sent</TableHead>
-                  <TableHead>Request Items</TableHead>
-                  <TableHead>Shipment</TableHead>
-                  <TableHead>Lifecycle</TableHead>
-                  <TableHead>검수 결과</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pagedRequests.map((request) => {
-                  const requestItems = itemsOf(request, sampleRequestItems);
-                  const shipments = shipmentsOf(requestItems, sampleShipments);
-                  const state = lifecycle(request);
-                  const rounds = [
-                    ...new Set(requestItems.map((item) => item.sampleRound)),
-                  ];
-                  return (
-                    <TableRow
-                      key={request.id}
-                      className="cursor-pointer"
-                      onClick={(event) => {
-                        if (
-                          !(event.target as HTMLElement).closest(
-                            'button, a, input, select',
-                          )
-                        )
-                          setInspection({ requestId: request.id });
-                      }}
-                    >
-                      <TableCell>
-                        <button
-                          type="button"
-                          className="sample-id text-left underline-offset-4 hover:underline"
-                          aria-label={`${request.id} 입고·검수 열기`}
-                          onClick={() =>
-                            setInspection({ requestId: request.id })
-                          }
-                        >
-                          {request.id}
-                        </button>
-                        <div className="vehicle-meta">
-                          Created {request.createdAt.slice(0, 10)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <button
-                          type="button"
-                          disabled={!projectIds.has(request.projectGroupId)}
-                          className="project-reference project-reference-link"
-                          onClick={() =>
-                            openProjectSamples(request.projectGroupId)
-                          }
-                        >
-                          {request.projectGroupId}
-                        </button>
-                        <div className="vehicle-name compact">
-                          {request.vehicle}
-                        </div>
-                        <div className="vehicle-meta">{request.product}</div>
-                      </TableCell>
-                      <TableCell>
-                        <strong>{request.factory}</strong>
-                        <div className="vehicle-meta">
-                          {request.sentAt
-                            ? `Sent ${request.sentAt.slice(0, 10)} · ${request.sentBy}`
-                            : 'Not sent'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <strong>{requestItems.length} lines</strong>
-                        <div className="vehicle-meta">
-                          Round {rounds.join(', ') || '—'} ·{' '}
-                          {
-                            requestItems.filter(
-                              (item) => item.priority === 'URGENT',
-                            ).length
-                          }{' '}
-                          urgent
-                        </div>
-                        <div className="sample-line-list">
-                          {requestItems.map((item) => (
-                            <span key={item.id}>
-                              <code>{item.vehicleProductDesignId}</code>
-                              <small>
-                                {item.vehicleProductDesignRevisionId} ·{' '}
-                                {sampleRoundLabel(item.sampleRound)}
-                              </small>
-                              {item.priority === 'URGENT' && (
-                                <StatusBadge label="URGENT" tone="danger" />
-                              )}
-                            </span>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {shipments.length ? (
-                          shipments.map((shipment) => (
-                            <ShipmentSummary
-                              key={shipment.id}
-                              shipment={shipment}
-                            />
-                          ))
-                        ) : (
-                          <span className="muted-text">Not assigned</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge
-                          label={state.replace('_', ' ')}
-                          tone={
-                            state === 'ARRIVED'
-                              ? 'success'
-                              : state === 'IN_TRANSIT'
-                                ? 'progress'
-                                : state === 'SENT'
-                                  ? 'warning'
-                                  : 'neutral'
-                          }
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <InspectionSummary
-                          items={requestItems}
-                          onOpen={() =>
-                            setInspection({ requestId: request.id })
-                          }
-                        />
-                      </TableCell>
-                      <TableCell className="table-actions">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            setInspection({ requestId: request.id })
-                          }
-                        >
-                          입고·검수
-                        </Button>
-                        {state !== 'ARRIVED' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => advance(request)}
-                          >
-                            {state === 'DRAFT'
-                              ? 'Send Request'
-                              : state === 'SENT'
-                                ? 'Create Shipment'
-                                : 'Mark Arrived'}
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
+            <FlatDataGrid
+              embedded
+              label="Sample Requests"
+              columns={columns}
+              rows={pagedRequests}
+              getRowId={(request) => request.id}
+              onRowClick={(request) => {
+                setInspection({ requestId: request.id });
+              }}
+              rowActionLabel={(request) => `${request.id} 입고·검수 열기`}
+              pagination={{
+                page: pagination.pageIndex + 1,
+                pageSize: pagination.pageSize,
+                totalCount: visibleRequests.length,
+                pageSizeOptions: [5, 10, 25],
+                onPageChange: (page) => {
+                  setPagination((current) => ({
+                    ...current,
+                    pageIndex: page - 1,
+                  }));
+                },
+                onPageSizeChange: (pageSize) => {
+                  setPagination({ pageIndex: 0, pageSize });
+                },
+              }}
+              sorting={{
+                mode: 'manual',
+                value: activeSort
+                  ? {
+                      id: activeSort.id,
+                      direction: activeSort.desc ? 'desc' : 'asc',
+                    }
+                  : null,
+                onChange: (sort) => {
+                  gridTable.setSorting(
+                    sort
+                      ? [{ id: sort.id, desc: sort.direction === 'desc' }]
+                      : [],
                   );
-                })}
-              </TableBody>
-            </Table>
-            <WorkbenchPagination
-              recordCount={visibleRequests.length}
-              pagination={pagination}
-              onPaginationChange={setPagination}
+                },
+              }}
             />
           </>
         ) : (
@@ -574,20 +666,26 @@ export function SamplesPage() {
         <ShipmentDialog
           subject={shippingRequest.id}
           factory={shippingRequest.factory}
-          onClose={() => setShippingRequest(undefined)}
-          onSubmit={(details) => createShipment(shippingRequest, details)}
+          onClose={() => {
+            setShippingRequest(undefined);
+          }}
+          onSubmit={(details) => {
+            createShipment(shippingRequest, details);
+          }}
         />
       )}
       {inspection && (
         <InspectionDialog
           key={inspection.requestId}
           {...inspection}
-          onClose={() => setInspection(undefined)}
-          onSaved={() =>
+          onClose={() => {
+            setInspection(undefined);
+          }}
+          onSaved={() => {
             setInspectionMessage(
               `${inspection.requestId} 검수 결과가 저장되었습니다.`,
-            )
-          }
+            );
+          }}
         />
       )}
     </section>

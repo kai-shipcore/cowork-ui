@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
 import { Card } from '@coverland-engineering/ui/card';
+import {
+  FlatDataGrid,
+  type FlatDataGridColumn,
+} from '@coverland-engineering/ui/flat-data-grid';
 import { Input } from '@coverland-engineering/ui/input';
 import {
   Select,
@@ -11,20 +15,14 @@ import {
 } from '@coverland-engineering/ui/select';
 import { Switch } from '@coverland-engineering/ui/switch';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@coverland-engineering/ui/table';
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
 import { ClipboardCheck, Search, Shapes } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { PageHeader } from '@/shared/components/page-header';
-import {
-  useWorkbenchPagination,
-  WorkbenchPagination,
-} from '@/shared/components/workbench-pagination';
+import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import {
   PRODUCT_TYPES,
   type VehicleProductShape,
@@ -73,11 +71,153 @@ export function ProductShapesPage() {
       (status === 'ALL' || shape.status === status) &&
       `${shape.name} ${shape.id}`.toLowerCase().includes(query.toLowerCase()),
   );
+  const columns: FlatDataGridColumn<(typeof filtered)[number]>[] = [
+    {
+      id: 'shape',
+      header: 'Shape',
+      width: 210,
+      sortValue: (shape) => shape.name,
+      cell: (shape) => (
+        <>
+          <strong>{shape.name}</strong>
+          <div className="vehicle-meta">{shape.id}</div>
+        </>
+      ),
+    },
+    {
+      id: 'product',
+      header: '제품 유형',
+      width: 180,
+      sortValue: (shape) =>
+        PRODUCT_TYPES.find((item) => item.id === shape.productTypeId)
+          ?.product ?? shape.productTypeId,
+      cell: (shape) => (
+        <>
+          {PRODUCT_TYPES.find((item) => item.id === shape.productTypeId)
+            ?.product ?? shape.productTypeId}
+        </>
+      ),
+    },
+    {
+      id: 'status',
+      header: '상태',
+      width: 180,
+      sortValue: (shape) => SHAPE_STATUSES[shape.status],
+      cell: (shape) => <>{SHAPE_STATUSES[shape.status]}</>,
+    },
+    {
+      id: 'dimensions',
+      header: '치수',
+      width: 180,
+      cell: (shape) => <>{dimensionsLabel(shape.dimensions)}</>,
+    },
+    {
+      id: 'composition',
+      header: '구성 등록',
+      width: 180,
+      cell: (shape) => (
+        <>
+          {compositionIsCurrent(shape, projectDetails)
+            ? '구성 등록 완료'
+            : shape.composition?.status === 'COMPLETE'
+              ? '원본 변경 · 재확인 필요'
+              : shape.composition
+                ? '작성 중'
+                : '구성 등록 대기'}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setCompositionId(shape.id);
+            }}
+          >
+            Part / Blueprint
+          </Button>
+        </>
+      ),
+    },
+    {
+      id: 'projects',
+      header: '적용 프로젝트',
+      width: 180,
+      sortValue: (shape) => shapeUsage(shape.id, projects).length,
+      cell: (shape) => {
+        const usage = shapeUsage(shape.id, projects);
+        return (
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setExpanded(expanded === shape.id ? undefined : shape.id);
+              }}
+              aria-expanded={expanded === shape.id}
+            >
+              {usage.length}개 · 보기
+            </Button>
+            {expanded === shape.id && (
+              <div className="shape-usage">
+                {usage.length ? (
+                  usage.map(({ project, zone }) => (
+                    <Link
+                      key={zone.id}
+                      to={`/vehicle-projects?project=${encodeURIComponent(project.id)}&zone=${encodeURIComponent(zone.code)}&tab=overview`}
+                    >
+                      {project.vehicle} · {zone.code} · {zone.currentStage}
+                    </Link>
+                  ))
+                ) : (
+                  <span>연결된 프로젝트가 없습니다.</span>
+                )}
+              </div>
+            )}
+          </>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      header: '작업',
+      width: 180,
+      hideable: false,
+      cell: (shape) => (
+        <div className="table-actions">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setEditing(shape);
+            }}
+          >
+            수정
+          </Button>
+        </div>
+      ),
+    },
+  ];
+  const gridTable = useReactTable({
+    // Paging is owned by the surrounding filters and the shared grid pager.
+    autoResetPageIndex: false,
+    data: [...filtered],
+    columns: columns.map((column) => ({
+      id: column.id,
+      accessorFn: column.sortValue,
+      sortUndefined: 'last',
+    })),
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+  const sortedRows = gridTable.getRowModel().rows.map((row) => row.original);
+  const activeSort = gridTable.getState().sorting.slice(0, 1).pop();
   const {
     pageItems: pagedShapes,
     pagination,
     setPagination,
-  } = useWorkbenchPagination(filtered, `${view}|${query}|${product}|${status}`);
+  } = useWorkbenchPagination(
+    sortedRows,
+    `${view}|${query}|${product}|${status}`,
+  );
+  const compositionShape = shapes.find((shape) => shape.id === compositionId);
+
   return (
     <section className="shape-management">
       <PageHeader
@@ -97,7 +237,9 @@ export function ProductShapesPage() {
                 key={value}
                 className="stage-tab"
                 aria-pressed={view === value}
-                onClick={() => setParams({ view: value })}
+                onClick={() => {
+                  setParams({ view: value });
+                }}
               >
                 <Icon aria-hidden="true" />
                 {label}
@@ -115,7 +257,9 @@ export function ProductShapesPage() {
                     aria-label="Make 또는 Model 검색"
                     placeholder="Make / Model 검색"
                     value={reviewQuery}
-                    onChange={(event) => setReviewQuery(event.target.value)}
+                    onChange={(event) => {
+                      setReviewQuery(event.target.value);
+                    }}
                   />
                 </div>
                 <label className="collapse-all-toggle">
@@ -135,7 +279,9 @@ export function ProductShapesPage() {
                     aria-label="Shape 검색"
                     placeholder="Shape 번호 또는 ID 검색"
                     value={query}
-                    onChange={(event) => setQuery(event.target.value)}
+                    onChange={(event) => {
+                      setQuery(event.target.value);
+                    }}
                   />
                 </div>
                 <Select value={product} onValueChange={setProduct}>
@@ -176,7 +322,10 @@ export function ProductShapesPage() {
           <div className="grid-toolbar-actions">
             <Button
               variant="outline"
-              onClick={() => navigate('/vehicle-projects')}
+              onClick={() => {
+                // React Router handles route errors; the click does not await navigation.
+                void navigate('/vehicle-projects');
+              }}
             >
               개발 프로젝트
             </Button>
@@ -197,114 +346,56 @@ export function ProductShapesPage() {
                 Part 구성·수정 버전과 피팅 결과는 각 프로젝트에서 관리합니다.
               </p>
             </div>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Shape</TableHead>
-                  <TableHead>제품 유형</TableHead>
-                  <TableHead>상태</TableHead>
-                  <TableHead>치수</TableHead>
-                  <TableHead>구성 등록</TableHead>
-                  <TableHead>적용 프로젝트</TableHead>
-                  <TableHead className="action-column" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pagedShapes.map((shape) => {
-                  const usage = shapeUsage(shape.id, projects);
-                  return (
-                    <TableRow key={shape.id}>
-                      <TableCell>
-                        <strong>{shape.name}</strong>
-                        <div className="vehicle-meta">{shape.id}</div>
-                      </TableCell>
-                      <TableCell>
-                        {PRODUCT_TYPES.find(
-                          (item) => item.id === shape.productTypeId,
-                        )?.product ?? shape.productTypeId}
-                      </TableCell>
-                      <TableCell>{SHAPE_STATUSES[shape.status]}</TableCell>
-                      <TableCell>{dimensionsLabel(shape.dimensions)}</TableCell>
-                      <TableCell>
-                        {compositionIsCurrent(shape, projectDetails)
-                          ? '구성 등록 완료'
-                          : shape.composition?.status === 'COMPLETE'
-                            ? '원본 변경 · 재확인 필요'
-                            : shape.composition
-                              ? '작성 중'
-                              : '구성 등록 대기'}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setCompositionId(shape.id)}
-                        >
-                          Part / Blueprint
-                        </Button>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          onClick={() =>
-                            setExpanded(
-                              expanded === shape.id ? undefined : shape.id,
-                            )
-                          }
-                          aria-expanded={expanded === shape.id}
-                        >
-                          {usage.length}개 · 보기
-                        </Button>
-                        {expanded === shape.id && (
-                          <div className="shape-usage">
-                            {usage.length ? (
-                              usage.map(({ project, zone }) => (
-                                <Link
-                                  key={zone.id}
-                                  to={`/vehicle-projects?project=${encodeURIComponent(project.id)}&zone=${encodeURIComponent(zone.code)}&tab=overview`}
-                                >
-                                  {project.vehicle} · {zone.code} ·{' '}
-                                  {zone.currentStage}
-                                </Link>
-                              ))
-                            ) : (
-                              <span>연결된 프로젝트가 없습니다.</span>
-                            )}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="table-actions">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEditing(shape)}
-                        >
-                          수정
-                        </Button>
-                      </TableCell>
-                    </TableRow>
+            <FlatDataGrid
+              embedded
+              label="Shapes"
+              columns={columns}
+              rows={pagedShapes}
+              getRowId={(shape) => shape.id}
+              emptyMessage="검색 조건에 맞는 Shape가 없습니다."
+
+              pagination={{
+                page: pagination.pageIndex + 1,
+                pageSize: pagination.pageSize,
+                totalCount: filtered.length,
+                pageSizeOptions: [5, 10, 25],
+                onPageChange: (page) => {
+                  setPagination((current) => ({
+                    ...current,
+                    pageIndex: page - 1,
+                  }));
+                },
+                onPageSizeChange: (pageSize) => {
+                  setPagination({ pageIndex: 0, pageSize });
+                },
+              }}
+              sorting={{
+                mode: 'manual',
+                value: activeSort
+                  ? {
+                      id: activeSort.id,
+                      direction: activeSort.desc ? 'desc' : 'asc',
+                    }
+                  : null,
+                onChange: (sort) => {
+                  gridTable.setSorting(
+                    sort
+                      ? [{ id: sort.id, desc: sort.direction === 'desc' }]
+                      : [],
                   );
-                })}
-                {!filtered.length && (
-                  <TableRow>
-                    <TableCell colSpan={7}>
-                      검색 조건에 맞는 Shape가 없습니다.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-            <WorkbenchPagination
-              recordCount={filtered.length}
-              pagination={pagination}
-              onPaginationChange={setPagination}
+                },
+              }}
             />
           </>
         )}
       </Card>
-      {compositionId && shapes.find((shape) => shape.id === compositionId) && (
+      {compositionShape && (
         <ShapeCompositionEditor
           key={compositionId}
-          shape={shapes.find((shape) => shape.id === compositionId)!}
-          onClose={() => setCompositionId(undefined)}
+          shape={compositionShape}
+          onClose={() => {
+            setCompositionId(undefined);
+          }}
         />
       )}
       {editing && (
@@ -315,7 +406,9 @@ export function ProductShapesPage() {
           usageCount={
             editing === 'NEW' ? 0 : shapeUsage(editing.id, projects).length
           }
-          onClose={() => setEditing(undefined)}
+          onClose={() => {
+            setEditing(undefined);
+          }}
           onSave={(shape) => {
             setVehicleProductShapes((current) => [
               ...current.filter((item) => item.id !== shape.id),

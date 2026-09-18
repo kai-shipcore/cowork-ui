@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
-import { Card, CardTable } from '@coverland-engineering/ui/card';
 import {
   Dialog,
   DialogBody,
@@ -9,6 +8,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@coverland-engineering/ui/dialog';
+import {
+  GroupedDataGrid,
+  type GroupedDataGridColumn,
+  type GroupedDataGridGroup,
+} from '@coverland-engineering/ui/grouped-data-grid';
 import { Input } from '@coverland-engineering/ui/input';
 import {
   Select,
@@ -17,35 +21,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@coverland-engineering/ui/select';
-import { Switch } from '@coverland-engineering/ui/switch';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@coverland-engineering/ui/table';
-import {
-  CarFront,
-  ChevronDown,
-  ChevronRight,
-  Plus,
-  Search,
-  Truck,
-  X,
-} from 'lucide-react';
+import { CarFront, Plus, Truck, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { ConfigChips } from '@/shared/domain/config-chips';
 import { PageHeader } from '@/shared/components/page-header';
 import { StatusBadge } from '@/shared/components/status-badge';
-import {
-  useWorkbenchPagination,
-  WorkbenchPagination,
-} from '@/shared/components/workbench-pagination';
+import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import type { VehicleConfiguration } from '@/shared/types/workbench';
 import { useWorkbenchStore } from '@/app/workbench-store';
+import { groupVehicleResearch } from '../vehicle-research-grid-model';
 
 const RESEARCH_STATUS_FILTERS = [
   { label: 'All', value: 'ALL' },
@@ -66,13 +51,6 @@ const INITIAL_CRITERIA: readonly ConfigurationCriterion[] = [
   { id: 3, title: '2nd Row Seat', value: 'Bench' },
 ];
 
-function vehicleParts(vehicle: string) {
-  const match = vehicle.match(/^(\d{4}(?:–\d{4})?)\s+(.+)$/);
-  return match
-    ? { years: match[1], name: match[2] }
-    : { years: '', name: vehicle };
-}
-
 /** Vehicle and option-combination research registry. */
 export function VehicleResearchPage() {
   const navigate = useNavigate();
@@ -86,17 +64,18 @@ export function VehicleResearchPage() {
   // The option dictionary lives in vehicle_option_key /
   // vehicle_option_value; this screen only reads it. Manage it in
   // Vehicle Options.
-  const configurationValues: Readonly<Record<string, readonly string[]>> =
-    Object.fromEntries(
-      vehicleOptionKeys
-        .filter((optionKey) => optionKey.productTypeId === 'PT-SC')
-        .map((optionKey) => [
-          optionKey.name,
-          vehicleOptionValues
-            .filter((value) => value.vehicleOptionKeyId === optionKey.id)
-            .map((value) => value.value),
-        ]),
-    );
+  const configurationValues: Readonly<
+    Partial<Record<string, readonly string[]>>
+  > = Object.fromEntries(
+    vehicleOptionKeys
+      .filter((optionKey) => optionKey.productTypeId === 'PT-SC')
+      .map((optionKey) => [
+        optionKey.name,
+        vehicleOptionValues
+          .filter((value) => value.vehicleOptionKeyId === optionKey.id)
+          .map((value) => value.value),
+      ]),
+  );
   const [query, setQuery] = useState('');
   const [collapsedVehicles, setCollapsedVehicles] = useState<
     ReadonlySet<string>
@@ -142,28 +121,12 @@ export function VehicleResearchPage() {
     (configuration) =>
       status === 'ALL' || configuration.researchStatus === status,
   );
-  const vehicleGroups = Array.from(
-    visibleConfigurations.reduce((groups, configuration) => {
-      const current = groups.get(configuration.vehicle) ?? [];
-      groups.set(configuration.vehicle, [...current, configuration]);
-      return groups;
-    }, new Map<string, VehicleConfiguration[]>()),
-  ).map(([vehicle, groupedConfigurations]) => ({
-    vehicle,
-    configurations: groupedConfigurations,
-    vehicleClass: groupedConfigurations[0]?.vehicleClass ?? '',
-  }));
+  const vehicleGroups = groupVehicleResearch(visibleConfigurations);
   const {
     pageItems: pagedVehicleGroups,
     pagination,
     setPagination,
   } = useWorkbenchPagination(vehicleGroups, `${query}|${status}|${product}`);
-  const allVehicles = Array.from(
-    new Set(configurations.map((configuration) => configuration.vehicle)),
-  );
-  const allCollapsed =
-    allVehicles.length > 0 &&
-    allVehicles.every((vehicle) => collapsedVehicles.has(vehicle));
 
   function addMockVehicle(): void {
     const newConfiguration: VehicleConfiguration = {
@@ -189,24 +152,8 @@ export function VehicleResearchPage() {
     setConfigurationDialogOpen(true);
   }
 
-  function setAllCollapsed(collapsed: boolean): void {
-    setCollapsedVehicles(collapsed ? new Set(allVehicles) : new Set());
-  }
-
-  function toggleVehicle(vehicle: string): void {
-    setCollapsedVehicles((current) => {
-      const next = new Set(current);
-      if (next.has(vehicle)) {
-        next.delete(vehicle);
-      } else {
-        next.add(vehicle);
-      }
-      return next;
-    });
-  }
-
   function updateCriterionTitle(criterionId: number, title: string): void {
-    const firstValue = configurationValues[title]?.[0] ?? '';
+    const firstValue = configurationValues[title]?.slice(0, 1).pop() ?? '';
     setCriteria((current) =>
       current.map((criterion) =>
         criterion.id === criterionId
@@ -236,7 +183,7 @@ export function VehicleResearchPage() {
       {
         id: nextId,
         title: unusedTitle,
-        value: configurationValues[unusedTitle]?.[0] ?? '',
+        value: configurationValues[unusedTitle]?.slice(0, 1).pop() ?? '',
       },
     ]);
   }
@@ -273,6 +220,130 @@ export function VehicleResearchPage() {
     );
   }
 
+  const columns: GroupedDataGridColumn<VehicleConfiguration>[] = [
+    {
+      id: 'configuration',
+      header: 'Configuration',
+      width: 480,
+      hideable: false,
+      sortValue: (configuration) =>
+        configuration.options
+          .map(([name, value]) => `${name}: ${value}`)
+          .join(' / '),
+      cell: (configuration) => <ConfigChips options={configuration.options} />,
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      width: 150,
+      sortValue: (configuration) => configuration.researchStatus,
+      cell: (configuration) => (
+        <StatusBadge
+          label={configuration.researchStatus}
+          tone={
+            configuration.researchStatus === 'COMPLETE' ? 'success' : 'progress'
+          }
+        />
+      ),
+    },
+    {
+      id: 'development',
+      header: 'Development',
+      width: 420,
+      sortValue: (configuration) => configuration.projectGroupIds.length,
+      cell: (configuration) => {
+        const linkedProjects = configuration.projectGroupIds.map((id) => ({
+          id,
+          project: projects.find((project) => project.id === id),
+        }));
+        return linkedProjects.length ? (
+          <div className="development-project-list">
+            {linkedProjects.map(({ id, project }) => (
+              <button
+                type="button"
+                className="development-project-card"
+                key={id}
+                onClick={() => {
+                  // React Router handles route errors; the click does not await navigation.
+                  void navigate(
+                    `${ROUTES.vehicleProjects}?project=${encodeURIComponent(id)}`,
+                  );
+                }}
+              >
+                <span>
+                  <strong>{project?.product ?? 'Development'}</strong>
+                  <small>{id}</small>
+                </span>
+                <StatusBadge
+                  label={project?.stage ?? 'PROJECT'}
+                  tone="progress"
+                />
+              </button>
+            ))}
+          </div>
+        ) : configuration.researchStatus === 'COMPLETE' ? (
+          <div className="development-empty-state">
+            <span>No development yet</span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                // React Router handles route errors; the click does not await navigation.
+                void navigate(
+                  `${ROUTES.vehicleProjects}?new=1&configuration=${encodeURIComponent(configuration.id)}`,
+                );
+              }}
+            >
+              <Plus /> Start Development
+            </Button>
+          </div>
+        ) : (
+          <div className="development-locked-state">
+            <span>Available after Research Complete</span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                completeResearch(configuration);
+              }}
+            >
+              Research Complete
+            </Button>
+          </div>
+        );
+      },
+    },
+  ];
+  const groups: GroupedDataGridGroup<VehicleConfiguration>[] =
+    pagedVehicleGroups.map((group) => {
+      const firstConfiguration = group.rows.slice(0, 1).pop();
+      return {
+        id: group.id,
+        title: group.title,
+        description: group.description,
+        rows: group.rows,
+        meta: (
+          <>
+            <span className="research-vehicle-icon" aria-hidden="true">
+              {group.vehicleClass === 'Truck' ? <Truck /> : <CarFront />}
+            </span>
+            {firstConfiguration && (
+              <Button
+                size="sm"
+                variant="dashed"
+                aria-label={`${group.id} Configuration 추가`}
+                onClick={() => {
+                  openConfigurationDialog(firstConfiguration);
+                }}
+              >
+                <Plus /> Configuration
+              </Button>
+            )}
+          </>
+        ),
+      };
+    });
+
   return (
     <section>
       <PageHeader
@@ -292,243 +363,94 @@ export function VehicleResearchPage() {
         }
       />
 
-      <Card className="research-vehicle-card">
-        <div className="grid-toolbar">
-          <div className="grid-toolbar-filters">
-            <label className="collapse-all-toggle">
-              <Switch
-                size="sm"
-                checked={allCollapsed}
-                onCheckedChange={setAllCollapsed}
-              />
-              All Collapse
-            </label>
-            <div className="search-field">
-              <Search aria-hidden="true" />
-              <Input
-                aria-label="Make 또는 Model 검색"
-                placeholder="Make / Model 검색"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-            </div>
-            <Select value={product} onValueChange={setProduct}>
-              <SelectTrigger
-                aria-label="Product 필터"
-                className="filter-select wide"
+      <GroupedDataGrid
+        label="Vehicle Research"
+        columns={columns}
+        groups={groups}
+        getRowId={(configuration) => configuration.id}
+        collapsedGroupIds={collapsedVehicles}
+        onCollapsedGroupIdsChange={setCollapsedVehicles}
+        sorting={{ mode: 'client' }}
+        colors={{
+          primary: '#2F80FF',
+          primaryForeground: '#FFFFFF',
+          primarySoft: '#EFF6FF',
+        }}
+        search={{
+          label: 'Make 또는 Model 검색',
+          placeholder: 'Make / Model 검색',
+          value: query,
+          onChange: setQuery,
+        }}
+        filters={[
+          {
+            id: 'product',
+            label: 'Product 필터',
+            value: product,
+            onChange: setProduct,
+            options: [
+              { value: 'ALL', label: 'All' },
+              { value: 'Seat Cover', label: 'Seat Cover' },
+              { value: 'Car Cover', label: 'Car Cover' },
+              { value: 'Floor Mat', label: 'Floor Mat' },
+            ],
+          },
+        ]}
+        toolbarContent={
+          <div className="stage-tabs" role="group" aria-label="Research 상태">
+            {RESEARCH_STATUS_FILTERS.map((filter) => (
+              <button
+                type="button"
+                key={filter.value}
+                className="stage-tab"
+                aria-pressed={status === filter.value}
+                onClick={() => {
+                  setStatus(filter.value);
+                }}
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Product: All</SelectItem>
-                <SelectItem value="Seat Cover">Seat Cover</SelectItem>
-                <SelectItem value="Car Cover">Car Cover</SelectItem>
-                <SelectItem value="Floor Mat">Floor Mat</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="stage-tabs" role="group" aria-label="Research 상태">
-              {RESEARCH_STATUS_FILTERS.map((filter) => (
-                <button
-                  type="button"
-                  key={filter.value}
-                  className="stage-tab"
-                  aria-pressed={status === filter.value}
-                  onClick={() => setStatus(filter.value)}
-                >
-                  {filter.label}
-                  <span className="stage-tab-count">
-                    {statusCounts.get(filter.value) ?? 0}
-                  </span>
-                </button>
-              ))}
-            </div>
+                {filter.label}
+                <span className="stage-tab-count">
+                  {statusCounts.get(filter.value) ?? 0}
+                </span>
+              </button>
+            ))}
           </div>
-          <div className="grid-toolbar-actions">
+        }
+        actions={
+          <>
             <Button
               variant="outline"
-              onClick={() => navigate(ROUTES.vehicleOptions)}
+              onClick={() => {
+                // React Router handles route errors; the click does not await navigation.
+                void navigate(ROUTES.vehicleOptions);
+              }}
             >
               차량 옵션 관리
             </Button>
-            <Button variant="primary" onClick={() => setDialogOpen(true)}>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setDialogOpen(true);
+              }}
+            >
               <Plus /> 차량 등록
             </Button>
-          </div>
-        </div>
-        <CardTable>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="research-configuration-column">
-                  Configuration
-                </TableHead>
-                <TableHead className="research-status-column">Status</TableHead>
-                <TableHead>Development</TableHead>
-              </TableRow>
-            </TableHeader>
-            {pagedVehicleGroups.map((group) => {
-              const vehicle = vehicleParts(group.vehicle);
-              const collapsed = collapsedVehicles.has(group.vehicle);
-              return (
-                <TableBody key={group.vehicle}>
-                  <TableRow className="research-vehicle-group-row">
-                    <TableCell colSpan={3}>
-                      <div className="research-vehicle-header">
-                        <div>
-                          <h2>
-                            <button
-                              type="button"
-                              className="research-vehicle-toggle"
-                              aria-expanded={!collapsed}
-                              aria-label={`${vehicle.name} configurations ${collapsed ? 'expand' : 'collapse'}`}
-                              onClick={() => toggleVehicle(group.vehicle)}
-                            >
-                              {collapsed ? (
-                                <ChevronRight aria-hidden="true" />
-                              ) : (
-                                <ChevronDown aria-hidden="true" />
-                              )}
-                              <span
-                                className="research-vehicle-icon"
-                                aria-hidden="true"
-                              >
-                                {group.vehicleClass === 'Truck' ? (
-                                  <Truck />
-                                ) : (
-                                  <CarFront />
-                                )}
-                              </span>
-                              {vehicle.name}
-                            </button>
-                          </h2>
-                          <span>
-                            {vehicle.years} · {group.vehicleClass}
-                          </span>
-                          <small>
-                            {group.configurations.length} Configurations
-                          </small>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="dashed"
-                          onClick={() =>
-                            openConfigurationDialog(group.configurations[0])
-                          }
-                        >
-                          <Plus /> Configuration
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                  {!collapsed &&
-                    group.configurations.map((configuration) => {
-                      const linkedProjects = configuration.projectGroupIds.map(
-                        (projectId) => ({
-                          id: projectId,
-                          project: projects.find(
-                            (project) => project.id === projectId,
-                          ),
-                        }),
-                      );
-                      return (
-                        <TableRow key={configuration.id}>
-                          <TableCell className="research-configuration-cell">
-                            <ConfigChips options={configuration.options} />
-                          </TableCell>
-                          <TableCell>
-                            <StatusBadge
-                              label={
-                                configuration.researchStatus === 'COMPLETE'
-                                  ? 'COMPLETE'
-                                  : 'RESEARCHING'
-                              }
-                              tone={
-                                configuration.researchStatus === 'COMPLETE'
-                                  ? 'success'
-                                  : 'progress'
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            {linkedProjects.length ? (
-                              <div className="development-project-list">
-                                {linkedProjects.map(({ id, project }) => (
-                                  <button
-                                    type="button"
-                                    className="development-project-card"
-                                    key={id}
-                                    onClick={() =>
-                                      navigate(
-                                        `${ROUTES.vehicleProjects}?project=${encodeURIComponent(id)}`,
-                                      )
-                                    }
-                                  >
-                                    <span>
-                                      <strong>
-                                        {project?.product ?? 'Development'}
-                                      </strong>
-                                      <small>{id}</small>
-                                    </span>
-                                    <StatusBadge
-                                      label={project?.stage ?? 'PROJECT'}
-                                      tone="progress"
-                                    />
-                                  </button>
-                                ))}
-                              </div>
-                            ) : configuration.researchStatus === 'COMPLETE' ? (
-                              <div className="development-empty-state">
-                                <span>No development yet</span>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    navigate(
-                                      `${ROUTES.vehicleProjects}?new=1&configuration=${encodeURIComponent(configuration.id)}`,
-                                    )
-                                  }
-                                >
-                                  <Plus /> Start Development
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="development-locked-state">
-                                <span>Available after Research Complete</span>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    completeResearch(configuration)
-                                  }
-                                >
-                                  Research Complete
-                                </Button>
-                              </div>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                </TableBody>
-              );
-            })}
-            {pagedVehicleGroups.length === 0 && (
-              <TableBody>
-                <TableRow>
-                  <TableCell colSpan={3} className="text-center">
-                    No matching vehicles found.
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            )}
-          </Table>
-        </CardTable>
-        <WorkbenchPagination
-          recordCount={vehicleGroups.length}
-          pagination={pagination}
-          onPaginationChange={setPagination}
-        />
-      </Card>
+          </>
+        }
+        emptyMessage="No matching vehicles found."
+        pagination={{
+          page: pagination.pageIndex + 1,
+          pageSize: pagination.pageSize,
+          totalCount: vehicleGroups.length,
+          pageSizeOptions: [5, 10, 25],
+          onPageChange: (page) => {
+            setPagination((current) => ({ ...current, pageIndex: page - 1 }));
+          },
+          onPageSizeChange: (pageSize) => {
+            setPagination({ pageIndex: 0, pageSize });
+          },
+        }}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
@@ -571,7 +493,9 @@ export function VehicleResearchPage() {
               <Input
                 placeholder="예: RAV4"
                 value={model}
-                onChange={(event) => setModel(event.target.value)}
+                onChange={(event) => {
+                  setModel(event.target.value);
+                }}
               />
             </label>
             <div className="year-range-fields">
@@ -582,7 +506,9 @@ export function VehicleResearchPage() {
                   max="2100"
                   type="number"
                   value={yearStart}
-                  onChange={(event) => setYearStart(event.target.value)}
+                  onChange={(event) => {
+                    setYearStart(event.target.value);
+                  }}
                 />
               </label>
               <label>
@@ -592,7 +518,9 @@ export function VehicleResearchPage() {
                   max="2100"
                   type="number"
                   value={yearEnd}
-                  onChange={(event) => setYearEnd(event.target.value)}
+                  onChange={(event) => {
+                    setYearEnd(event.target.value);
+                  }}
                 />
               </label>
             </div>
@@ -602,7 +530,12 @@ export function VehicleResearchPage() {
             </div>
           </DialogBody>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogOpen(false);
+              }}
+            >
               취소
             </Button>
             <Button
@@ -642,12 +575,12 @@ export function VehicleResearchPage() {
                   <span className="criterion-number">{index + 1}</span>
                   <Select
                     value={criterion.title}
-                    onValueChange={(title) =>
-                      updateCriterionTitle(criterion.id, title)
-                    }
+                    onValueChange={(title) => {
+                      updateCriterionTitle(criterion.id, title);
+                    }}
                   >
                     <SelectTrigger
-                      aria-label={`Configuration 기준 ${index + 1}`}
+                      aria-label={`Configuration 기준 ${String(index + 1)}`}
                     >
                       <SelectValue />
                     </SelectTrigger>
@@ -661,11 +594,13 @@ export function VehicleResearchPage() {
                   </Select>
                   <Select
                     value={criterion.value}
-                    onValueChange={(value) =>
-                      updateCriterionValue(criterion.id, value)
-                    }
+                    onValueChange={(value) => {
+                      updateCriterionValue(criterion.id, value);
+                    }}
                   >
-                    <SelectTrigger aria-label={`Configuration 값 ${index + 1}`}>
+                    <SelectTrigger
+                      aria-label={`Configuration 값 ${String(index + 1)}`}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -679,10 +614,12 @@ export function VehicleResearchPage() {
                     </SelectContent>
                   </Select>
                   <Button
-                    aria-label={`${index + 1}번 기준 삭제`}
+                    aria-label={`${String(index + 1)}번 기준 삭제`}
                     mode="icon"
                     variant="ghost"
-                    onClick={() => removeCriterion(criterion.id)}
+                    onClick={() => {
+                      removeCriterion(criterion.id);
+                    }}
                     disabled={criteria.length === 1}
                   >
                     <X />
@@ -701,7 +638,9 @@ export function VehicleResearchPage() {
           <DialogFooter className="configuration-dialog-footer">
             <Button
               variant="outline"
-              onClick={() => setConfigurationDialogOpen(false)}
+              onClick={() => {
+                setConfigurationDialogOpen(false);
+              }}
             >
               취소
             </Button>

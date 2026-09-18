@@ -1,6 +1,5 @@
-import { Fragment, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
-import { Card } from '@coverland-engineering/ui/card';
 import {
   Dialog,
   DialogBody,
@@ -9,7 +8,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@coverland-engineering/ui/dialog';
-import { Input } from '@coverland-engineering/ui/input';
+import {
+  GroupedDataGrid,
+  type GroupedDataGridColumn,
+  type GroupedDataGridGroup,
+} from '@coverland-engineering/ui/grouped-data-grid';
 import {
   Select,
   SelectContent,
@@ -17,25 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@coverland-engineering/ui/select';
-import { Switch } from '@coverland-engineering/ui/switch';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@coverland-engineering/ui/table';
 import {
   Armchair,
   CarFront,
   Check,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Plus,
   RectangleHorizontal,
-  Search,
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { userName } from '@/shared/domain/app-user';
@@ -43,10 +35,7 @@ import { ConfigChips } from '@/shared/domain/config-chips';
 import { PROJECT_PIPELINES } from '@/shared/domain/project-stage';
 import { PageHeader } from '@/shared/components/page-header';
 import { StatusBadge } from '@/shared/components/status-badge';
-import {
-  useWorkbenchPagination,
-  WorkbenchPagination,
-} from '@/shared/components/workbench-pagination';
+import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import type {
   ProductType,
   VehicleConfiguration,
@@ -74,6 +63,11 @@ const PROJECT_STAGE_FILTERS = [
 ] as const;
 type ProjectStageFilter = (typeof PROJECT_STAGE_FILTERS)[number]['value'];
 
+interface ZoneProjectGridRow {
+  project: VehicleProjectGroup;
+  zone: VehicleZoneProject;
+}
+
 function matchesStageFilter(
   project: VehicleProjectGroup,
   zoneProject: VehicleZoneProject,
@@ -96,12 +90,12 @@ const WIZARD_STEPS = [
   'Zones',
   'Review',
 ] as const;
-const PRODUCT_CHOICES: ReadonlyArray<{
+const PRODUCT_CHOICES: readonly {
   id: string;
   name: ProductType;
   code: string;
   icon: typeof Armchair;
-}> = [
+}[] = [
   { id: 'PT-SC', name: 'Seat Cover', code: 'SC', icon: Armchair },
   { id: 'PT-CC', name: 'Car Cover', code: 'CC', icon: CarFront },
   { id: 'PT-FM', name: 'Floor Mat', code: 'FM', icon: RectangleHorizontal },
@@ -131,10 +125,13 @@ function delayDisplay(zone: VehicleZoneProject) {
     (new Date(zone.targetAt).getTime() - Date.now()) / 86_400_000,
   );
   if (days < 0) {
-    return { label: `${Math.abs(days)}D OVERDUE`, tone: 'danger' as const };
+    return {
+      label: `${String(Math.abs(days))}D OVERDUE`,
+      tone: 'danger' as const,
+    };
   }
   if (days <= 2) {
-    return { label: `DUE IN ${days}D`, tone: 'warning' as const };
+    return { label: `DUE IN ${String(days)}D`, tone: 'warning' as const };
   }
   return { label: 'ON TRACK', tone: 'success' as const };
 }
@@ -151,7 +148,7 @@ function shortDate(value?: string) {
 }
 
 function vehicleParts(vehicle: string) {
-  const match = vehicle.match(/^(\d{4}(?:–\d{4})?)\s+(.+)$/);
+  const match = /^(\d{4}(?:–\d{4})?)\s+(.+)$/.exec(vehicle);
   return match
     ? { years: match[1], name: match[2] }
     : { years: '', name: vehicle };
@@ -162,9 +159,11 @@ function zonesForConfiguration(
   configuration: VehicleConfiguration,
 ) {
   if (product === 'Car Cover') return ['EX'] as const;
-  const option = Object.fromEntries(configuration.options);
+  const option: Partial<Record<string, string>> = Object.fromEntries(
+    configuration.options,
+  );
   const hasThirdRow =
-    (option['3rd Row Seat'] && option['3rd Row Seat'] !== 'N/A') ||
+    (Boolean(option['3rd Row Seat']) && option['3rd Row Seat'] !== 'N/A') ||
     /7|8/.test(option.Seats ?? '');
   return hasThirdRow ? ['F', 'B', 'E'] : ['F', 'B'];
 }
@@ -231,9 +230,6 @@ export function VehicleProjectsPage() {
     );
     return zoneProjects.length ? [{ ...project, zoneProjects }] : [];
   });
-  const allCollapsed =
-    projects.length > 0 &&
-    projects.every((project) => collapsedGroups.has(project.id));
   const {
     pageItems: pagedProjects,
     pagination,
@@ -293,21 +289,6 @@ export function VehicleProjectsPage() {
       if (zoneCode) next.set('zone', zoneCode);
       else next.delete('zone');
       next.delete('tab');
-      return next;
-    });
-  };
-
-  const setAllCollapsed = (collapsed: boolean) => {
-    setCollapsedGroups(
-      collapsed ? new Set(projects.map((project) => project.id)) : new Set(),
-    );
-  };
-
-  const toggleGroup = (projectId: string) => {
-    setCollapsedGroups((current) => {
-      const next = new Set(current);
-      if (next.has(projectId)) next.delete(projectId);
-      else next.add(projectId);
       return next;
     });
   };
@@ -413,6 +394,130 @@ export function VehicleProjectsPage() {
     setWizardStep((current) => Math.min(4, current + 1));
   };
 
+  const columns: GroupedDataGridColumn<ZoneProjectGridRow>[] = [
+    {
+      id: 'zone',
+      header: 'Zone Project',
+      width: 230,
+      sortValue: ({ zone }) => zone.label,
+      cell: ({ zone }) => (
+        <div className="zone-project-identity">
+          <span className={`zone zone-${zone.code.toLowerCase()}`}>
+            {zone.code}
+          </span>
+          <span>
+            <strong>{zone.label}</strong>
+            <code>{zone.id}</code>
+          </span>
+        </div>
+      ),
+    },
+    {
+      id: 'stage',
+      header: 'Stage',
+      width: 175,
+      sortValue: ({ project, zone }) =>
+        PROJECT_PIPELINES[project.product].indexOf(zone.currentStage),
+      cell: ({ project, zone }) => {
+        const pipeline = PROJECT_PIPELINES[project.product];
+        const stageIndex = Math.max(0, pipeline.indexOf(zone.currentStage));
+        return (
+          <StatusBadge
+            label={`${String(stageIndex + 1)} / ${String(pipeline.length)} · ${zone.currentStage === 'Approved' ? '개발 완료' : zone.currentStage}`}
+            tone={zone.currentStage === 'Approved' ? 'success' : 'progress'}
+          />
+        );
+      },
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      width: 125,
+      sortValue: ({ zone }) => zone.status ?? 'ACTIVE',
+      cell: ({ zone }) => (
+        <StatusBadge
+          label={zone.status ?? 'ACTIVE'}
+          tone={zone.status === 'ON_HOLD' ? 'warning' : 'success'}
+        />
+      ),
+    },
+    {
+      id: 'owner',
+      header: 'Owner',
+      width: 110,
+      sortValue: ({ zone }) => userName(appUsers, zone.managerId),
+      cell: ({ zone }) => userName(appUsers, zone.managerId),
+    },
+    {
+      id: 'priority',
+      header: 'Priority',
+      width: 110,
+      sortValue: ({ zone }) =>
+        ({ LOW: 0, NORMAL: 1, HIGH: 2, URGENT: 3 })[zone.priority ?? 'NORMAL'],
+      cell: ({ zone }) => (
+        <StatusBadge
+          label={zone.priority ?? 'NORMAL'}
+          tone={
+            zone.priority === 'URGENT' || zone.priority === 'HIGH'
+              ? 'warning'
+              : 'neutral'
+          }
+        />
+      ),
+    },
+    {
+      id: 'delay',
+      header: 'Delay',
+      width: 140,
+      sortValue: ({ zone }) => delayDisplay(zone).label,
+      cell: ({ zone }) => {
+        const delay = delayDisplay(zone);
+        return <StatusBadge label={delay.label} tone={delay.tone} />;
+      },
+    },
+    {
+      id: 'target',
+      header: 'Target',
+      width: 100,
+      sortValue: ({ zone }) => zone.targetAt,
+      cell: ({ zone }) => shortDate(zone.targetAt),
+    },
+    {
+      id: 'updated',
+      header: 'Last Update',
+      width: 120,
+      sortValue: ({ project, zone }) => zone.lastActivityAt ?? project.created,
+      cell: ({ project, zone }) =>
+        shortDate(zone.lastActivityAt ?? project.created),
+    },
+  ];
+  const groups: GroupedDataGridGroup<ZoneProjectGridRow>[] = pagedProjects.map(
+    (project) => {
+      const approvedCount = project.zoneProjects.filter(
+        (zone) => zone.currentStage === 'Approved',
+      ).length;
+      return {
+        id: project.id,
+        title: project.vehicle,
+        description: `${project.product} · ${project.id} · ${String(project.zoneProjects.length)} Zone Projects`,
+        meta: (
+          <>
+            <ConfigChips options={project.options} />
+            <StatusBadge
+              label={`${String(approvedCount)} / ${String(project.zoneProjects.length)} APPROVED`}
+              tone={
+                approvedCount === project.zoneProjects.length
+                  ? 'success'
+                  : 'neutral'
+              }
+            />
+          </>
+        ),
+        rows: project.zoneProjects.map((zone) => ({ project, zone })),
+      };
+    },
+  );
+
   if (detailProject) {
     return (
       <ProjectDetailBoundary key={detailProject.id} onBack={closeProject}>
@@ -420,7 +525,9 @@ export function VehicleProjectsPage() {
           project={detailProject}
           zoneCode={searchParams.get('zone') ?? undefined}
           onBack={closeProject}
-          onSelectZone={(zoneCode) => openProject(detailProject.id, zoneCode)}
+          onSelectZone={(zoneCode) => {
+            openProject(detailProject.id, zoneCode);
+          }}
           initialTab={toDetailTab(searchParams.get('tab'))}
         />
       </ProjectDetailBoundary>
@@ -450,58 +557,66 @@ export function VehicleProjectsPage() {
         }
       />
 
-      <Card>
-        <div className="grid-toolbar">
-          <div className="grid-toolbar-filters">
-            <label className="collapse-all-toggle">
-              <Switch
-                size="sm"
-                checked={allCollapsed}
-                onCheckedChange={setAllCollapsed}
-              />
-              All Collapse
-            </label>
-            <div className="search-field">
-              <Search aria-hidden="true" />
-              <Input
-                aria-label="Make 또는 Model 검색"
-                placeholder="Make / Model 검색"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-            </div>
-            <Select value={product} onValueChange={setProduct}>
-              <SelectTrigger
-                aria-label="Product filter"
-                className="filter-select wide"
+      <GroupedDataGrid
+        label="Vehicle Projects"
+        columns={columns}
+        groups={groups}
+        getRowId={({ zone }) => zone.id}
+        onRowClick={({ project, zone }) => {
+          openProject(project.id, zone.code);
+        }}
+        rowActionLabel={({ zone }) => `Open ${zone.id}`}
+        collapsedGroupIds={collapsedGroups}
+        onCollapsedGroupIdsChange={setCollapsedGroups}
+        sorting={{ mode: 'client' }}
+        colors={{
+          primary: '#2F80FF',
+          primaryForeground: '#FFFFFF',
+          primarySoft: '#EFF6FF',
+        }}
+        search={{
+          label: 'Make 또는 Model 검색',
+          placeholder: 'Make / Model 검색',
+          value: query,
+          onChange: setQuery,
+        }}
+        filters={[
+          {
+            id: 'product',
+            label: 'Product filter',
+            value: product,
+            onChange: setProduct,
+            options: [
+              { value: 'ALL', label: 'All' },
+              ...PRODUCT_CHOICES.map((choice) => ({
+                value: choice.name,
+                label: choice.name,
+              })),
+            ],
+          },
+        ]}
+        toolbarContent={
+          <div className="stage-tabs" role="group" aria-label="Project stage">
+            {PROJECT_STAGE_FILTERS.map((filter) => (
+              <button
+                type="button"
+                key={filter.value}
+                className="stage-tab"
+                aria-pressed={stageFilter === filter.value}
+                onClick={() => {
+                  setStageFilter(filter.value);
+                }}
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Product: All</SelectItem>
-                <SelectItem value="Seat Cover">Seat Cover</SelectItem>
-                <SelectItem value="Car Cover">Car Cover</SelectItem>
-                <SelectItem value="Floor Mat">Floor Mat</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="stage-tabs" role="group" aria-label="Project stage">
-              {PROJECT_STAGE_FILTERS.map((filter) => (
-                <button
-                  type="button"
-                  key={filter.value}
-                  className="stage-tab"
-                  aria-pressed={stageFilter === filter.value}
-                  onClick={() => setStageFilter(filter.value)}
-                >
-                  {filter.label}
-                  <span className="stage-tab-count">
-                    {stageCounts.get(filter.value) ?? 0}
-                  </span>
-                </button>
-              ))}
-            </div>
+                {filter.label}
+                <span className="stage-tab-count">
+                  {stageCounts.get(filter.value) ?? 0}
+                </span>
+              </button>
+            ))}
           </div>
-          <div className="grid-toolbar-actions">
+        }
+        actions={
+          <>
             <Button
               variant="outline"
               onClick={() => {
@@ -514,154 +629,22 @@ export function VehicleProjectsPage() {
             <Button variant="primary" onClick={openWizard}>
               <Plus /> New Project
             </Button>
-          </div>
-        </div>
-        <Table className="zone-project-grid">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Zone Project</TableHead>
-              <TableHead>Stage</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Owner</TableHead>
-              <TableHead>Priority</TableHead>
-              <TableHead>Delay</TableHead>
-              <TableHead>Target</TableHead>
-              <TableHead>Last Update</TableHead>
-              <TableHead className="action-column" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pagedProjects.map((project) => {
-              const approvedCount = project.zoneProjects.filter(
-                (zone) => zone.currentStage === 'Approved',
-              ).length;
-              const collapsed = collapsedGroups.has(project.id);
-              return (
-                <Fragment key={project.id}>
-                  <TableRow className="project-group-header-row">
-                    <TableCell colSpan={9}>
-                      <div className="project-group-header-content">
-                        <button
-                          type="button"
-                          onClick={() => toggleGroup(project.id)}
-                        >
-                          {collapsed ? <ChevronRight /> : <ChevronDown />}
-                          <span>
-                            <strong>{project.vehicle}</strong>
-                            <small>
-                              {project.product} · {project.id} ·{' '}
-                              {project.zoneProjects.length} Zone Projects
-                            </small>
-                          </span>
-                        </button>
-                        <div className="project-group-header-meta">
-                          <ConfigChips options={project.options} />
-                          <StatusBadge
-                            label={`${approvedCount} / ${project.zoneProjects.length} APPROVED`}
-                            tone={
-                              approvedCount === project.zoneProjects.length
-                                ? 'success'
-                                : 'neutral'
-                            }
-                          />
-                        </div>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                  {!collapsed &&
-                    project.zoneProjects.map((zoneProject) => {
-                      const pipeline = PROJECT_PIPELINES[project.product];
-                      const stageIndex = Math.max(
-                        0,
-                        pipeline.indexOf(zoneProject.currentStage),
-                      );
-                      const delay = delayDisplay(zoneProject);
-                      return (
-                        <TableRow
-                          className="clickable-row zone-project-data-row"
-                          key={zoneProject.id}
-                          onClick={() =>
-                            openProject(project.id, zoneProject.code)
-                          }
-                        >
-                          <TableCell>
-                            <div className="zone-project-identity">
-                              <span
-                                className={`zone zone-${zoneProject.code.toLowerCase()}`}
-                              >
-                                {zoneProject.code}
-                              </span>
-                              <span>
-                                <strong>{zoneProject.label}</strong>
-                                <code>{zoneProject.id}</code>
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <StatusBadge
-                              label={`${stageIndex + 1} / ${pipeline.length} · ${zoneProject.currentStage === 'Approved' ? '개발 완료' : zoneProject.currentStage}`}
-                              tone={
-                                zoneProject.currentStage === 'Approved'
-                                  ? 'success'
-                                  : 'progress'
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <StatusBadge
-                              label={zoneProject.status ?? 'ACTIVE'}
-                              tone={
-                                zoneProject.status === 'ON_HOLD'
-                                  ? 'warning'
-                                  : 'success'
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            {userName(appUsers, zoneProject.managerId)}
-                          </TableCell>
-                          <TableCell>
-                            <StatusBadge
-                              label={zoneProject.priority ?? 'NORMAL'}
-                              tone={
-                                zoneProject.priority === 'URGENT' ||
-                                zoneProject.priority === 'HIGH'
-                                  ? 'warning'
-                                  : 'neutral'
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <StatusBadge
-                              label={delay.label}
-                              tone={delay.tone}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            {shortDate(zoneProject.targetAt)}
-                          </TableCell>
-                          <TableCell>
-                            {shortDate(
-                              zoneProject.lastActivityAt ?? project.created,
-                            )}
-                          </TableCell>
-                          <TableCell className="table-actions">
-                            <ChevronRight />
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                </Fragment>
-              );
-            })}
-          </TableBody>
-        </Table>
-        <WorkbenchPagination
-          recordCount={visibleProjects.length}
-          pagination={pagination}
-          onPaginationChange={setPagination}
-        />
-      </Card>
+          </>
+        }
+        emptyMessage="조건에 맞는 프로젝트가 없습니다."
+        pagination={{
+          page: pagination.pageIndex + 1,
+          pageSize: pagination.pageSize,
+          totalCount: visibleProjects.length,
+          pageSizeOptions: [5, 10, 25],
+          onPageChange: (page) => {
+            setPagination((current) => ({ ...current, pageIndex: page - 1 }));
+          },
+          onPageSizeChange: (pageSize) => {
+            setPagination({ pageIndex: 0, pageSize });
+          },
+        }}
+      />
 
       <Dialog open={wizardOpen} onOpenChange={setWizardOpen}>
         <DialogContent className="project-wizard-dialog">
@@ -698,7 +681,9 @@ export function VehicleProjectsPage() {
                           wizardProduct === choice.name ? 'selected' : undefined
                         }
                         key={choice.name}
-                        onClick={() => chooseProduct(choice.name)}
+                        onClick={() => {
+                          chooseProduct(choice.name);
+                        }}
                       >
                         <Icon aria-hidden="true" />
                         <strong>{choice.name}</strong>
@@ -957,7 +942,12 @@ export function VehicleProjectsPage() {
               )}
             </div>
             <div>
-              <Button variant="outline" onClick={() => setWizardOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setWizardOpen(false);
+                }}
+              >
                 Cancel
               </Button>
               <Button variant="primary" onClick={continueWizard}>

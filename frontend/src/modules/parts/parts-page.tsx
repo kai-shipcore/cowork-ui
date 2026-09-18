@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
-import { Card } from '@coverland-engineering/ui/card';
-import { Input } from '@coverland-engineering/ui/input';
+import {
+  FlatDataGrid,
+  type FlatDataGridColumn,
+  type GridSort,
+} from '@coverland-engineering/ui/flat-data-grid';
 import {
   Sheet,
   SheetBody,
@@ -11,14 +14,6 @@ import {
   SheetTitle,
 } from '@coverland-engineering/ui/sheet';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@coverland-engineering/ui/table';
-import {
   CalendarClock,
   CheckCircle2,
   FileClock,
@@ -27,16 +22,12 @@ import {
   Link2,
   Plus,
   RotateCcw,
-  Search,
   UserRound,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { fileFingerprint } from '@/shared/domain/revision-control';
 import { PageHeader } from '@/shared/components/page-header';
-import {
-  useWorkbenchPagination,
-  WorkbenchPagination,
-} from '@/shared/components/workbench-pagination';
+import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import type { ProjectDesignDetails } from '@/shared/types/workbench';
 import { CURRENT_USER_ID } from '@/app/current-user';
 import { useWorkbenchStore } from '@/app/workbench-store';
@@ -46,6 +37,7 @@ import {
   usePartLibrary,
   type LibraryPart,
 } from './part-library';
+import { latestPartRevision, partsGridRows } from './parts-grid-model';
 import './parts.css';
 
 type SeatPosition = 'PASSENGER' | 'CENTER' | 'DRIVER';
@@ -73,10 +65,6 @@ interface SeatPiece {
   centerLabel?: string;
   /** Armrest and leg support exist only on the driver / passenger seats. */
   sideOnly?: boolean;
-}
-
-function latestRevision(part: LibraryPart) {
-  return part.revisions[part.revisions.length - 1];
 }
 
 const SEAT_PIECES: readonly SeatPiece[] = [
@@ -116,12 +104,14 @@ export function PartsPage() {
   const [dxfFileName, setDxfFileName] = useState('');
   const [dxfFingerprint, setDxfFingerprint] = useState('');
   const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<GridSort | null>(null);
   const [selected, setSelected] = useState(params.get('part') ?? '');
   const [message, setMessage] = useState('');
   useEffect(() => {
+    const snapshots = new Map(Object.entries(projectDetails));
     for (const project of projects)
       importProjectParts(
-        projectDetails[project.id]?.designs ?? [],
+        snapshots.get(project.id)?.designs ?? [],
         project.product,
       );
   }, [projects, projectDetails]);
@@ -165,18 +155,7 @@ export function PartsPage() {
   const active =
     parts.find((p) => p.id === selected) ??
     parts.find((p) => p.name === params.get('name'));
-  const normalizedSearch = search.trim().toLowerCase();
-  const visibleParts = parts
-    .filter(
-      (p) =>
-        !normalizedSearch ||
-        `${p.name} ${p.type}`.toLowerCase().includes(normalizedSearch),
-    )
-    .sort((left, right) =>
-      (latestRevision(right)?.createdAt ?? '').localeCompare(
-        latestRevision(left)?.createdAt ?? '',
-      ),
-    );
+  const visibleParts = partsGridRows(parts, search, sort);
   const {
     pageItems: pagedParts,
     pagination,
@@ -186,15 +165,77 @@ export function PartsPage() {
   const safeReturn = returnTo?.startsWith('/vehicle-projects?')
     ? returnTo
     : undefined;
+  const columns: FlatDataGridColumn<LibraryPart>[] = [
+    {
+      id: 'name',
+      header: 'Part Name',
+      width: 320,
+      sortValue: (part) => part.name,
+      cell: (part) => <code className="part-name">{part.name}</code>,
+    },
+    {
+      id: 'type',
+      header: 'Part Type',
+      width: 150,
+      sortValue: (part) => part.type,
+      cell: (part) => part.type,
+    },
+    {
+      id: 'version',
+      header: 'Version',
+      width: 130,
+      sortValue: (part) => latestPartRevision(part)?.revisionNumber ?? 1,
+      cell: (part) => (
+        <>
+          <strong>v{latestPartRevision(part)?.revisionNumber ?? 1}</strong>
+          <div className="vehicle-meta">{part.revisions.length} revisions</div>
+        </>
+      ),
+    },
+    {
+      id: 'updated',
+      header: 'Last Updated',
+      width: 170,
+      sortValue: (part) => latestPartRevision(part)?.createdAt,
+      cell: (part) => (
+        <>
+          {latestPartRevision(part)?.createdAt.slice(0, 10) ?? '—'}
+          <div className="vehicle-meta">
+            {latestPartRevision(part)?.createdBy}
+          </div>
+        </>
+      ),
+    },
+    {
+      id: 'history',
+      header: 'Actions',
+      width: 185,
+      hideable: false,
+      cell: (part) => (
+        <Button
+          size="sm"
+          variant={active?.id === part.id ? 'mono' : 'outline'}
+          aria-pressed={active?.id === part.id}
+          onClick={() => {
+            setSelected(part.id);
+            setNote('');
+          }}
+        >
+          <History /> Version History
+        </Button>
+      ),
+    },
+  ];
   function create() {
-    if (!valid || duplicate) return;
+    const selectedCode = seatCoverCodes.find((c) => c.code === code);
+    if (!valid || duplicate || !chosen || !selectedCode) return;
     const details: ProjectDesignDetails = {
       kind: 'SEAT_COVER',
       vehicleResearchId: '',
-      seatCoverPartId: chosen!.id,
-      seatCoverCodeId: seatCoverCodes.find((c) => c.code === code)!.id,
-      partName: chosen!.name,
-      category: chosen!.category,
+      seatCoverPartId: chosen.id,
+      seatCoverCodeId: selectedCode.id,
+      partName: chosen.name,
+      category: chosen.category,
       side,
       isForMiddleSeat: side === 'CENTER',
       isCustom: custom,
@@ -206,7 +247,7 @@ export function PartsPage() {
         id,
         name,
         product: 'Seat Cover',
-        type: chosen!.category,
+        type: chosen.category,
         details,
         revisions: [
           {
@@ -221,7 +262,7 @@ export function PartsPage() {
         ],
       });
       if (safeReturn) {
-        navigate(`${safeReturn}&linkPart=${id}`);
+        void navigate(`${safeReturn}&linkPart=${id}`);
         return;
       }
       setSelected(id);
@@ -293,7 +334,9 @@ export function PartsPage() {
                     <button
                       key={value}
                       aria-pressed={row === value}
-                      onClick={() => setRow(value)}
+                      onClick={() => {
+                        setRow(value);
+                      }}
                     >
                       {label}
                     </button>
@@ -415,7 +458,9 @@ export function PartsPage() {
                     <select
                       required
                       value={partType}
-                      onChange={(e) => setPartType(e.target.value)}
+                      onChange={(e) => {
+                        setPartType(e.target.value);
+                      }}
                     >
                       <option value="">Part 선택</option>
                       {types.map((p) => (
@@ -440,7 +485,9 @@ export function PartsPage() {
                         required
                         value={make}
                         placeholder="AC"
-                        onChange={(e) => setMake(e.target.value)}
+                        onChange={(e) => {
+                          setMake(e.target.value);
+                        }}
                       />
                     </label>
                     <label>
@@ -449,7 +496,9 @@ export function PartsPage() {
                         required
                         value={model}
                         placeholder="MX"
-                        onChange={(e) => setModel(e.target.value)}
+                        onChange={(e) => {
+                          setModel(e.target.value);
+                        }}
                       />
                     </label>
                   </>
@@ -460,7 +509,9 @@ export function PartsPage() {
                     required
                     value={initial}
                     placeholder="W"
-                    onChange={(e) => setInitial(e.target.value)}
+                    onChange={(e) => {
+                      setInitial(e.target.value);
+                    }}
                   />
                 </label>
                 <>
@@ -469,7 +520,9 @@ export function PartsPage() {
                     <select
                       required
                       value={code}
-                      onChange={(e) => setCode(e.target.value)}
+                      onChange={(e) => {
+                        setCode(e.target.value);
+                      }}
                     >
                       <option value="">Code 선택</option>
                       {seatCoverCodes
@@ -483,7 +536,9 @@ export function PartsPage() {
                     Side
                     <select
                       value={side}
-                      onChange={(e) => setSide(e.target.value as typeof side)}
+                      onChange={(e) => {
+                        setSide(e.target.value as typeof side);
+                      }}
                     >
                       {['DRIVER', 'PASSENGER', 'CENTER', 'UNIVERSAL'].map(
                         (s) => (
@@ -497,7 +552,9 @@ export function PartsPage() {
                   Version note
                   <textarea
                     value={note}
-                    onChange={(e) => setNote(e.target.value)}
+                    onChange={(e) => {
+                      setNote(e.target.value);
+                    }}
                   />
                 </label>
                 <label>
@@ -535,7 +592,12 @@ export function PartsPage() {
             </div>
           </SheetBody>
           <SheetFooter className="workbench-sheet-footer">
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCreateOpen(false);
+              }}
+            >
               Cancel
             </Button>
             <Button
@@ -551,87 +613,48 @@ export function PartsPage() {
         </SheetContent>
       </Sheet>
       <div className="parts-list">
-        <Card>
-          <div className="grid-toolbar">
-            <div className="grid-toolbar-filters">
-              <div className="search-field">
-                <Search aria-hidden="true" />
-                <Input
-                  aria-label="Part 이름 또는 Part Type 검색"
-                  placeholder="Part 이름 / Part Type"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="grid-toolbar-actions">
+        <FlatDataGrid
+          label="Parts"
+          columns={columns}
+          rows={pagedParts}
+          getRowId={(part) => part.id}
+          sorting={{ value: sort, onChange: setSort, mode: 'manual' }}
+          search={{
+            label: 'Part 이름 또는 Part Type 검색',
+            placeholder: 'Part 이름 / Part Type',
+            value: search,
+            onChange: setSearch,
+          }}
+          colors={{
+            primary: '#2F80FF',
+            primaryForeground: '#FFFFFF',
+            primarySoft: '#EFF6FF',
+          }}
+          actions={
+            <>
               {safeReturn && (
-                <Button variant="outline" onClick={() => navigate(safeReturn)}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    // React Router handles route errors; the click does not await navigation.
+                    void navigate(safeReturn);
+                  }}
+                >
                   프로젝트로 돌아가기
                 </Button>
               )}
               <Button
                 variant="primary"
                 className="parts-primary-action"
-                onClick={() => setCreateOpen(true)}
+                onClick={() => {
+                  setCreateOpen(true);
+                }}
               >
                 <Plus /> Part 생성
               </Button>
-            </div>
-          </div>
-          {visibleParts.length ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Part Name</TableHead>
-                  <TableHead>Part Type</TableHead>
-                  <TableHead>Version</TableHead>
-                  <TableHead>Last Updated</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pagedParts.map((p) => {
-                  const latest = latestRevision(p);
-                  const isSelected = active?.id === p.id;
-                  return (
-                    <TableRow
-                      key={p.id}
-                      data-state={isSelected ? 'selected' : undefined}
-                    >
-                      <TableCell>
-                        <code className="part-name">{p.name}</code>
-                      </TableCell>
-                      <TableCell>{p.type}</TableCell>
-                      <TableCell>
-                        <strong>v{latest?.revisionNumber ?? 1}</strong>
-                        <div className="vehicle-meta">
-                          {p.revisions.length} revisions
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {latest ? latest.createdAt.slice(0, 10) : '—'}
-                        <div className="vehicle-meta">{latest?.createdBy}</div>
-                      </TableCell>
-                      <TableCell className="table-actions">
-                        <Button
-                          size="sm"
-                          variant={isSelected ? 'mono' : 'outline'}
-                          aria-pressed={isSelected}
-                          onClick={() => {
-                            setSelected(p.id);
-                            setNote('');
-                          }}
-                        >
-                          <History /> Version History
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          ) : (
+            </>
+          }
+          emptyMessage={
             <div className="empty-state">
               <div className="empty-icon">🧩</div>
               <strong>
@@ -645,13 +668,20 @@ export function PartsPage() {
                   : 'Part 생성 버튼으로 첫 Part를 추가하세요.'}
               </p>
             </div>
-          )}
-          <WorkbenchPagination
-            recordCount={visibleParts.length}
-            pagination={pagination}
-            onPaginationChange={setPagination}
-          />
-        </Card>
+          }
+          pagination={{
+            page: pagination.pageIndex + 1,
+            pageSize: pagination.pageSize,
+            totalCount: visibleParts.length,
+            pageSizeOptions: [5, 10, 25],
+            onPageChange: (page) => {
+              setPagination((current) => ({ ...current, pageIndex: page - 1 }));
+            },
+            onPageSizeChange: (pageSize) => {
+              setPagination({ pageIndex: 0, pageSize });
+            },
+          }}
+        />
         <Sheet
           open={Boolean(active)}
           onOpenChange={(open) => {
@@ -663,7 +693,7 @@ export function PartsPage() {
               side="right"
               className="part-history-sheet w-[min(620px,96vw)] sm:max-w-none p-0 gap-0"
               accessibleTitle={`${active.name} Version History`}
-              accessibleDescription={`${active.revisions.length}개의 버전 이력을 확인합니다.`}
+              accessibleDescription={`${String(active.revisions.length)}개의 버전 이력을 확인합니다.`}
             >
               <SheetHeader className="part-history-sheet-header">
                 <div className="parts-sheet-heading">

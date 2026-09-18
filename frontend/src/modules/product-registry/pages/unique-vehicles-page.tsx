@@ -1,24 +1,22 @@
 import { useState } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
 import { Card } from '@coverland-engineering/ui/card';
+import {
+  FlatDataGrid,
+  type FlatDataGridColumn,
+} from '@coverland-engineering/ui/flat-data-grid';
 import { Input } from '@coverland-engineering/ui/input';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@coverland-engineering/ui/table';
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
 import { Search } from 'lucide-react';
 import { userName } from '@/shared/domain/app-user';
 import { ConfigChips } from '@/shared/domain/config-chips';
 import { PageHeader } from '@/shared/components/page-header';
 import { StatusBadge } from '@/shared/components/status-badge';
-import {
-  useWorkbenchPagination,
-  WorkbenchPagination,
-} from '@/shared/components/workbench-pagination';
+import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import { PRODUCT_TYPES } from '@/shared/types/workbench';
 import type {
   Complaint,
@@ -92,11 +90,159 @@ export function UniqueVehiclesPage() {
           ),
       );
   }
+  const columns: FlatDataGridColumn<(typeof visibleVehicles)[number]>[] = [
+    {
+      id: 'f-number',
+      header: 'F Number',
+      width: 210,
+      sortValue: (vehicle) => vehicle.fNumber,
+      cell: (vehicle) => (
+        <>
+          <span className="f-number">{vehicle.fNumber}</span>
+        </>
+      ),
+    },
+    {
+      id: 'vehicle',
+      header: 'Vehicle',
+      width: 180,
+      sortValue: (vehicle) => vehicle.vehicle,
+      cell: (vehicle) => (
+        <>
+          <div className="vehicle-name">{vehicle.vehicle}</div>
+          <div className="vehicle-meta">
+            {vehicle.product} · Research {vehicle.vehicleResearchId}
+          </div>
+        </>
+      ),
+    },
+    {
+      id: 'configuration',
+      header: 'Configuration',
+      width: 180,
+      cell: (vehicle) => (
+        <>
+          <ConfigChips options={vehicle.options} />
+        </>
+      ),
+    },
+    {
+      id: 'project',
+      header: '출처 (Group)',
+      width: 180,
+      sortValue: (vehicle) => vehicle.projectGroupId,
+      cell: (vehicle) => (
+        <>
+          <span className="project-reference">{vehicle.projectGroupId}</span>
+        </>
+      ),
+    },
+    {
+      id: 'shapes',
+      header: 'Shapes',
+      width: 180,
+      sortValue: (vehicle) => vehicle.shapes.join(', '),
+      cell: (vehicle) => (
+        <>
+          <div className="shape-list">
+            {vehicle.shapes.map((shape) => (
+              <span key={shape}>{shape}</span>
+            ))}
+          </div>
+          <ShapeAssignmentPanel vehicle={vehicle} />
+        </>
+      ),
+    },
+    {
+      id: 'registration',
+      header: 'SKU Registration',
+      width: 180,
+      sortValue: (vehicle) => vehicle.skuStatus,
+      cell: (vehicle) => (
+        <>
+          <StatusBadge
+            label={vehicle.skuStatus}
+            tone={
+              vehicle.skuStatus === 'ACTIVE'
+                ? 'success'
+                : vehicle.skuStatus === 'REQUESTED'
+                  ? 'warning'
+                  : 'neutral'
+            }
+          />
+          {vehicle.skuStatus === 'DRAFT' && (
+            <div>
+              <Button
+                size="sm"
+                variant="primary"
+                className="complaint-button"
+                onClick={() => {
+                  setRequesting(vehicle);
+                }}
+              >
+                등록 요청
+              </Button>
+            </div>
+          )}
+          {registrationItems
+            .filter((item) =>
+              masterProducts.some(
+                (product) =>
+                  product.id === item.masterProductId &&
+                  product.fNumber === vehicle.fNumber,
+              ),
+            )
+            .map((item) => (
+              <div className="vehicle-meta" key={item.id}>
+                {item.registrationId}
+              </div>
+            ))}
+        </>
+      ),
+    },
+    {
+      id: 'status',
+      header: '상태',
+      width: 180,
+      cell: (vehicle) => (
+        <>
+          <StatusBadge label="ACTIVE" tone="success" />
+          <div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="complaint-button"
+              onClick={() => {
+                setMessage('');
+                setComplaining(vehicle);
+              }}
+            >
+              Complaint
+            </Button>
+          </div>
+        </>
+      ),
+    },
+  ];
+  const gridTable = useReactTable({
+    // Paging is owned by the surrounding filters and the shared grid pager.
+    autoResetPageIndex: false,
+    data: [...visibleVehicles],
+    columns: columns.map((column) => ({
+      id: column.id,
+      accessorFn: column.sortValue,
+      sortUndefined: 'last',
+    })),
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+  const sortedRows = gridTable.getRowModel().rows.map((row) => row.original);
+  const activeSort = gridTable.getState().sorting.slice(0, 1).pop();
   const {
     pageItems: pagedVehicles,
     pagination,
     setPagination,
-  } = useWorkbenchPagination(visibleVehicles, query);
+  } = useWorkbenchPagination(sortedRows, query);
 
   function productTypeIdFor(vehicle: UniqueVehicle) {
     return (
@@ -285,114 +431,47 @@ export function UniqueVehiclesPage() {
                 aria-label="F Number 또는 Vehicle 검색"
                 placeholder="F Number / Vehicle 검색"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                }}
               />
             </div>
           </div>
         </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>F Number</TableHead>
-              <TableHead>Vehicle</TableHead>
-              <TableHead className="configuration-column">
-                Configuration
-              </TableHead>
-              <TableHead>출처 (Group)</TableHead>
-              <TableHead>Shapes</TableHead>
-              <TableHead>SKU Registration</TableHead>
-              <TableHead>상태</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pagedVehicles.map((vehicle) => (
-              <TableRow key={vehicle.fNumber}>
-                <TableCell>
-                  <span className="f-number">{vehicle.fNumber}</span>
-                </TableCell>
-                <TableCell>
-                  <div className="vehicle-name">{vehicle.vehicle}</div>
-                  <div className="vehicle-meta">
-                    {vehicle.product} · Research {vehicle.vehicleResearchId}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <ConfigChips options={vehicle.options} />
-                </TableCell>
-                <TableCell>
-                  <span className="project-reference">
-                    {vehicle.projectGroupId}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <div className="shape-list">
-                    {vehicle.shapes.map((shape) => (
-                      <span key={shape}>{shape}</span>
-                    ))}
-                  </div>
-                  <ShapeAssignmentPanel vehicle={vehicle} />
-                </TableCell>
-                <TableCell>
-                  <StatusBadge
-                    label={vehicle.skuStatus}
-                    tone={
-                      vehicle.skuStatus === 'ACTIVE'
-                        ? 'success'
-                        : vehicle.skuStatus === 'REQUESTED'
-                          ? 'warning'
-                          : 'neutral'
-                    }
-                  />
-                  {vehicle.skuStatus === 'DRAFT' && (
-                    <div>
-                      <Button
-                        size="sm"
-                        variant="primary"
-                        className="complaint-button"
-                        onClick={() => setRequesting(vehicle)}
-                      >
-                        등록 요청
-                      </Button>
-                    </div>
-                  )}
-                  {registrationItems
-                    .filter((item) =>
-                      masterProducts.some(
-                        (product) =>
-                          product.id === item.masterProductId &&
-                          product.fNumber === vehicle.fNumber,
-                      ),
-                    )
-                    .map((item) => (
-                      <div className="vehicle-meta" key={item.id}>
-                        {item.registrationId}
-                      </div>
-                    ))}
-                </TableCell>
-                <TableCell>
-                  <StatusBadge label="ACTIVE" tone="success" />
-                  <div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="complaint-button"
-                      onClick={() => {
-                        setMessage('');
-                        setComplaining(vehicle);
-                      }}
-                    >
-                      Complaint
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        <WorkbenchPagination
-          recordCount={visibleVehicles.length}
-          pagination={pagination}
-          onPaginationChange={setPagination}
+        <FlatDataGrid
+          embedded
+          label="Unique Vehicles"
+          columns={columns}
+          rows={pagedVehicles}
+          getRowId={(vehicle) => vehicle.fNumber}
+          emptyMessage="조건에 맞는 차량이 없습니다."
+
+          pagination={{
+            page: pagination.pageIndex + 1,
+            pageSize: pagination.pageSize,
+            totalCount: visibleVehicles.length,
+            pageSizeOptions: [5, 10, 25],
+            onPageChange: (page) => {
+              setPagination((current) => ({ ...current, pageIndex: page - 1 }));
+            },
+            onPageSizeChange: (pageSize) => {
+              setPagination({ pageIndex: 0, pageSize });
+            },
+          }}
+          sorting={{
+            mode: 'manual',
+            value: activeSort
+              ? {
+                  id: activeSort.id,
+                  direction: activeSort.desc ? 'desc' : 'asc',
+                }
+              : null,
+            onChange: (sort) => {
+              gridTable.setSorting(
+                sort ? [{ id: sort.id, desc: sort.direction === 'desc' }] : [],
+              );
+            },
+          }}
         />
       </Card>
 
@@ -402,8 +481,12 @@ export function UniqueVehiclesPage() {
           vehicle={complaining}
           designOptions={designOptionsFor(complaining)}
           defaultOwner={userName(appUsers, CURRENT_USER_ID)}
-          onSubmit={(draft) => createComplaint(complaining, draft)}
-          onClose={() => setComplaining(undefined)}
+          onSubmit={(draft) => {
+            createComplaint(complaining, draft);
+          }}
+          onClose={() => {
+            setComplaining(undefined);
+          }}
         />
       )}
 
@@ -428,8 +511,12 @@ export function UniqueVehiclesPage() {
             return shape ? [shape] : [];
           })}
           registeredSkus={registeredSkus}
-          onSubmit={(draft) => submitRegistration(requesting, draft)}
-          onClose={() => setRequesting(undefined)}
+          onSubmit={(draft) => {
+            submitRegistration(requesting, draft);
+          }}
+          onClose={() => {
+            setRequesting(undefined);
+          }}
         />
       )}
     </section>

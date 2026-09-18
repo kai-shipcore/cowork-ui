@@ -9,6 +9,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@coverland-engineering/ui/dialog';
+import {
+  FlatDataGrid,
+  type FlatDataGridColumn,
+} from '@coverland-engineering/ui/flat-data-grid';
 import { Input } from '@coverland-engineering/ui/input';
 import {
   Select,
@@ -18,20 +22,14 @@ import {
   SelectValue,
 } from '@coverland-engineering/ui/select';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@coverland-engineering/ui/table';
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
 import { Search } from 'lucide-react';
 import { userName } from '@/shared/domain/app-user';
 import { PageHeader } from '@/shared/components/page-header';
-import {
-  useWorkbenchPagination,
-  WorkbenchPagination,
-} from '@/shared/components/workbench-pagination';
+import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import { useWorkbenchStore } from '@/app/workbench-store';
 import {
   LocalApprovalGrants,
@@ -70,8 +68,84 @@ export function ProductRegistrationsPage() {
         .toLowerCase()
         .includes(query.toLowerCase()),
   );
+  const columns: FlatDataGridColumn<(typeof visible)[number]>[] = [
+    {
+      id: 'registration',
+      header: '등록',
+      width: 210,
+      sortValue: (row) => row.id,
+      cell: (row) => (
+        <>
+          <strong>{row.id}</strong>
+          <div className="vehicle-meta">{row.requestedAt.slice(0, 10)}</div>
+        </>
+      ),
+    },
+    {
+      id: 'requester',
+      header: '요청자',
+      width: 180,
+      sortValue: (row) => userName(appUsers, row.requestedBy),
+      cell: (row) => <>{userName(appUsers, row.requestedBy)}</>,
+    },
+    {
+      id: 'sku',
+      header: 'SKU',
+      width: 180,
+      cell: (row) => (
+        <>
+          {itemsOf(row.id).map((item) => (
+            <div key={item.id}>
+              {masterProducts.find(
+                (product) => product.id === item.masterProductId,
+              )?.sku ?? '제품 누락'}
+            </div>
+          ))}
+        </>
+      ),
+    },
+    {
+      id: 'status',
+      header: '상태',
+      width: 180,
+      sortValue: (row) => statusOf(row.id),
+      cell: (row) => <>{statusOf(row.id)}</>,
+    },
+    {
+      id: 'actions',
+      header: '작업',
+      width: 180,
+      hideable: false,
+      cell: (row) => (
+        <>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setReviewing(row.id);
+            }}
+          >
+            검토·이력
+          </Button>
+        </>
+      ),
+    },
+  ];
+  const gridTable = useReactTable({
+    // Paging is owned by the surrounding filters and the shared grid pager.
+    autoResetPageIndex: false,
+    data: [...visible],
+    columns: columns.map((column) => ({
+      id: column.id,
+      accessorFn: column.sortValue,
+      sortUndefined: 'last',
+    })),
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+  const sortedRows = gridTable.getRowModel().rows.map((row) => row.original);
+  const activeSort = gridTable.getState().sorting.slice(0, 1).pop();
   const { pageItems, pagination, setPagination } = useWorkbenchPagination(
-    visible,
+    sortedRows,
     `${query}|${filter}`,
   );
   return (
@@ -108,7 +182,9 @@ export function ProductRegistrationsPage() {
                 aria-label="등록 번호, 요청자, SKU 검색"
                 placeholder="등록 번호 / 요청자 / SKU 검색"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                }}
               />
             </div>
             <Select value={filter} onValueChange={setFilter}>
@@ -136,48 +212,40 @@ export function ProductRegistrationsPage() {
             </Select>
           </div>
         </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>등록</TableHead>
-              <TableHead>요청자</TableHead>
-              <TableHead>SKU</TableHead>
-              <TableHead>상태</TableHead>
-              <TableHead>작업</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pageItems.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell>
-                  <strong>{row.id}</strong>
-                  <div className="vehicle-meta">
-                    {row.requestedAt.slice(0, 10)}
-                  </div>
-                </TableCell>
-                <TableCell>{userName(appUsers, row.requestedBy)}</TableCell>
-                <TableCell>
-                  {itemsOf(row.id).map((item) => (
-                    <div key={item.id}>
-                      {masterProducts.find(
-                        (product) => product.id === item.masterProductId,
-                      )?.sku ?? '제품 누락'}
-                    </div>
-                  ))}
-                </TableCell>
-                <TableCell>{statusOf(row.id)}</TableCell>
-                <TableCell>
-                  <Button
-                    variant="outline"
-                    onClick={() => setReviewing(row.id)}
-                  >
-                    검토·이력
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <FlatDataGrid
+          embedded
+          label="Product Registrations"
+          columns={columns}
+          rows={pageItems}
+          getRowId={(row) => row.id}
+
+          pagination={{
+            page: pagination.pageIndex + 1,
+            pageSize: pagination.pageSize,
+            totalCount: visible.length,
+            pageSizeOptions: [5, 10, 25],
+            onPageChange: (page) => {
+              setPagination((current) => ({ ...current, pageIndex: page - 1 }));
+            },
+            onPageSizeChange: (pageSize) => {
+              setPagination({ pageIndex: 0, pageSize });
+            },
+          }}
+          sorting={{
+            mode: 'manual',
+            value: activeSort
+              ? {
+                  id: activeSort.id,
+                  direction: activeSort.desc ? 'desc' : 'asc',
+                }
+              : null,
+            onChange: (sort) => {
+              gridTable.setSorting(
+                sort ? [{ id: sort.id, desc: sort.direction === 'desc' }] : [],
+              );
+            },
+          }}
+        />
         {!visible.length && (
           <div className="empty-state">
             <div className="empty-icon">🔍</div>
@@ -185,15 +253,12 @@ export function ProductRegistrationsPage() {
             <p>검색어나 승인 상태 필터를 바꿔 보세요.</p>
           </div>
         )}
-        <WorkbenchPagination
-          recordCount={visible.length}
-          pagination={pagination}
-          onPaginationChange={setPagination}
-        />
       </Card>
       <Dialog
         open={Boolean(reviewing)}
-        onOpenChange={(open) => !open && setReviewing('')}
+        onOpenChange={(open) => {
+          if (!open) setReviewing('');
+        }}
       >
         <DialogContent className="detail-dialog">
           <DialogHeader>
@@ -211,7 +276,9 @@ export function ProductRegistrationsPage() {
                 </strong>
                 <p>
                   근거 Shape:{' '}
-                  {item.sourceShapeIds?.join(', ') || '별도 근거 없음'}
+                  {item.sourceShapeIds?.length
+                    ? item.sourceShapeIds.join(', ')
+                    : '별도 근거 없음'}
                 </p>
                 {item.vehicleProjectIds.length > 0 && (
                   <p>
@@ -229,7 +296,12 @@ export function ProductRegistrationsPage() {
             )}
           </DialogBody>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReviewing('')}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setReviewing('');
+              }}
+            >
               닫기
             </Button>
           </DialogFooter>

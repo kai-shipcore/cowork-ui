@@ -8,13 +8,13 @@
     "build": "tsc -b && vite build",
     "web:build": "tsc -b && vite build",
     "typecheck": "tsc -b",
-    "test": "tsx --test \"src/**/*.test.ts\"",
+    "test": "tsx --tsconfig tsconfig.app.json --import ./test-react-runtime.mjs --test \"src/**/*.test.ts\"",
     "lint": "eslint src --fix",
     "format": "prettier --write .",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@coverland-engineering/ui": "^0.1.0",
+    "@coverland-engineering/ui": "link:../../Coverland_Storybook",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",

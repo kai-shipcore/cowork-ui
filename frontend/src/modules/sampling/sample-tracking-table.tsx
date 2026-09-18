@@ -1,19 +1,17 @@
 import type { ReactNode } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@coverland-engineering/ui/table';
+  FlatDataGrid,
+  type FlatDataGridColumn,
+} from '@coverland-engineering/ui/flat-data-grid';
+import {
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
 import { sampleRoundLabel } from '@/shared/domain/sample-request';
 import { StatusBadge } from '@/shared/components/status-badge';
-import {
-  useWorkbenchPagination,
-  WorkbenchPagination,
-} from '@/shared/components/workbench-pagination';
+import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import type { SampleTrackingRow } from './sample-tracking';
 
 interface SampleTrackingTableProps {
@@ -36,8 +34,140 @@ export function SampleTrackingTable({
   onInspect,
   renderInspection,
 }: SampleTrackingTableProps) {
+  const columns: FlatDataGridColumn<(typeof rows)[number]>[] = [
+    {
+      id: 'date',
+      header: 'Date',
+      width: 210,
+      sortValue: (row) => row.date,
+      cell: (row) => <>{row.date}</>,
+    },
+    {
+      id: 'vehicle',
+      header: 'Vehicle',
+      width: 180,
+      sortValue: (row) => row.vehicle,
+      cell: (row) => (
+        <>
+          <div className="vehicle-name compact">{row.vehicle}</div>
+          <button
+            type="button"
+            className="project-reference project-reference-link"
+            onClick={() => {
+              onInspect(row);
+            }}
+          >
+            {row.requestId}
+          </button>
+        </>
+      ),
+    },
+    {
+      id: 'seat',
+      header: 'Row / Seat Type',
+      width: 180,
+      sortValue: (row) => row.seatType,
+      cell: (row) => <>{row.seatType}</>,
+    },
+    {
+      id: 'part',
+      header: 'Part Name',
+      width: 180,
+      sortValue: (row) => row.partName,
+      cell: (row) => (
+        <>
+          <code>{row.partName}</code>
+        </>
+      ),
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      width: 180,
+      sortValue: (row) => row.status,
+      cell: (row) => (
+        <>
+          <StatusBadge
+            label={row.status === 'READY' ? 'Ready' : 'Sample'}
+            tone={row.status === 'READY' ? 'success' : 'progress'}
+          />
+        </>
+      ),
+    },
+    {
+      id: 'round',
+      header: 'Sample Round',
+      width: 180,
+      sortValue: (row) => row.sampleRound,
+      cell: (row) => <>{sampleRoundLabel(row.sampleRound)}</>,
+    },
+    {
+      id: 'vendor',
+      header: 'Vendor',
+      width: 180,
+      sortValue: (row) => row.vendor,
+      cell: (row) => <>{row.vendor}</>,
+    },
+    {
+      id: 'note',
+      header: 'Note',
+      width: 180,
+      sortValue: (row) => row.note,
+      cell: (row) => (
+        <>{row.note ? row.note : <span className="muted-text">—</span>}</>
+      ),
+    },
+    {
+      id: 'inspection',
+      header: '검수 결과',
+      width: 180,
+      cell: (row) => <>{renderInspection(row)}</>,
+    },
+    {
+      id: 'actions',
+      header: '작업',
+      width: 180,
+      hideable: false,
+      cell: (row) => (
+        <div className="table-actions">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              onInspect(row);
+            }}
+          >
+            입고·검수
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              onOpenProject(row.projectGroupId);
+            }}
+          >
+            프로젝트
+          </Button>
+        </div>
+      ),
+    },
+  ];
+  const gridTable = useReactTable({
+    // Paging is owned by the surrounding filters and the shared grid pager.
+    autoResetPageIndex: false,
+    data: [...rows],
+    columns: columns.map((column) => ({
+      id: column.id,
+      accessorFn: column.sortValue,
+      sortUndefined: 'last',
+    })),
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+  const sortedRows = gridTable.getRowModel().rows.map((row) => row.original);
+  const activeSort = gridTable.getState().sorting.slice(0, 1).pop();
   const { pageItems, pagination, setPagination } = useWorkbenchPagination(
-    rows,
+    sortedRows,
     filterKey,
   );
 
@@ -56,82 +186,37 @@ export function SampleTrackingTable({
 
   return (
     <>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>Vehicle</TableHead>
-            <TableHead>Row / Seat Type</TableHead>
-            <TableHead>Part Name</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Sample Round</TableHead>
-            <TableHead>Vendor</TableHead>
-            <TableHead>Note</TableHead>
-            <TableHead>검수 결과</TableHead>
-            <TableHead className="action-column" />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {pageItems.map((row) => (
-            <TableRow
-              key={row.id}
-              className="cursor-pointer"
-              onClick={(event) => {
-                if (!(event.target as HTMLElement).closest('button, a'))
-                  onInspect(row);
-              }}
-            >
-              <TableCell>{row.date}</TableCell>
-              <TableCell>
-                <div className="vehicle-name compact">{row.vehicle}</div>
-                <button
-                  type="button"
-                  className="project-reference project-reference-link"
-                  onClick={() => onInspect(row)}
-                >
-                  {row.requestId}
-                </button>
-              </TableCell>
-              <TableCell>{row.seatType}</TableCell>
-              <TableCell>
-                <code>{row.partName}</code>
-              </TableCell>
-              <TableCell>
-                <StatusBadge
-                  label={row.status === 'READY' ? 'Ready' : 'Sample'}
-                  tone={row.status === 'READY' ? 'success' : 'progress'}
-                />
-              </TableCell>
-              <TableCell>{sampleRoundLabel(row.sampleRound)}</TableCell>
-              <TableCell>{row.vendor}</TableCell>
-              <TableCell>
-                {row.note ? row.note : <span className="muted-text">—</span>}
-              </TableCell>
-              <TableCell>{renderInspection(row)}</TableCell>
-              <TableCell className="table-actions">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onInspect(row)}
-                >
-                  입고·검수
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => onOpenProject(row.projectGroupId)}
-                >
-                  프로젝트
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <WorkbenchPagination
-        recordCount={rows.length}
-        pagination={pagination}
-        onPaginationChange={setPagination}
+      <FlatDataGrid
+        embedded
+        label="Sample Part Lines"
+        columns={columns}
+        rows={pageItems}
+        getRowId={(row) => row.id}
+        onRowClick={onInspect}
+        rowActionLabel={(row) => `${row.requestId} 입고·검수 열기`}
+        pagination={{
+          page: pagination.pageIndex + 1,
+          pageSize: pagination.pageSize,
+          totalCount: rows.length,
+          pageSizeOptions: [5, 10, 25],
+          onPageChange: (page) => {
+            setPagination((current) => ({ ...current, pageIndex: page - 1 }));
+          },
+          onPageSizeChange: (pageSize) => {
+            setPagination({ pageIndex: 0, pageSize });
+          },
+        }}
+        sorting={{
+          mode: 'manual',
+          value: activeSort
+            ? { id: activeSort.id, direction: activeSort.desc ? 'desc' : 'asc' }
+            : null,
+          onChange: (sort) => {
+            gridTable.setSorting(
+              sort ? [{ id: sort.id, desc: sort.direction === 'desc' }] : [],
+            );
+          },
+        }}
       />
     </>
   );

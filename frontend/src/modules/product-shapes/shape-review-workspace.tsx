@@ -1,5 +1,9 @@
 import { Button } from '@coverland-engineering/ui/button';
 import {
+  FlatDataGrid,
+  type FlatDataGridColumn,
+} from '@coverland-engineering/ui/flat-data-grid';
+import {
   Sheet,
   SheetBody,
   SheetContent,
@@ -7,18 +11,12 @@ import {
   SheetTitle,
 } from '@coverland-engineering/ui/sheet';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@coverland-engineering/ui/table';
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import {
-  useWorkbenchPagination,
-  WorkbenchPagination,
-} from '@/shared/components/workbench-pagination';
+import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import { useWorkbenchStore } from '@/app/workbench-store';
 import { ProjectShapePanel } from './project-shape-panel';
 import {
@@ -52,13 +50,17 @@ export function ShapeReviewWorkspace({
   } = useWorkbenchStore();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
+  const snapshots = new Map(Object.entries(projectDetails));
   const rows = projects
     .flatMap((project) =>
       project.zoneProjects.map((record) => ({
         project,
-        zone: projectDetails[project.id]?.zones.find(
-          (zone) => zone.id === record.id,
-        ) ?? { ...record, scanned: false },
+        zone: snapshots
+          .get(project.id)
+          ?.zones.find((zone) => zone.id === record.id) ?? {
+          ...record,
+          scanned: false,
+        },
       })),
     )
     .filter(
@@ -68,21 +70,20 @@ export function ShapeReviewWorkspace({
     ({ project, zone }) =>
       project.id === params.get('project') && zone.id === params.get('zone'),
   );
-  const detail = selected ? projectDetails[selected.project.id] : undefined;
+  const detail = selected ? snapshots.get(selected.project.id) : undefined;
   const pending = rows.filter(({ project, zone }) => {
-    const snapshot = projectDetails[project.id];
+    const snapshot = snapshots.get(project.id);
+    if (!snapshot) return true;
     return (
       !zone.productShapeId ||
       vehicleProductShapes.find((shape) => shape.id === zone.productShapeId)
         ?.status !== 'ACTIVE' ||
-      (snapshot &&
-        !hasCurrentFitmentQuality(
-          zone.id,
-          snapshot.designs,
-          snapshot.visits,
-          fitmentQualities,
-        )) ||
-      !snapshot ||
+      !hasCurrentFitmentQuality(
+        zone.id,
+        snapshot.designs,
+        snapshot.visits,
+        fitmentQualities,
+      ) ||
       !isSizeReviewCurrent(zone, snapshot.designs, snapshot.visits)
     );
   });
@@ -90,11 +91,92 @@ export function ShapeReviewWorkspace({
   const listed = (showAll ? rows : pending).filter(({ project }) =>
     project.vehicle.toLowerCase().includes(normalizedQuery),
   );
+  const columns: FlatDataGridColumn<(typeof listed)[number]>[] = [
+    {
+      id: 'project',
+      header: '프로젝트 / Zone',
+      width: 210,
+      sortValue: ({ project }) => project.vehicle,
+      cell: ({ project, zone }) => (
+        <>
+          <strong>{project.vehicle}</strong>
+          <div className="vehicle-meta">
+            {project.id} · {zone.code}
+          </div>
+        </>
+      ),
+    },
+    {
+      id: 'workflow',
+      header: '후속 상태',
+      width: 180,
+      sortValue: ({ project, zone }) =>
+        shapeWorkflowLabel(
+          zone,
+          snapshots.get(project.id)?.designs,
+          snapshots.get(project.id)?.visits,
+        ),
+      cell: ({ project, zone }) => (
+        <>
+          {shapeWorkflowLabel(
+            zone,
+            snapshots.get(project.id)?.designs,
+            snapshots.get(project.id)?.visits,
+          )}
+        </>
+      ),
+    },
+    {
+      id: 'handoff',
+      header: 'Handoff',
+      width: 180,
+      sortValue: ({ zone }) => zone.productionHandoff?.completedAt,
+      cell: ({ zone }) => (
+        <>{zone.productionHandoff?.completedAt.slice(0, 10) ?? '확인 필요'}</>
+      ),
+    },
+    {
+      id: 'actions',
+      header: '작업',
+      width: 180,
+      hideable: false,
+      cell: ({ project, zone }) => (
+        <div className="table-actions">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              openReview(project.id, zone.id);
+            }}
+          >
+            검토 열기
+          </Button>
+        </div>
+      ),
+    },
+  ];
+  const gridTable = useReactTable({
+    // Paging is owned by the surrounding filters and the shared grid pager.
+    autoResetPageIndex: false,
+    data: [...listed],
+    columns: columns.map((column) => ({
+      id: column.id,
+      accessorFn: column.sortValue,
+      sortUndefined: 'last',
+    })),
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+  const sortedRows = gridTable.getRowModel().rows.map((row) => row.original);
+  const activeSort = gridTable.getState().sorting.slice(0, 1).pop();
   const {
     pageItems: pagedRows,
     pagination,
     setPagination,
-  } = useWorkbenchPagination(listed, `${showAll}|${normalizedQuery}`);
+  } = useWorkbenchPagination(
+    sortedRows,
+    `${String(showAll)}|${normalizedQuery}`,
+  );
 
   const openReview = (projectId: string, zoneId: string) => {
     setParams((current) => {
@@ -116,61 +198,39 @@ export function ShapeReviewWorkspace({
 
   return (
     <>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>프로젝트 / Zone</TableHead>
-            <TableHead>후속 상태</TableHead>
-            <TableHead>Handoff</TableHead>
-            <TableHead className="action-column" />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {pagedRows.map(({ project, zone }) => (
-            <TableRow key={zone.id}>
-              <TableCell>
-                <strong>{project.vehicle}</strong>
-                <div className="vehicle-meta">
-                  {project.id} · {zone.code}
-                </div>
-              </TableCell>
-              <TableCell>
-                {shapeWorkflowLabel(
-                  zone,
-                  projectDetails[project.id]?.designs,
-                  projectDetails[project.id]?.visits,
-                )}
-              </TableCell>
-              <TableCell>
-                {zone.productionHandoff?.completedAt.slice(0, 10) ??
-                  '확인 필요'}
-              </TableCell>
-              <TableCell className="table-actions">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => openReview(project.id, zone.id)}
-                >
-                  검토 열기
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-          {!listed.length && (
-            <TableRow>
-              <TableCell colSpan={4}>
-                현재 검토·발급 대기 항목이 없습니다. 신규 개발 프로젝트의
-                피팅·품질 확인 후 검토하세요.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-      <WorkbenchPagination
-        recordCount={listed.length}
-        pagination={pagination}
-        onPaginationChange={setPagination}
+      <FlatDataGrid
+        embedded
+        label="Shape 검토"
+        columns={columns}
+        rows={pagedRows}
+        getRowId={({ zone }) => zone.id}
+        emptyMessage="현재 검토·발급 대기 항목이 없습니다. 신규 개발 프로젝트의 피팅·품질 확인 후 검토하세요."
+
+        pagination={{
+          page: pagination.pageIndex + 1,
+          pageSize: pagination.pageSize,
+          totalCount: listed.length,
+          pageSizeOptions: [5, 10, 25],
+          onPageChange: (page) => {
+            setPagination((current) => ({ ...current, pageIndex: page - 1 }));
+          },
+          onPageSizeChange: (pageSize) => {
+            setPagination({ pageIndex: 0, pageSize });
+          },
+        }}
+        sorting={{
+          mode: 'manual',
+          value: activeSort
+            ? { id: activeSort.id, direction: activeSort.desc ? 'desc' : 'asc' }
+            : null,
+          onChange: (sort) => {
+            gridTable.setSorting(
+              sort ? [{ id: sort.id, desc: sort.direction === 'desc' }] : [],
+            );
+          },
+        }}
       />
+
       <Sheet
         open={selected !== undefined}
         onOpenChange={(open) => {
@@ -202,12 +262,13 @@ export function ShapeReviewWorkspace({
                     zone={selected.zone}
                     designs={detail.designs}
                     visits={detail.visits}
-                    onOpenTab={(tab) =>
-                      navigate(
+                    onOpenTab={(tab) => {
+                      // React Router handles route errors; the click does not await navigation.
+                      void navigate(
                         `/vehicle-projects?project=${encodeURIComponent(selected.project.id)}&zone=${encodeURIComponent(selected.zone.code)}&tab=${tab}`,
-                      )
-                    }
-                    onReview={(review) =>
+                      );
+                    }}
+                    onReview={(review) => {
                       updateProjectWorkflow(selected.project.id, (current) => {
                         const next = applyShapeReview(
                           current,
@@ -231,9 +292,9 @@ export function ShapeReviewWorkspace({
                             ...next.activity,
                           ],
                         };
-                      })
-                    }
-                    onLink={(id) =>
+                      });
+                    }}
+                    onLink={(id) => {
                       updateProjectWorkflow(selected.project.id, (current) => ({
                         ...current,
                         zones: current.zones.map((zone) =>
@@ -256,8 +317,8 @@ export function ShapeReviewWorkspace({
                           },
                           ...current.activity,
                         ],
-                      }))
-                    }
+                      }));
+                    }}
                   />
                 ) : (
                   <p>
