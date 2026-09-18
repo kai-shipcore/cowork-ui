@@ -1,16 +1,20 @@
+import type { JSX } from 'react';
+import { MetadataChips } from '@coverland-engineering/ui/metadata-chips';
+
 interface ConfigChipsProps {
-  options: ReadonlyArray<readonly [string, string]>;
+  options: readonly (readonly [string, string])[];
 }
 
-/** Renders the option combination that identifies a vehicle configuration. */
-export function ConfigChips({ options }: ConfigChipsProps) {
+/** Adapts vehicle configuration options to the shared metadata display. */
+export function ConfigChips({ options }: ConfigChipsProps): JSX.Element {
   return (
-    <div className="config-chips">
-      {options.map(([name, value]) => (
-        <span className="config-chip" key={`${name}-${value}`}>
-          {name} <strong>{value}</strong>
-        </span>
-      ))}
-    </div>
+    <MetadataChips
+      label="차량 옵션"
+      items={options.map(([name, value]) => ({
+        id: `${name}-${value}`,
+        label: name,
+        value,
+      }))}
+    />
   );
 }

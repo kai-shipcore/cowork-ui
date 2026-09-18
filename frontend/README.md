@@ -42,6 +42,32 @@ This local link requires both sibling directories; it is not a published package
 upgrade and must not be used as production deployment configuration. A later
 published UI release can replace the local dependency when explicitly approved.
 
+## Shared business components (Workbench Test only)
+
+The five additional components are imported from the linked Storybook package:
+
+- `SummaryCard`: dashboard metrics/stage counts, Product and Sample Request
+  status filters, and project revision accuracy. Counts, targets and filter
+  toggling stay in each page.
+- `UserPicker` / `UserAvatar`: the existing domain adapter preserves Korean
+  labels and caller-owned candidate lists in project ownership, handoff and
+  Shape review. Hunt Board's single-assignee filter also uses the shared picker;
+  clearing it restores all assignees. Multi-person visit checkboxes stay unchanged.
+- `DetailSheet`: Part creation, Part version history, Product details and Shape
+  review. Existing widths, forms, submission targets and close handlers remain.
+  The mobile navigation sheet and centered dialogs are not detail panels.
+- `StatusBadge`: the existing shared import delegates to the library across
+  business modules. Business labels and semantic tones remain caller-owned.
+- `MetadataChips`: `ConfigChips` adapts vehicle option pairs in Vehicle Research,
+  Vehicle Projects, project details and Unique Vehicles; no options render nothing.
+
+Check locally on port 5174: toggle Product/Sample summary filters; choose and
+clear an assignee; open/close each detail panel and submit the Part form; inspect
+status text and vehicle options. `common-components.test.ts` covers static
+rendering and adapter contracts, not browser interaction or layout.
+This migration does not change the production Workbench checkout or publish the
+test site. Existing specialized cards with multiple controls/content remain local.
+
 ## Project Structure
 
 ```text

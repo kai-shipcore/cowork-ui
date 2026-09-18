@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@coverland-engineering/ui/select';
+import { SummaryCard } from '@coverland-engineering/ui/summary-card';
 import {
   getCoreRowModel,
   getSortedRowModel,
@@ -488,33 +489,23 @@ export function SamplesPage() {
         aria-label="샘플 상태 필터"
       >
         {STATUS_CARDS.map((card) => (
-          <button
-            type="button"
-            className="summary-card-button"
-            aria-pressed={status === card.status}
+          <SummaryCard
+            key={card.status}
+            label={card.label}
+            value={
+              scopedRequests.filter((request) =>
+                matchesFilter(request, card.status),
+              ).length
+            }
+            icon={<PackageCheck />}
+            tone={card.tone}
+            selected={status === card.status}
             onClick={() => {
               setStatus((current) =>
                 current === card.status ? 'ALL' : card.status,
               );
             }}
-            key={card.status}
-          >
-            <Card
-              className={`summary-card summary-${card.tone}${status === card.status ? ' active' : ''}`}
-            >
-              <PackageCheck />
-              <div>
-                <strong>
-                  {
-                    scopedRequests.filter((request) =>
-                      matchesFilter(request, card.status),
-                    ).length
-                  }
-                </strong>
-                <span>{card.label}</span>
-              </div>
-            </Card>
-          </button>
+          />
         ))}
       </div>
       <p className="mb-4 text-xs text-muted-foreground" role="status">

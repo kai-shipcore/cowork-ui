@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
 import { Card } from '@coverland-engineering/ui/card';
+import { DetailSheet } from '@coverland-engineering/ui/detail-sheet';
 import {
   FlatDataGrid,
   type FlatDataGridColumn,
@@ -13,14 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@coverland-engineering/ui/select';
-import {
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@coverland-engineering/ui/sheet';
+import { SummaryCard } from '@coverland-engineering/ui/summary-card';
 import {
   getCoreRowModel,
   getSortedRowModel,
@@ -381,32 +375,21 @@ export function ProductCatalogPage() {
 
       <div className="summary-grid" role="group" aria-label="상태별 필터">
         {STATUS_CARDS.map((card) => (
-          <button
-            type="button"
-            className="summary-card-button"
+          <SummaryCard
             key={card.status}
-            aria-pressed={status === card.status}
+            label={card.label}
+            value={
+              scoped.filter((product) => product.status === card.status).length
+            }
+            icon={<PackageCheck />}
+            tone={card.tone}
+            selected={status === card.status}
             onClick={() => {
               setStatus((current) =>
                 current === card.status ? 'ALL' : card.status,
               );
             }}
-          >
-            <Card
-              className={`summary-card summary-${card.tone}${status === card.status ? ' active' : ''}`}
-            >
-              <PackageCheck />
-              <div>
-                <strong>
-                  {
-                    scoped.filter((product) => product.status === card.status)
-                      .length
-                  }
-                </strong>
-                <span>{card.label}</span>
-              </div>
-            </Card>
-          </button>
+          />
         ))}
       </div>
 
@@ -512,57 +495,43 @@ export function ProductCatalogPage() {
         )}
       </Card>
 
-      <Sheet
+      <DetailSheet
         open={selected !== undefined}
         onOpenChange={(open) => {
           if (!open) closeProduct();
         }}
+        title={selected?.sku ?? 'Product 상세'}
+        description={
+          selected
+            ? `${selected.fNumber} · SKU와 Packaging은 시점별 버전으로 관리됩니다.`
+            : '선택한 Product의 SKU와 Packaging 버전 이력'
+        }
+        size="lg"
+        className="w-[min(1120px,96vw)] sm:max-w-none"
       >
-        <SheetContent
-          side="right"
-          className="w-[min(1120px,96vw)] sm:max-w-none p-0 gap-0"
-          accessibleTitle="Product 상세"
-          accessibleDescription="선택한 Product의 SKU와 Packaging 버전 이력"
-        >
-          {selected && (
-            <>
-              <SheetHeader className="workbench-sheet-header">
-                <SheetTitle>
-                  <span className="generated-sku">{selected.sku}</span>
-                </SheetTitle>
-                <SheetDescription>
-                  {selected.fNumber} · SKU와 Packaging은 시점별 버전으로
-                  관리됩니다.
-                </SheetDescription>
-              </SheetHeader>
-              <SheetBody className="workbench-sheet-body">
-                <ProductDetailView
-                  key={selected.id}
-                  product={selected}
-                  material={materialOf(selected)}
-                  users={appUsers}
-                  shapeNames={shapesOf(selected)}
-                  skuHistory={masterProductSkus.filter(
-                    (row) => row.masterProductId === selected.id,
-                  )}
-                  packagingHistory={masterProductPackagings.filter(
-                    (row) => row.masterProductId === selected.id,
-                  )}
-                  registration={registrations.find(
-                    (registration) =>
-                      registration.id === selectedItem?.registrationId,
-                  )}
-                  registrationItem={selectedItem}
-                  onIssueSku={(version) => issueSku(selected, version)}
-                  onIssuePackaging={(version) =>
-                    issuePackaging(selected, version)
-                  }
-                />
-              </SheetBody>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
+        {selected && (
+          <ProductDetailView
+            key={selected.id}
+            product={selected}
+            material={materialOf(selected)}
+            users={appUsers}
+            shapeNames={shapesOf(selected)}
+            skuHistory={masterProductSkus.filter(
+              (row) => row.masterProductId === selected.id,
+            )}
+            packagingHistory={masterProductPackagings.filter(
+              (row) => row.masterProductId === selected.id,
+            )}
+            registration={registrations.find(
+              (registration) =>
+                registration.id === selectedItem?.registrationId,
+            )}
+            registrationItem={selectedItem}
+            onIssueSku={(version) => issueSku(selected, version)}
+            onIssuePackaging={(version) => issuePackaging(selected, version)}
+          />
+        )}
+      </DetailSheet>
     </section>
   );
 }

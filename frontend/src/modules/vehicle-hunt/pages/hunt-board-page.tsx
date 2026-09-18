@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge, BadgeDot } from '@coverland-engineering/ui/badge';
 import { Button } from '@coverland-engineering/ui/button';
 import { Card, CardContent } from '@coverland-engineering/ui/card';
 import { Checkbox } from '@coverland-engineering/ui/checkbox';
@@ -20,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@coverland-engineering/ui/select';
+import { UserPicker } from '@coverland-engineering/ui/user-picker';
 import {
   CalendarDays,
   CalendarPlus,
@@ -136,14 +136,14 @@ export function HuntBoardPage() {
   const calendarYear = calendarMonth.getFullYear();
   const calendarMonthIndex = calendarMonth.getMonth();
   const calendarMonthNumber = calendarMonthIndex + 1;
-  const calendarMonthKey = `${calendarYear}-${String(calendarMonthNumber).padStart(2, '0')}`;
+  const calendarMonthKey = `${String(calendarYear)}-${String(calendarMonthNumber).padStart(2, '0')}`;
   const calendarDays = Array.from(
     { length: new Date(calendarYear, calendarMonthNumber, 0).getDate() },
     (_, index) => index + 1,
   );
   const calendarBlanks = Array.from(
     { length: new Date(calendarYear, calendarMonthIndex, 1).getDay() },
-    (_, index) => `blank-${index}`,
+    (_, index) => `blank-${String(index)}`,
   );
 
   const normalizedQuery = filterQuery.trim().toLowerCase();
@@ -201,7 +201,8 @@ export function HuntBoardPage() {
       ).remaining.filter((zone) =>
         eligibleProjectIdsForStage(
           visitProject.product,
-          projectDetails[visitProjectId]?.zones ?? visitProject.zoneProjects,
+          new Map(Object.entries(projectDetails)).get(visitProjectId)?.zones ??
+            visitProject.zoneProjects,
           visitKind === 'SCAN' ? 'Scan' : 'Fitting',
         ).includes(zone.id),
       )
@@ -225,7 +226,8 @@ export function HuntBoardPage() {
   );
 
   function openProject(projectId: string): void {
-    navigate(
+    // React Router handles route errors; clicks do not await navigation.
+    void navigate(
       `${ROUTES.vehicleProjects}?project=${encodeURIComponent(projectId)}`,
     );
   }
@@ -234,7 +236,10 @@ export function HuntBoardPage() {
     setVisitZoneIds([]);
     setStaffIds([]);
     setVisitProjectId(
-      projectId ?? scanWaitingProjects[0]?.id ?? fittingProjects[0]?.id ?? '',
+      projectId ??
+        scanWaitingProjects.slice(0, 1).pop()?.id ??
+        fittingProjects.slice(0, 1).pop()?.id ??
+        '',
     );
     setDialogOpen(true);
   }
@@ -287,7 +292,7 @@ export function HuntBoardPage() {
         ...dealers.map((dealer) => Number(dealer.id.replace(/\D/g, ''))),
       ) + 1;
     const dealer: Dealer = {
-      id: `d${nextNumber}`,
+      id: `d${String(nextNumber)}`,
       name: dealerName.trim(),
       brand: dealerBrand.trim(),
       type: dealerNewType,
@@ -315,7 +320,12 @@ export function HuntBoardPage() {
             : undefined
         }
         actions={
-          <Button variant="primary" onClick={() => openVisitDialog()}>
+          <Button
+            variant="primary"
+            onClick={() => {
+              openVisitDialog();
+            }}
+          >
             <CalendarPlus /> 방문 예약
           </Button>
         }
@@ -393,14 +403,16 @@ export function HuntBoardPage() {
                   aria-label="Visit 검색"
                   placeholder="차량명 · 프로젝트 ID 검색"
                   value={filterQuery}
-                  onChange={(event) => setFilterQuery(event.target.value)}
+                  onChange={(event) => {
+                    setFilterQuery(event.target.value);
+                  }}
                 />
               </div>
               <Select
                 value={calendarDealer || ALL_FILTER}
-                onValueChange={(value) =>
-                  setCalendarDealer(value === ALL_FILTER ? '' : value)
-                }
+                onValueChange={(value) => {
+                  setCalendarDealer(value === ALL_FILTER ? '' : value);
+                }}
               >
                 <SelectTrigger aria-label="딜러" className="filter-select wide">
                   <SelectValue />
@@ -414,24 +426,18 @@ export function HuntBoardPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select
-                value={calendarAssignee || ALL_FILTER}
-                onValueChange={(value) =>
-                  setCalendarAssignee(value === ALL_FILTER ? '' : value)
-                }
-              >
-                <SelectTrigger aria-label="담당자" className="filter-select">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_FILTER}>전체 담당자</SelectItem>
-                  {appUsers.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <UserPicker
+                value={appUsers.find((user) => user.id === calendarAssignee)}
+                users={appUsers}
+                label="담당자"
+                placeholder="전체 담당자"
+                searchPlaceholder="이름 또는 이메일 검색..."
+                emptyMessage="일치하는 사용자가 없습니다."
+                clearLabel="전체 담당자"
+                onChange={(userId) => {
+                  setCalendarAssignee(userId ?? '');
+                }}
+              />
               {(filterQuery ||
                 calendarDealer ||
                 calendarAssignee ||
@@ -530,11 +536,11 @@ export function HuntBoardPage() {
                     key={legend.value}
                     className="calendar-legend-item"
                     aria-pressed={calendarLegend === legend.value}
-                    onClick={() =>
+                    onClick={() => {
                       setCalendarLegend((current) =>
                         current === legend.value ? undefined : legend.value,
-                      )
-                    }
+                      );
+                    }}
                   >
                     <i className={`calendar-legend-dot ${legend.dot}`} />{' '}
                     {legend.label}
@@ -598,8 +604,10 @@ export function HuntBoardPage() {
                     type="button"
                     className={`${dayClass} has-visits`}
                     key={day}
-                    aria-label={`${calendarMonthNumber}월 ${day}일 일정 ${dayVisits.length}건 상세 보기`}
-                    onClick={() => setSelectedDay(day)}
+                    aria-label={`${String(calendarMonthNumber)}월 ${String(day)}일 일정 ${String(dayVisits.length)}건 상세 보기`}
+                    onClick={() => {
+                      setSelectedDay(day);
+                    }}
                   >
                     {dayContent}
                   </button>
@@ -618,7 +626,9 @@ export function HuntBoardPage() {
                   aria-label="확보처 이름, 브랜드, 주소, 연락처 검색"
                   placeholder="이름 / 브랜드 / 주소 / 연락처"
                   value={dealerQuery}
-                  onChange={(event) => setDealerQuery(event.target.value)}
+                  onChange={(event) => {
+                    setDealerQuery(event.target.value);
+                  }}
                 />
               </div>
               <div className="stage-tabs" role="group" aria-label="확보처 유형">
@@ -628,7 +638,9 @@ export function HuntBoardPage() {
                     key={filter.value}
                     className="stage-tab"
                     aria-pressed={dealerType === filter.value}
-                    onClick={() => setDealerType(filter.value)}
+                    onClick={() => {
+                      setDealerType(filter.value);
+                    }}
                   >
                     {filter.label}
                     <span className="stage-tab-count">
@@ -658,7 +670,9 @@ export function HuntBoardPage() {
                   <Card key={dealer.id}>
                     <CardContent
                       className="dealer-card-content selectable"
-                      onClick={() => setSelectedDealerId(dealer.id)}
+                      onClick={() => {
+                        setSelectedDealerId(dealer.id);
+                      }}
                     >
                       <div className="dealer-title">
                         <div>
@@ -666,7 +680,9 @@ export function HuntBoardPage() {
                             <button
                               type="button"
                               className="dealer-name-button"
-                              onClick={() => setSelectedDealerId(dealer.id)}
+                              onClick={() => {
+                                setSelectedDealerId(dealer.id);
+                              }}
                             >
                               {dealer.name}
                             </button>
@@ -789,7 +805,9 @@ export function HuntBoardPage() {
               <Input
                 type="date"
                 value={visitDate}
-                onChange={(event) => setVisitDate(event.target.value)}
+                onChange={(event) => {
+                  setVisitDate(event.target.value);
+                }}
               />
             </label>
             <label>
@@ -797,7 +815,9 @@ export function HuntBoardPage() {
               <Input
                 type="time"
                 value={visitTime}
-                onChange={(event) => setVisitTime(event.target.value)}
+                onChange={(event) => {
+                  setVisitTime(event.target.value);
+                }}
               />
             </label>
             <fieldset className="visit-zone-picker full-width">
@@ -806,13 +826,13 @@ export function HuntBoardPage() {
                 <label key={zone.id}>
                   <Checkbox
                     checked={visitZoneIds.includes(zone.id)}
-                    onCheckedChange={(checked) =>
+                    onCheckedChange={(checked) => {
                       setVisitZoneIds((current) =>
                         checked === true
                           ? [...new Set([...current, zone.id])]
                           : current.filter((id) => id !== zone.id),
-                      )
-                    }
+                      );
+                    }}
                   />
                   <span>
                     {zone.code} - {zone.id}
@@ -829,13 +849,13 @@ export function HuntBoardPage() {
                   <label key={user.id}>
                     <Checkbox
                       checked={staffIds.includes(user.id)}
-                      onCheckedChange={(checked) =>
+                      onCheckedChange={(checked) => {
                         setStaffIds((current) =>
                           checked === true
                             ? [...new Set([...current, user.id])]
                             : current.filter((id) => id !== user.id),
-                        )
-                      }
+                        );
+                      }}
                     />
                     <span>{user.name}</span>
                   </label>
@@ -843,7 +863,12 @@ export function HuntBoardPage() {
             </fieldset>
           </DialogBody>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogOpen(false);
+              }}
+            >
               취소
             </Button>
             <Button
@@ -883,14 +908,11 @@ export function HuntBoardPage() {
             {selectedDayVisits.map((visit) => (
               <div className="detail-card" key={visit.id}>
                 <div className="visit-kind-heading">
-                  <Badge
-                    variant={visit.kind === 'SCAN' ? 'primary' : 'info'}
+                  <StatusBadge
+                    label={`${visit.kind} Visit`}
+                    tone={visit.kind === 'SCAN' ? 'progress' : 'cyan'}
                     size="lg"
-                    className={`visit-kind-badge ${visit.kind.toLowerCase()}`}
-                  >
-                    <BadgeDot />
-                    {visit.kind} Visit
-                  </Badge>
+                  />
                   <span>담당 {visitAssigneeNames(visit)}</span>
                 </div>
                 <strong>
@@ -917,7 +939,9 @@ export function HuntBoardPage() {
                       <button
                         type="button"
                         className="project-reference project-reference-link"
-                        onClick={() => openProject(visit.projectGroupId)}
+                        onClick={() => {
+                          openProject(visit.projectGroupId);
+                        }}
                       >
                         {visit.projectGroupId}
                       </button>
@@ -959,7 +983,7 @@ export function HuntBoardPage() {
                 {visit.status === 'SCHEDULED' && (
                   <Button
                     variant="primary"
-                    onClick={() =>
+                    onClick={() => {
                       setVisits((current) =>
                         current.map((item) =>
                           item.id === visit.id
@@ -970,8 +994,8 @@ export function HuntBoardPage() {
                               }
                             : item,
                         ),
-                      )
-                    }
+                      );
+                    }}
                   >
                     방문 완료 처리
                   </Button>
@@ -1010,7 +1034,9 @@ export function HuntBoardPage() {
               <Input
                 placeholder="예: Galpin Ford"
                 value={dealerName}
-                onChange={(event) => setDealerName(event.target.value)}
+                onChange={(event) => {
+                  setDealerName(event.target.value);
+                }}
               />
             </label>
             <label>
@@ -1018,16 +1044,18 @@ export function HuntBoardPage() {
               <Input
                 placeholder="예: Ford / Lincoln"
                 value={dealerBrand}
-                onChange={(event) => setDealerBrand(event.target.value)}
+                onChange={(event) => {
+                  setDealerBrand(event.target.value);
+                }}
               />
             </label>
             <label>
               유형
               <Select
                 value={dealerNewType}
-                onValueChange={(value) =>
-                  setDealerNewType(value as Dealer['type'])
-                }
+                onValueChange={(value) => {
+                  setDealerNewType(value as Dealer['type']);
+                }}
               >
                 <SelectTrigger aria-label="확보처 유형">
                   <SelectValue />
@@ -1044,7 +1072,9 @@ export function HuntBoardPage() {
               <Input
                 placeholder="예: North Hills, CA"
                 value={dealerAddress}
-                onChange={(event) => setDealerAddress(event.target.value)}
+                onChange={(event) => {
+                  setDealerAddress(event.target.value);
+                }}
               />
             </label>
             <label className="full-width">
@@ -1052,7 +1082,9 @@ export function HuntBoardPage() {
               <Input
                 placeholder="예: J. Alvarez · (818) 555-0134"
                 value={dealerContact}
-                onChange={(event) => setDealerContact(event.target.value)}
+                onChange={(event) => {
+                  setDealerContact(event.target.value);
+                }}
               />
             </label>
             <label className="full-width">
@@ -1060,7 +1092,9 @@ export function HuntBoardPage() {
               <Input
                 placeholder="예: 금요일 오전 방문 선호"
                 value={dealerNote}
-                onChange={(event) => setDealerNote(event.target.value)}
+                onChange={(event) => {
+                  setDealerNote(event.target.value);
+                }}
               />
             </label>
             <div className="dialog-note">
@@ -1071,7 +1105,9 @@ export function HuntBoardPage() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setDealerDialogOpen(false)}
+              onClick={() => {
+                setDealerDialogOpen(false);
+              }}
             >
               취소
             </Button>
@@ -1169,7 +1205,9 @@ export function HuntBoardPage() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setSelectedDealerId(undefined)}
+              onClick={() => {
+                setSelectedDealerId(undefined);
+              }}
             >
               닫기
             </Button>

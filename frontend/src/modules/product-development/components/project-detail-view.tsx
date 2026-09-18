@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@coverland-engineering/ui/select';
+import { SummaryCard } from '@coverland-engineering/ui/summary-card';
 import {
   Tabs,
   TabsContent,
@@ -69,9 +70,9 @@ import {
   isChangedDxf,
   revisionExecutionAccuracy,
 } from '@/shared/domain/revision-control';
-import { sampleRoundLabel } from '@/shared/domain/sample-request';
 import { sampleStatus } from '@/shared/domain/sample-inspection';
 import { mergeProjectSampleItem } from '@/shared/domain/sample-item-sync';
+import { sampleRoundLabel } from '@/shared/domain/sample-request';
 import { UserAvatar, UserPicker } from '@/shared/domain/user-picker';
 import { PageTables, type TableRef } from '@/shared/components/page-header';
 import { StatusBadge } from '@/shared/components/status-badge';
@@ -104,10 +105,10 @@ import {
   handoffReady,
   sizeReviewEvidence,
 } from '@/modules/product-shapes/shape-model';
+import { InspectionDialog } from '@/modules/sampling/inspection-dialog';
+import { InspectionResult } from '@/modules/sampling/inspection-result';
 import { ShipmentDialog } from '@/modules/sampling/shipment-dialog';
 import { ShipmentSummary } from '@/modules/sampling/shipment-summary';
-import { InspectionResult } from '@/modules/sampling/inspection-result';
-import { InspectionDialog } from '@/modules/sampling/inspection-dialog';
 import { CURRENT_USER_ID } from '@/app/current-user';
 import { SEED_SCAN_VISIT_DATE } from '@/app/workbench-mock-data';
 import { isLegacySeedActivity, useWorkbenchStore } from '@/app/workbench-store';
@@ -119,8 +120,8 @@ import {
   prepareHandoffChecklist,
 } from '../handoff-checklist';
 import { getSampleGate, type SampleGate } from '../sample-gate';
-import { HandoffChecklistForm } from './handoff-checklist-form';
 import { defaultVisitType, visitHistory } from '../visit-history';
+import { HandoffChecklistForm } from './handoff-checklist-form';
 import './project-visits.css';
 import '@/modules/product-shapes/shape-management.css';
 
@@ -241,7 +242,9 @@ function isRevisionSampleRequestable(
   if (!revision.changeRequest) return false;
   const latest = sampleItems
     .filter((item) => item.vehicleProductDesignRevisionId === revision.id)
-    .sort((left, right) => right.sampleRound - left.sampleRound)[0];
+    .sort((left, right) => right.sampleRound - left.sampleRound)
+    .slice(0, 1)
+    .pop();
   return (
     !latest ||
     latest.revisionReflected === 'PARTIAL' ||
@@ -256,8 +259,14 @@ function isSampleApproved(design: ProjectDesign): boolean {
 function fileDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.addEventListener('load', () => resolve(String(reader.result)));
-    reader.addEventListener('error', () => reject(reader.error));
+    reader.addEventListener('load', () => {
+      if (typeof reader.result === 'string') resolve(reader.result);
+      else
+        reject(new Error('The selected file could not be read as a data URL.'));
+    });
+    reader.addEventListener('error', () => {
+      reject(reader.error ?? new Error('The selected file could not be read.'));
+    });
     reader.readAsDataURL(file);
   });
 }
@@ -305,6 +314,19 @@ function initialZones(project: VehicleProjectGroup): readonly ZoneProject[] {
   }));
 }
 
+/** Reads display-only labels from legacy snapshots until a productShape is assigned. */
+function legacyShapeName(value: unknown): string | undefined {
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'shape' in value &&
+    typeof value.shape === 'string'
+  ) {
+    return value.shape;
+  }
+  return undefined;
+}
+
 /**
  * Rebuilds the zone list from the project's own zone projects, layering the
  * persisted per-zone flags on top. A saved snapshot is untrusted localStorage
@@ -313,7 +335,7 @@ function initialZones(project: VehicleProjectGroup): readonly ZoneProject[] {
  */
 function mergeSavedZones(
   project: VehicleProjectGroup,
-  savedZones: readonly ZoneProject[] | undefined,
+  savedZones: readonly Partial<ZoneProject>[] | undefined,
 ): readonly ZoneProject[] {
   const base = initialZones(project);
   if (!savedZones?.length) {
@@ -328,7 +350,10 @@ function mergeSavedZones(
           ...zone,
           currentStage: saved.currentStage ?? zone.currentStage,
           scanned: saved.scanned ?? zone.scanned,
-          shape: saved.productShape?.name ?? saved.shape ?? zone.shape,
+          shape:
+            saved.productShape?.name ??
+            legacyShapeName(saved) ??
+            legacyShapeName(zone),
           productShape: saved.productShape ?? zone.productShape,
           productShapeId:
             saved.productShape?.id ??
@@ -441,7 +466,7 @@ export function ProjectDetailView({
     appUsers,
     configurations,
   } = useWorkbenchStore();
-  const savedDetail = projectDetails[project.id];
+  const savedDetail = new Map(Object.entries(projectDetails)).get(project.id);
   const activeUsers = appUsers.filter((user) => user.status === 'ACTIVE');
   const visitsFromSharedStore: readonly ProjectVisit[] = sharedVisitRecords
     .filter((visit) => visit.projectGroupId === project.id)
@@ -496,7 +521,7 @@ export function ProjectDetailView({
           : derivedStatus;
       // Dates the shared shipment row has win; anything it lacks (an arrival
       // stamped here before the row caught up) stays from the snapshot.
-      const shipment = shipments[0];
+      const shipment = shipments.slice(0, 1).pop();
       const recorded: NonNullable<ProjectSample['shipment']> = {
         ...(saved?.shipment ?? {}),
         ...(shipment?.sampleReadyAt
@@ -536,7 +561,7 @@ export function ProjectDetailView({
   const pipeline = PROJECT_PIPELINES[project.product];
   const initialStage = pipeline.includes(project.stage as ProjectStage)
     ? (project.stage as ProjectStage)
-    : pipeline[0];
+    : pipeline.slice(0, 1).pop();
   // savedDetail comes back from localStorage, so it is untrusted: a snapshot
   // written before this product's pipeline changed can hold a stage that no
   // longer belongs to it. Validate it the same way project.stage is validated.
@@ -587,7 +612,8 @@ export function ProjectDetailView({
   );
   // The screen shows one zone project; the group only stores its data. Gates
   // are evaluated for that project and, for Floor Mat F/B, its bundle partner.
-  const focusedZone = zones.find((zone) => zone.code === zoneCode) ?? zones[0];
+  const focusedZone =
+    zones.find((zone) => zone.code === zoneCode) ?? zones.slice(0, 1).pop();
   const focusScopeIds = new Set(
     focusedZone
       ? projectGateScope(project.product, zones, focusedZone.id).map(
@@ -651,7 +677,8 @@ export function ProjectDetailView({
   const [dialog, setDialog] = useState<DialogName>();
   const [dialogZone, setDialogZone] = useState<string>();
   const [dialogDesignId, setDialogDesignId] = useState<string>();
-  const [visitDialogType, setVisitDialogType] = useState<ProjectVisit['type']>();
+  const [visitDialogType, setVisitDialogType] =
+    useState<ProjectVisit['type']>();
   const [fNumber] = useState<string | undefined>(savedDetail?.fNumber);
   useEffect(() => {
     const snapshot: ProjectDetailSnapshot = {
@@ -823,7 +850,7 @@ export function ProjectDetailView({
               (candidate) => candidate.id === line.designId,
             );
             if (!design) return [];
-            const itemId = `SRI-${sample.id}-${index + 1}`;
+            const itemId = `SRI-${sample.id}-${String(index + 1)}`;
             // A request line stays pinned to the revision it was raised for,
             // so adding a Revision later does not rewrite earlier rounds.
             const existing = current.find(
@@ -832,26 +859,31 @@ export function ProjectDetailView({
                 item.vehicleProductDesignId === design.id,
             );
             return [
-              mergeProjectSampleItem({
-                id: existing?.id ?? itemId,
-                sampleRequestId: sample.id,
-                vehicleProductDesignId: design.id,
-                vehicleProductDesignRevisionId:
-                  existing?.vehicleProductDesignRevisionId ??
-                  currentRevision(design).id,
-                sampleRound: sample.round,
-                priority: 'NORMAL' as const,
-                ...(line.note ? { note: line.note } : {}),
-                ...(sample.status === 'ARRIVED' || sample.status === 'APPROVED'
-                  ? {
-                      sampleReceivedAt:
-                        sample.shipment?.arrivedAt ?? new Date().toISOString(),
-                    }
-                  : {}),
-                ...(sample.status !== 'REQUESTED'
-                  ? { sampleShipmentId: `SHIP-${sample.id}` }
-                  : {}),
-              }, existing),
+              mergeProjectSampleItem(
+                {
+                  id: existing?.id ?? itemId,
+                  sampleRequestId: sample.id,
+                  vehicleProductDesignId: design.id,
+                  vehicleProductDesignRevisionId:
+                    existing?.vehicleProductDesignRevisionId ??
+                    currentRevision(design).id,
+                  sampleRound: sample.round,
+                  priority: 'NORMAL' as const,
+                  ...(line.note ? { note: line.note } : {}),
+                  ...(sample.status === 'ARRIVED' ||
+                  sample.status === 'APPROVED'
+                    ? {
+                        sampleReceivedAt:
+                          sample.shipment?.arrivedAt ??
+                          new Date().toISOString(),
+                      }
+                    : {}),
+                  ...(sample.status !== 'REQUESTED'
+                    ? { sampleShipmentId: `SHIP-${sample.id}` }
+                    : {}),
+                },
+                existing,
+              ),
             ];
           });
         }),
@@ -903,13 +935,14 @@ export function ProjectDetailView({
       vehicleResearchId: project.vehicleResearchId,
       options: project.options,
       projectGroupId: project.id,
-      shapes: zones.flatMap((zone) =>
-        zone.productShape?.name
+      shapes: zones.flatMap((zone) => {
+        const legacyName = legacyShapeName(zone);
+        return zone.productShape?.name
           ? [zone.productShape.name]
-          : zone.shape
-            ? [zone.shape]
-            : [],
-      ),
+          : legacyName
+            ? [legacyName]
+            : [];
+      }),
       skuStatus: 'DRAFT',
     };
     setUniqueVehicles((current) =>
@@ -958,6 +991,7 @@ export function ProjectDetailView({
     zone?: string,
     designId?: string,
   ): void {
+    if (!focusedZone) return;
     if (
       (name === 'design' || name === 'revision') &&
       (!canCreateDesign ||
@@ -1035,7 +1069,8 @@ export function ProjectDetailView({
       (zone) => zone.currentStage === currentStage,
     );
     if (!advancingZones.every(individualGateReady)) return;
-    const nextStage = pipeline[pipeline.indexOf(currentStage) + 1];
+    const nextStageIndex = pipeline.indexOf(currentStage) + 1;
+    const nextStage = pipeline.slice(nextStageIndex, nextStageIndex + 1).pop();
     if (!nextStage) return;
     const advancingIds = new Set(advancingZones.map((zone) => zone.id));
     setZones((current) =>
@@ -1090,7 +1125,8 @@ export function ProjectDetailView({
   return (
     <section className="project-workspace">
       {project.product === 'Seat Cover' &&
-        (linkZone || (partParams.get('linkPart') && canCreateDesign)) && (
+        (Boolean(linkZone) ||
+          (partParams.get('linkPart') && canCreateDesign)) && (
           <PartLinkDialog
             product={project.product}
             productTypeId={project.productTypeId}
@@ -1112,7 +1148,7 @@ export function ProjectDetailView({
               setDesigns((current) => [...current, design]);
               addActivity(
                 'Part 연결',
-                `${design.name} · v${design.revisions[0].revisionNumber}`,
+                `${design.name} · v${String(design.revisions[0].revisionNumber)}`,
               );
               setActiveTab('designs');
               setLinkZone(undefined);
@@ -1131,11 +1167,12 @@ export function ProjectDetailView({
       </Button>
       <Button
         variant="outline"
-        onClick={() =>
-          navigate(
+        onClick={() => {
+          // React Router handles route errors; clicks do not await navigation.
+          void navigate(
             `/product-shapes?view=review&project=${encodeURIComponent(project.id)}&zone=${encodeURIComponent(focusedZone.id)}`,
-          )
-        }
+          );
+        }}
       >
         Shape 생성·품질 검토·확정 →
       </Button>
@@ -1145,7 +1182,9 @@ export function ProjectDetailView({
         zones={zones}
         manager={findUser(activeUsers, focusedZone.managerId)}
         onSelectZone={onSelectZone}
-        onNewConfiguration={() => openDialog('new-configuration')}
+        onNewConfiguration={() => {
+          openDialog('new-configuration');
+        }}
         tables={import.meta.env.DEV ? DETAIL_TABLES : undefined}
       />
       <ProjectProgressRail
@@ -1167,16 +1206,21 @@ export function ProjectDetailView({
         assets={assets}
         onAdvance={advanceStage}
         onOpenTab={setActiveTab}
-        onPromote={() => openDialog('promote')}
-        onOpenShape={() =>
-          navigate(
+        onPromote={() => {
+          openDialog('promote');
+        }}
+        onOpenShape={() => {
+          // React Router handles route errors; clicks do not await navigation.
+          void navigate(
             `/product-shapes?view=review&project=${encodeURIComponent(project.id)}&zone=${encodeURIComponent(focusedZone.id)}`,
-          )
-        }
+          );
+        }}
       />
       <Tabs
         value={activeTab}
-        onValueChange={(value) => setActiveTab(value as DetailTab)}
+        onValueChange={(value) => {
+          setActiveTab(value as DetailTab);
+        }}
       >
         <TabsList variant="line" size="md">
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -1192,19 +1236,23 @@ export function ProjectDetailView({
         <TabsContent value="overview">
           <ZoneTab
             users={activeUsers}
-            onManagerChange={(userId) =>
-              changeZoneManager(focusedZone.id, userId)
-            }
+            onManagerChange={(userId) => {
+              changeZoneManager(focusedZone.id, userId);
+            }}
             project={project}
             zone={focusedZone}
             visits={focusedVisits}
             designs={focusedDesigns}
             canCreateDesign={canCreateDesign}
-            onAddDesign={() => openDialog('design', focusedZone.id)}
-            onRevision={(designId) =>
-              openDialog('revision', undefined, designId)
-            }
-            onOpenVisits={() => setActiveTab('visits')}
+            onAddDesign={() => {
+              openDialog('design', focusedZone.id);
+            }}
+            onRevision={(designId) => {
+              openDialog('revision', undefined, designId);
+            }}
+            onOpenVisits={() => {
+              setActiveTab('visits');
+            }}
           />
           <details className="shape-section">
             <summary>단계 전환 이력</summary>
@@ -1232,13 +1280,13 @@ export function ProjectDetailView({
             stage={focusedStage}
             canCreateDesign={canCreateDesign}
             eligibleProjectIds={designEligibleProjectIds}
-            onAddDesign={(vehicleProjectId) =>
-              openDialog('design', vehicleProjectId)
-            }
-            onRevision={(designId) =>
-              openDialog('revision', undefined, designId)
-            }
-            onToggleFit={(designId) =>
+            onAddDesign={(vehicleProjectId) => {
+              openDialog('design', vehicleProjectId);
+            }}
+            onRevision={(designId) => {
+              openDialog('revision', undefined, designId);
+            }}
+            onToggleFit={(designId) => {
               setDesigns((current) =>
                 current.map((design) =>
                   design.id === designId
@@ -1248,8 +1296,8 @@ export function ProjectDetailView({
                       }
                     : design,
                 ),
-              )
-            }
+              );
+            }}
           />
         </TabsContent>
         <TabsContent value="samples">
@@ -1257,7 +1305,9 @@ export function ProjectDetailView({
             stage={focusedStage}
             onCompleteStage={advanceStage}
             sampleGate={sampleGate}
-            onResolveGate={(tab) => setActiveTab(tab)}
+            onResolveGate={(tab) => {
+              setActiveTab(tab);
+            }}
             product={project.product}
             designs={scopeDesigns.filter((design) =>
               sampleEligibleProjectIds.includes(design.vehicleProjectId),
@@ -1265,7 +1315,9 @@ export function ProjectDetailView({
             samples={focusedSamples}
             sampleItems={sharedSampleRequestItems}
             canRequestSample={canRequestSample}
-            onRequest={() => openDialog('sample')}
+            onRequest={() => {
+              openDialog('sample');
+            }}
             onShip={(sampleId, shipment) => {
               if (!canRequestSample) return;
               setSamples((current) =>
@@ -1394,16 +1446,18 @@ export function ProjectDetailView({
           <RevisionControlTab
             designs={scopeDesigns}
             sampleItems={sharedSampleRequestItems}
-            onRevision={(designId) =>
-              openDialog('revision', undefined, designId)
-            }
+            onRevision={(designId) => {
+              openDialog('revision', undefined, designId);
+            }}
           />
         </TabsContent>
         <TabsContent value="files">
           <FilesTab
             users={activeUsers}
             assets={assets}
-            onAdd={() => openDialog('file')}
+            onAdd={() => {
+              openDialog('file');
+            }}
           />
         </TabsContent>
         <TabsContent value="visits">
@@ -1415,7 +1469,10 @@ export function ProjectDetailView({
             visits={focusedVisits}
             canScheduleScan={canScheduleScan}
             canScheduleFitting={canScheduleFitting}
-            onAdd={(type) => { setVisitDialogType(type); openDialog('visit'); }}
+            onAdd={(type) => {
+              setVisitDialogType(type);
+              openDialog('visit');
+            }}
             onCancel={(visitId) => {
               setVisits((current) =>
                 current.map((visit) =>
@@ -1525,7 +1582,7 @@ export function ProjectDetailView({
             ? sizeReviewEvidence(handoffScope[0].id, designs, visits)
             : '',
         )}
-        onHandoffDraft={(value) =>
+        onHandoffDraft={(value) => {
           setZones((current) =>
             current.map((zone) =>
               handoffScope.some((target) => target.id === zone.id)
@@ -1538,8 +1595,8 @@ export function ProjectDetailView({
                   }
                 : zone,
             ),
-          )
-        }
+          );
+        }}
         handoffErrors={[
           // Shape approval and its quality review follow development handoff.
           ...handoffScope.flatMap((zone) =>
@@ -1635,7 +1692,7 @@ export function ProjectDetailView({
                     revisions: [
                       ...item.revisions,
                       {
-                        id: `REV-${designId}-${revisionNumber}`,
+                        id: `REV-${designId}-${String(revisionNumber)}`,
                         revisionNumber,
                         note,
                         createdBy,
@@ -1653,7 +1710,7 @@ export function ProjectDetailView({
           );
           addActivity(
             'Revision 수정 요청 확정',
-            `${design.name} · Rev ${revisionNumber} · ${changeRequest.issueArea} · 공장 지시서 생성`,
+            `${design.name} · Rev ${String(revisionNumber)} · ${changeRequest.issueArea} · 공장 지시서 생성`,
           );
           importProjectParts(
             designs.map((item) =>
@@ -1663,7 +1720,7 @@ export function ProjectDetailView({
                     revisions: [
                       ...item.revisions,
                       {
-                        id: `REV-${designId}-${revisionNumber}`,
+                        id: `REV-${designId}-${String(revisionNumber)}`,
                         revisionNumber,
                         note,
                         createdBy,
@@ -1726,7 +1783,7 @@ export function ProjectDetailView({
           setSamples((current) => [...current, sample]);
           addActivity(
             'Sample Request',
-            `${sample.id} · ${input.factory} · ${lines.length} items`,
+            `${sample.id} · ${input.factory} · ${String(lines.length)} items`,
           );
           closeDialog();
         }}
@@ -1752,8 +1809,7 @@ export function ProjectDetailView({
         }}
         onPromote={(checklist) => {
           const reference = HANDOFF_DOCUMENTS.map(
-            ([id, label]) =>
-              `${label}: ${checklist.documents[id]?.reference ?? ''}`,
+            ([id, label]) => `${label}: ${checklist.documents[id].reference}`,
           ).join(' / ');
           if (
             handoffChecklistErrors(checklist).length > 0 ||
@@ -1904,7 +1960,9 @@ function ProjectHeader({
                 size="sm"
                 variant={item.id === zone.id ? 'mono' : 'outline'}
                 aria-pressed={item.id === zone.id}
-                onClick={() => onSelectZone(item.code)}
+                onClick={() => {
+                  onSelectZone(item.code);
+                }}
               >
                 <span className={`zone zone-${item.code.toLowerCase()}`}>
                   {item.code}
@@ -1974,7 +2032,7 @@ function ProjectProgressRail({
             <code>{zone.id}</code>
           </div>
           <StatusBadge
-            label={`${zoneStageIndex + 1} / ${pipeline.length} · ${stageLabels?.[zone.currentStage] ?? zone.currentStage}`}
+            label={`${String(zoneStageIndex + 1)} / ${String(pipeline.length)} · ${stageLabels[zone.currentStage] ?? zone.currentStage}`}
             tone={zone.currentStage === 'Approved' ? 'success' : 'progress'}
           />
         </div>
@@ -1999,7 +2057,7 @@ function ProjectProgressRail({
                   ? '✓'
                   : index + 1}
               </span>
-              {stageLabels?.[item] ?? item}
+              {stageLabels[item] ?? item}
             </div>
           ))}
         </div>
@@ -2030,7 +2088,9 @@ function ProjectProgressRail({
           <p className="project-rework-note">
             이미 진행된 샘플이 있어 Sample 단계를 거친 뒤 되돌아온 Revision
             재작업 상태입니다
-            {reworkRevision > 1 && ` (현재 Revision ${reworkRevision})`} ·{' '}
+            {reworkRevision > 1 &&
+              ` (현재 Revision ${String(reworkRevision)})`}{' '}
+            ·{' '}
             {reworkSamples
               .map((sample) => `${sample.id} ${sample.status}`)
               .join(' · ')}
@@ -2047,7 +2107,7 @@ function ProjectProgressRail({
                 <div>
                   <StatusBadge label="REQUIRED BUNDLE" tone="purple" />
                   <StatusBadge
-                    label={`BUNDLE GATE · ${stageLabels?.[pipeline[bundleStageIndex]] ?? pipeline[bundleStageIndex]}`}
+                    label={`BUNDLE GATE · ${stageLabels[pipeline[bundleStageIndex]] ?? pipeline[bundleStageIndex]}`}
                     tone="progress"
                   />
                 </div>
@@ -2226,7 +2286,9 @@ function ProjectNextActionGuide({
               scanVisits.length > 0
                 ? '예약된 Scan Visit 열기'
                 : 'Scan Visit 일정 등록하기',
-            primaryAction: () => onOpenTab('visits'),
+            primaryAction: () => {
+              onOpenTab('visits');
+            },
           };
       break;
     case '3D Model':
@@ -2247,7 +2309,11 @@ function ProjectNextActionGuide({
             ? '3D Model 단계 완료'
             : '모델 검토 완료 · Design으로 이동'
           : '모델 파일 등록',
-        primaryAction: modelAsset ? onAdvance : () => onOpenTab('files'),
+        primaryAction: modelAsset
+          ? onAdvance
+          : () => {
+              onOpenTab('files');
+            },
       };
       break;
     case 'Design':
@@ -2267,7 +2333,9 @@ function ProjectNextActionGuide({
             ? 'Revision 추가하기'
             : 'Design 단계 완료 (재작업)',
           primaryAction: revisionPending
-            ? () => onOpenTab('designs')
+            ? () => {
+                onOpenTab('designs');
+              }
             : onAdvance,
         };
         break;
@@ -2286,7 +2354,11 @@ function ProjectNextActionGuide({
           linkLabel: `${label} 확인`,
           targetTab: 'designs',
           primaryLabel: bomReady ? 'Design 단계 완료' : `${label} 등록하기`,
-          primaryAction: bomReady ? onAdvance : () => onOpenTab('designs'),
+          primaryAction: bomReady
+            ? onAdvance
+            : () => {
+                onOpenTab('designs');
+              },
         };
         break;
       }
@@ -2309,7 +2381,9 @@ function ProjectNextActionGuide({
             linkLabel: 'Parts 탭으로 이동',
             targetTab: 'designs',
             primaryLabel: 'Part 연결하기',
-            primaryAction: () => onOpenTab('designs'),
+            primaryAction: () => {
+              onOpenTab('designs');
+            },
           };
       break;
     case 'Sample':
@@ -2347,8 +2421,9 @@ function ProjectNextActionGuide({
               sampleGate.blockers[0]?.tab === 'designs'
                 ? '패턴 / Design 등록하기'
                 : '미완료 항목 확인하기',
-            primaryAction: () =>
-              onOpenTab(sampleGate.blockers[0]?.tab ?? 'samples'),
+            primaryAction: () => {
+              onOpenTab(sampleGate.blockers[0]?.tab ?? 'samples');
+            },
           };
       break;
     case 'Fitting': {
@@ -2369,12 +2444,13 @@ function ProjectNextActionGuide({
         primaryAction:
           fittingReady && sampleReady
             ? onPromote
-            : () =>
+            : () => {
                 onOpenTab(
                   sampleReady
                     ? 'visits'
                     : (sampleGate.blockers[0]?.tab ?? 'samples'),
-                ),
+                );
+              },
       };
       break;
     }
@@ -2407,7 +2483,9 @@ function ProjectNextActionGuide({
         linkLabel: 'Activity 탭으로 이동',
         targetTab: 'activity',
         primaryLabel: 'Activity 확인하기',
-        primaryAction: () => onOpenTab('activity'),
+        primaryAction: () => {
+          onOpenTab('activity');
+        },
       };
       break;
   }
@@ -2428,7 +2506,9 @@ function ProjectNextActionGuide({
           <button
             type="button"
             className="project-next-action-link"
-            onClick={() => onOpenTab(guide.targetTab)}
+            onClick={() => {
+              onOpenTab(guide.targetTab);
+            }}
           >
             {guide.linkLabel} <ChevronRight aria-hidden="true" />
           </button>
@@ -2555,7 +2635,11 @@ function ZoneTab({
                 design={design}
                 key={design.id}
                 onRevision={
-                  canCreateDesign ? () => onRevision(design.id) : undefined
+                  canCreateDesign
+                    ? () => {
+                        onRevision(design.id);
+                      }
+                    : undefined
                 }
               />
             ))
@@ -2664,7 +2748,9 @@ function DesignsTab({
                     ? undefined
                     : '이 Zone 또는 필수 Floor Mat Bundle의 선행 Gate를 먼저 완료하세요.'
                 }
-                onClick={() => onAddDesign(zone.id)}
+                onClick={() => {
+                  onAddDesign(zone.id);
+                }}
               >
                 <Plus />{' '}
                 {project.product === 'Seat Cover'
@@ -2680,11 +2766,15 @@ function DesignsTab({
                     key={design.id}
                     onRevision={
                       zoneCanCreateDesign
-                        ? () => onRevision(design.id)
+                        ? () => {
+                            onRevision(design.id);
+                          }
                         : undefined
                     }
                     fittingMode={stage === 'Fitting'}
-                    onToggleFit={() => onToggleFit(design.id)}
+                    onToggleFit={() => {
+                      onToggleFit(design.id);
+                    }}
                   />
                 ))
               ) : (
@@ -2732,7 +2822,7 @@ function DesignCard({
           <StatusBadge
             label={
               isApproved
-                ? `Sample 승인 Rev ${revision.revisionNumber}`
+                ? `Sample 승인 Rev ${String(revision.revisionNumber)}`
                 : 'Sample 승인 —'
             }
             tone={isApproved ? 'success' : 'neutral'}
@@ -2745,7 +2835,9 @@ function DesignCard({
             : details.kind === 'CAR_COVER'
               ? `Car Cover · Research ${details.vehicleResearchId}`
               : `Floor Mat · Zone ${details.vehicleZoneId}`}{' '}
-          {details.kind === 'SEAT_COVER' ? ` · Qty ${design.quantity}` : ''}
+          {details.kind === 'SEAT_COVER'
+            ? ` · Qty ${String(design.quantity)}`
+            : ''}
           {designerId ? ` · ${designerId}` : ''}
         </p>
         {details.kind === 'SEAT_COVER' && (
@@ -2823,27 +2915,13 @@ function RevisionControlTab({
         부품별 수정 요청을 확정하고 공장 지시서를 생성한 뒤, 입고 시 지시 반영
         여부를 장착 적합성과 별도로 검증합니다.
       </div>
-      <Card className="detail-panel revision-metric-card">
-        <CardHeader>
-          <CardTitle>수정 반영 정확도</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <strong>{accuracy === undefined ? '측정 전' : `${accuracy}%`}</strong>
-          <span>
-            정확히 반영 {exact} / 검증된 수정 샘플 {verified.length}
-          </span>
-          <StatusBadge
-            label={
-              accuracy !== undefined && accuracy >= 95
-                ? '목표 달성 · 95% 이상'
-                : '목표 · 95% 이상'
-            }
-            tone={
-              accuracy !== undefined && accuracy >= 95 ? 'success' : 'warning'
-            }
-          />
-        </CardContent>
-      </Card>
+      <SummaryCard
+        label="수정 반영 정확도"
+        value={accuracy === undefined ? '측정 전' : `${String(accuracy)}%`}
+        description={`정확히 반영 ${String(exact)} / 검증된 수정 샘플 ${String(verified.length)} · ${accuracy !== undefined && accuracy >= 95 ? '목표 달성' : '목표'} · 95% 이상`}
+        icon={<Wrench />}
+        tone={accuracy !== undefined && accuracy >= 95 ? 'success' : 'warning'}
+      />
       <Card className="detail-panel">
         <CardHeader>
           <CardTitle>
@@ -2867,7 +2945,9 @@ function RevisionControlTab({
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => onRevision(design.id)}
+                  onClick={() => {
+                    onRevision(design.id);
+                  }}
                 >
                   수정 요청 작성
                 </Button>
@@ -2897,7 +2977,7 @@ function RevisionControlTab({
                       variant="outline"
                       onClick={() => {
                         const message = [
-                          `[수정 요청] ${design.name} · Rev ${revision.revisionNumber}`,
+                          `[수정 요청] ${design.name} · Rev ${String(revision.revisionNumber)}`,
                           `문제 출처: ${request.issueSource}`,
                           `문제 부위: ${request.issueArea}`,
                           `수정 지시: ${request.instruction}`,
@@ -2983,7 +3063,9 @@ function RevisionVerification({
         aria-label={`${design.name} 수정 반영 검증 메모`}
         placeholder="확인한 치수, 미반영 항목 등 검증 메모"
         value={note}
-        onChange={(event) => setNote(event.target.value)}
+        onChange={(event) => {
+          setNote(event.target.value);
+        }}
       />
       <div className="revision-verdict-actions">
         {(['CORRECT', 'PARTIAL', 'NOT_REFLECTED'] as const).map((verdict) => (
@@ -2992,7 +3074,9 @@ function RevisionVerification({
             size="sm"
             variant={item.revisionReflected === verdict ? 'primary' : 'outline'}
             disabled={!note.trim()}
-            onClick={() => onVerify(item.id, verdict, note.trim())}
+            onClick={() => {
+              onVerify(item.id, verdict, note.trim());
+            }}
           >
             {verdict === 'CORRECT'
               ? '정확히 반영'
@@ -3148,10 +3232,15 @@ function SamplesTab({
   };
   const gatePassed = canRequestSample && sampleGate.ready;
   const stageCompleted = stage === 'Fitting' || stage === 'Approved';
-  const currentRevisionIds = new Set(designs.map(design => currentRevision(design).id));
-  const pendingInspection = sampleItems.find(item =>
-    currentRevisionIds.has(item.vehicleProductDesignRevisionId) &&
-    ['RECEIVED', 'FACTORY_ISSUE', 'DESIGN_ISSUE'].includes(sampleStatus(item)),
+  const currentRevisionIds = new Set(
+    designs.map((design) => currentRevision(design).id),
+  );
+  const pendingInspection = sampleItems.find(
+    (item) =>
+      currentRevisionIds.has(item.vehicleProductDesignRevisionId) &&
+      ['RECEIVED', 'FACTORY_ISSUE', 'DESIGN_ISSUE'].includes(
+        sampleStatus(item),
+      ),
   );
   const requestableDesigns = samples.length
     ? designs.filter((design) =>
@@ -3160,24 +3249,91 @@ function SamplesTab({
     : designs;
   return (
     <div className="project-tab-stack">
-      <section className={gatePassed ? 'sample-progress-summary ready' : 'sample-progress-summary'} aria-label="샘플 단계 요약">
+      <section
+        className={
+          gatePassed
+            ? 'sample-progress-summary ready'
+            : 'sample-progress-summary'
+        }
+        aria-label="샘플 단계 요약"
+      >
         <div className="sample-progress-heading">
           <div>
-            <span className="project-visit-kicker">현재 Revision 기준 · Sample</span>
-            <h3>{gatePassed ? stageCompleted ? '샘플 단계 완료' : '검수·승인 완료 · Fitting 진행 가능' : !canRequestSample ? '샘플 요청 준비' : '샘플 작업 진행 중'}</h3>
-            <p>{gatePassed
-              ? stageCompleted ? '샘플 단계가 완료되었습니다. 아래에서 승인 결과와 지난 요청을 확인할 수 있습니다.' : '필요한 입고·검수·승인 조건을 충족했습니다. Sample 단계를 완료하고 피팅을 진행하세요.'
-              : !canRequestSample ? '먼저 현재 Zone 또는 필수 Bundle의 Design 단계를 완료하세요.'
-              : sampleGate.blockers[0]?.message ?? '현재 Revision의 샘플 진행 상태를 확인하세요.'}</p>
+            <span className="project-visit-kicker">
+              현재 Revision 기준 · Sample
+            </span>
+            <h3>
+              {gatePassed
+                ? stageCompleted
+                  ? '샘플 단계 완료'
+                  : '검수·승인 완료 · Fitting 진행 가능'
+                : !canRequestSample
+                  ? '샘플 요청 준비'
+                  : '샘플 작업 진행 중'}
+            </h3>
+            <p>
+              {gatePassed
+                ? stageCompleted
+                  ? '샘플 단계가 완료되었습니다. 아래에서 승인 결과와 지난 요청을 확인할 수 있습니다.'
+                  : '필요한 입고·검수·승인 조건을 충족했습니다. Sample 단계를 완료하고 피팅을 진행하세요.'
+                : !canRequestSample
+                  ? '먼저 현재 Zone 또는 필수 Bundle의 Design 단계를 완료하세요.'
+                  : (sampleGate.blockers[0]?.message ??
+                    '현재 Revision의 샘플 진행 상태를 확인하세요.')}
+            </p>
           </div>
-          {gatePassed && stage === 'Sample' ? <Button variant="primary" onClick={onCompleteStage}>Sample 단계 완료 <ChevronRight /></Button>
-            : gatePassed && stageCompleted ? <Button variant="outline" onClick={() => onResolveGate(stage === 'Fitting' ? 'visits' : 'overview')}>{stage === 'Fitting' ? '피팅 일정·결과 보기' : '개발 완료 내역 보기'}</Button>
-            : !canRequestSample || sampleGate.blockers[0]?.tab === 'designs' ? <Button variant="outline" onClick={() => onResolveGate('designs')}>Part / Design 확인</Button>
-            : pendingInspection ? <Button variant="primary" onClick={() => { setInspectionMessage(''); setInspectionRequest(pendingInspection.sampleRequestId); }}>입고·검수 확인</Button> : null}
+          {gatePassed && stage === 'Sample' ? (
+            <Button variant="primary" onClick={onCompleteStage}>
+              Sample 단계 완료 <ChevronRight />
+            </Button>
+          ) : gatePassed && stageCompleted ? (
+            <Button
+              variant="outline"
+              onClick={() => {
+                onResolveGate(stage === 'Fitting' ? 'visits' : 'overview');
+              }}
+            >
+              {stage === 'Fitting'
+                ? '피팅 일정·결과 보기'
+                : '개발 완료 내역 보기'}
+            </Button>
+          ) : !canRequestSample || sampleGate.blockers[0]?.tab === 'designs' ? (
+            <Button
+              variant="outline"
+              onClick={() => {
+                onResolveGate('designs');
+              }}
+            >
+              Part / Design 확인
+            </Button>
+          ) : pendingInspection ? (
+            <Button
+              variant="primary"
+              onClick={() => {
+                setInspectionMessage('');
+                setInspectionRequest(pendingInspection.sampleRequestId);
+              }}
+            >
+              입고·검수 확인
+            </Button>
+          ) : null}
         </div>
-        {sampleGate.blockers.length > 1 && <details className="sample-progress-blockers"><summary>확인할 항목 {sampleGate.blockers.length}건</summary><ul>{sampleGate.blockers.map((blocker,i)=><li key={i}>{blocker.message}</li>)}</ul></details>}
+        {sampleGate.blockers.length > 1 && (
+          <details className="sample-progress-blockers">
+            <summary>확인할 항목 {sampleGate.blockers.length}건</summary>
+            <ul>
+              {sampleGate.blockers.map((blocker, i) => (
+                <li key={i}>{blocker.message}</li>
+              ))}
+            </ul>
+          </details>
+        )}
       </section>
-      {inspectionMessage && <p role="status" className="text-sm text-green-700">{inspectionMessage}</p>}
+      {inspectionMessage && (
+        <p role="status" className="text-sm text-green-700">
+          {inspectionMessage}
+        </p>
+      )}
       {product !== 'Floor Mat' && (
         <Card className="detail-panel">
           <CardHeader>
@@ -3194,7 +3350,7 @@ function SamplesTab({
                     <StatusBadge
                       label={
                         isSampleApproved(design)
-                          ? `Approved Rev ${currentRevision(design).revisionNumber}`
+                          ? `Approved Rev ${String(currentRevision(design).revisionNumber)}`
                           : '미승인'
                       }
                       tone={isSampleApproved(design) ? 'success' : 'neutral'}
@@ -3213,9 +3369,11 @@ function SamplesTab({
                       title={
                         isRevisionArrived(design)
                           ? undefined
-                          : `Rev ${currentRevision(design).revisionNumber}로 만든 샘플이 입고되어야 승인할 수 있습니다.`
+                          : `Rev ${String(currentRevision(design).revisionNumber)}로 만든 샘플이 입고되어야 승인할 수 있습니다.`
                       }
-                      onClick={() => onApproveDesign(design.id)}
+                      onClick={() => {
+                        onApproveDesign(design.id);
+                      }}
                     >
                       Approve Rev {currentRevision(design).revisionNumber}
                     </Button>
@@ -3235,7 +3393,9 @@ function SamplesTab({
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => onResolveGate('designs')}
+                  onClick={() => {
+                    onResolveGate('designs');
+                  }}
                 >
                   패턴 / Design 등록하기
                 </Button>
@@ -3265,12 +3425,14 @@ function SamplesTab({
             <Plus /> Sample Request
           </Button>
         </CardHeader>
-        {!samples.length && <CardContent>
+        {!samples.length && (
+          <CardContent>
             <div className="empty-inline">
               요청이 없습니다 — {designLabel(product)} 설계를 선택해 공장에
               요청하세요.
             </div>
-        </CardContent>}
+          </CardContent>
+        )}
       </Card>
       <div className="sample-status-groups">
         {SAMPLE_STATUS_GROUPS.map((group) => {
@@ -3306,123 +3468,164 @@ function SamplesTab({
                 {groupedSamples.map((sample) => (
                   <details className="project-sample-entry" key={sample.id}>
                     <summary>
-                      <strong>{sample.id}</strong><span className="project-sample-factory">{sample.factory}</span>
-                      <span>{sample.round}차 · {designsOfSample(sample).length}개 항목</span>
-                      <StatusBadge label={group.label} tone={sample.status === 'APPROVED' ? 'success' : 'neutral'} />
-                      <span className="project-sample-inspection-count">{sampleItems.filter(item => item.sampleRequestId === sample.id && sampleStatus(item) === 'PASSED').length}/{sampleItems.filter(item => item.sampleRequestId === sample.id).length} 검수 통과</span>
-                      <span className="project-visit-expand">상세 <ChevronRight aria-hidden="true" /></span>
-                    </summary>
-                  <Card className="detail-panel">
-                    <CardHeader>
-                      <CardTitle>
-                        {sample.id} · {sample.factory}
-                      </CardTitle>
+                      <strong>{sample.id}</strong>
+                      <span className="project-sample-factory">
+                        {sample.factory}
+                      </span>
+                      <span>
+                        {sample.round}차 · {designsOfSample(sample).length}개
+                        항목
+                      </span>
                       <StatusBadge
                         label={group.label}
                         tone={
-                          sample.status === 'APPROVED'
-                            ? 'success'
-                            : sample.status === 'ARRIVED'
-                              ? 'purple'
-                              : sample.status === 'SHIPPED'
-                                ? 'warning'
-                                : 'progress'
+                          sample.status === 'APPROVED' ? 'success' : 'neutral'
                         }
                       />
-                      {sample.status !== 'APPROVED' && (
+                      <span className="project-sample-inspection-count">
+                        {
+                          sampleItems.filter(
+                            (item) =>
+                              item.sampleRequestId === sample.id &&
+                              sampleStatus(item) === 'PASSED',
+                          ).length
+                        }
+                        /
+                        {
+                          sampleItems.filter(
+                            (item) => item.sampleRequestId === sample.id,
+                          ).length
+                        }{' '}
+                        검수 통과
+                      </span>
+                      <span className="project-visit-expand">
+                        상세 <ChevronRight aria-hidden="true" />
+                      </span>
+                    </summary>
+                    <Card className="detail-panel">
+                      <CardHeader>
+                        <CardTitle>
+                          {sample.id} · {sample.factory}
+                        </CardTitle>
+                        <StatusBadge
+                          label={group.label}
+                          tone={
+                            sample.status === 'APPROVED'
+                              ? 'success'
+                              : sample.status === 'ARRIVED'
+                                ? 'purple'
+                                : sample.status === 'SHIPPED'
+                                  ? 'warning'
+                                  : 'progress'
+                          }
+                        />
+                        {sample.status !== 'APPROVED' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={
+                              !canRequestSample ||
+                              (sample.status === 'ARRIVED' &&
+                                !canApproveRequest(sample))
+                            }
+                            title={
+                              sample.status === 'ARRIVED' &&
+                              !canApproveRequest(sample)
+                                ? '항목별 입고·도면 일치·수정 반영 검수를 확인하세요. 요청 승인과 현재 Revision 승인은 별도입니다.'
+                                : undefined
+                            }
+                            onClick={() => {
+                              if (sample.status === 'REQUESTED')
+                                setShippingSample(sample);
+                              else onAdvance(sample.id);
+                            }}
+                          >
+                            {sample.status === 'REQUESTED'
+                              ? 'Mark Shipped'
+                              : sample.status === 'SHIPPED'
+                                ? 'Mark Arrived'
+                                : 'Approve Request'}
+                          </Button>
+                        )}
+                      </CardHeader>
+                      <CardContent>
                         <Button
                           size="sm"
                           variant="outline"
-                          disabled={
-                            !canRequestSample ||
-                            (sample.status === 'ARRIVED' &&
-                              !canApproveRequest(sample))
-                          }
-                          title={
-                            sample.status === 'ARRIVED' &&
-                            !canApproveRequest(sample)
-                              ? '항목별 입고·도면 일치·수정 반영 검수를 확인하세요. 요청 승인과 현재 Revision 승인은 별도입니다.'
-                              : undefined
-                          }
-                          onClick={() =>
-                            sample.status === 'REQUESTED'
-                              ? setShippingSample(sample)
-                              : onAdvance(sample.id)
-                          }
+                          onClick={() => {
+                            setInspectionMessage('');
+                            setInspectionRequest(sample.id);
+                          }}
                         >
-                          {sample.status === 'REQUESTED'
-                            ? 'Mark Shipped'
-                            : sample.status === 'SHIPPED'
-                              ? 'Mark Arrived'
-                              : 'Approve Request'}
+                          입고·검수 / 저장 결과 보기
                         </Button>
-                      )}
-                    </CardHeader>
-                    <CardContent>
-                      <Button size="sm" variant="outline" onClick={() => { setInspectionMessage(''); setInspectionRequest(sample.id); }}>입고·검수 / 저장 결과 보기</Button>
-                      <div className="sample-items">
-                        {designsOfSample(sample).map((design) => {
-                          const line = lineOf(sample, design);
-                          // Ready once the revision this line was made from
-                          // has its sample approved; until then it is a Sample.
-                          const isReady = Boolean(
-                            design.revisions.find(
-                              (revision) =>
-                                revision.id ===
-                                line?.vehicleProductDesignRevisionId,
-                            )?.sampleApprovedAt,
-                          );
-                          return (
-                            <div key={design.id}>
-                              <strong>{design.name}</strong>
-                              <span>
-                                Rev {requestedRevisionNumber(sample, design)}
-                              </span>
-                              <StatusBadge
-                                label={isReady ? 'Ready' : 'Sample'}
-                                tone={isReady ? 'success' : 'progress'}
-                              />
-                              <span>{sampleRoundLabel(sample.round)}</span>
-                              {line && <InspectionResult item={line} compact />}
-                              {line?.note && (
-                                <small className="sample-line-note">
-                                  {line.note}
-                                </small>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {sample.note && (
-                        <p className="detail-help-text">{sample.note}</p>
-                      )}
-                      {sample.shipment && (
-                        <ShipmentSummary shipment={sample.shipment} />
-                      )}
-                      {sample.status === 'ARRIVED' &&
-                        sampleItems
-                          .filter((item) => item.sampleRequestId === sample.id)
-                          .map((item) => {
-                            const design = designs.find(
-                              (candidate) =>
-                                candidate.id === item.vehicleProductDesignId,
+                        <div className="sample-items">
+                          {designsOfSample(sample).map((design) => {
+                            const line = lineOf(sample, design);
+                            // Ready once the revision this line was made from
+                            // has its sample approved; until then it is a Sample.
+                            const isReady = Boolean(
+                              design.revisions.find(
+                                (revision) =>
+                                  revision.id ===
+                                  line?.vehicleProductDesignRevisionId,
+                              )?.sampleApprovedAt,
                             );
-                            const revision = design?.revisions.find(
-                              (candidate) =>
-                                candidate.id ===
-                                item.vehicleProductDesignRevisionId,
+                            return (
+                              <div key={design.id}>
+                                <strong>{design.name}</strong>
+                                <span>
+                                  Rev {requestedRevisionNumber(sample, design)}
+                                </span>
+                                <StatusBadge
+                                  label={isReady ? 'Ready' : 'Sample'}
+                                  tone={isReady ? 'success' : 'progress'}
+                                />
+                                <span>{sampleRoundLabel(sample.round)}</span>
+                                {line && (
+                                  <InspectionResult item={line} compact />
+                                )}
+                                {line?.note && (
+                                  <small className="sample-line-note">
+                                    {line.note}
+                                  </small>
+                                )}
+                              </div>
                             );
-                            return design && revision?.changeRequest ? (
-                              <RevisionVerification
-                                key={item.id}
-                                design={design}
-                                item={item}
-                                onVerify={onVerifyRevision}
-                              />
-                            ) : null;
                           })}
-                    </CardContent>
-                  </Card>
+                        </div>
+                        {sample.note && (
+                          <p className="detail-help-text">{sample.note}</p>
+                        )}
+                        {sample.shipment && (
+                          <ShipmentSummary shipment={sample.shipment} />
+                        )}
+                        {sample.status === 'ARRIVED' &&
+                          sampleItems
+                            .filter(
+                              (item) => item.sampleRequestId === sample.id,
+                            )
+                            .map((item) => {
+                              const design = designs.find(
+                                (candidate) =>
+                                  candidate.id === item.vehicleProductDesignId,
+                              );
+                              const revision = design?.revisions.find(
+                                (candidate) =>
+                                  candidate.id ===
+                                  item.vehicleProductDesignRevisionId,
+                              );
+                              return design && revision?.changeRequest ? (
+                                <RevisionVerification
+                                  key={item.id}
+                                  design={design}
+                                  item={item}
+                                  onVerify={onVerifyRevision}
+                                />
+                              ) : null;
+                            })}
+                      </CardContent>
+                    </Card>
                   </details>
                 ))}
               </div>
@@ -3430,12 +3633,26 @@ function SamplesTab({
           );
         })}
       </div>
-      {inspectionRequest && <InspectionDialog requestId={inspectionRequest} onClose={() => setInspectionRequest(undefined)} onSaved={() => setInspectionMessage('검수 결과가 저장되었습니다. 현재 Revision 승인 상태를 확인하세요.')} />}
+      {inspectionRequest && (
+        <InspectionDialog
+          requestId={inspectionRequest}
+          onClose={() => {
+            setInspectionRequest(undefined);
+          }}
+          onSaved={() => {
+            setInspectionMessage(
+              '검수 결과가 저장되었습니다. 현재 Revision 승인 상태를 확인하세요.',
+            );
+          }}
+        />
+      )}
       {shippingSample && (
         <ShipmentDialog
           subject={shippingSample.id}
           factory={shippingSample.factory}
-          onClose={() => setShippingSample(undefined)}
+          onClose={() => {
+            setShippingSample(undefined);
+          }}
           onSubmit={(details) => {
             onShip(shippingSample.id, details);
             setShippingSample(undefined);
@@ -3526,86 +3743,257 @@ interface VisitsTabProps {
 }
 
 function VisitsTab({
-  users, visits, product, stage, canScheduleScan, canScheduleFitting,
-  onAdd, onCancel, onComplete,
+  users,
+  visits,
+  product,
+  stage,
+  canScheduleScan,
+  canScheduleFitting,
+  onAdd,
+  onCancel,
+  onComplete,
 }: VisitsTabProps) {
-  const [type, setType] = useState<ProjectVisit['type']>(() => defaultVisitType(product, stage));
+  const [type, setType] = useState<ProjectVisit['type']>(() =>
+    defaultVisitType(product, stage),
+  );
   const [includeCancelled, setIncludeCancelled] = useState(false);
   const [limit, setLimit] = useState(10);
   const [upcomingLimit, setUpcomingLimit] = useState(3);
-  const { upcoming, past, latest, rounds, cancelled } = visitHistory(visits, type, includeCancelled);
+  const { upcoming, past, latest, rounds, cancelled } = visitHistory(
+    visits,
+    type,
+    includeCancelled,
+  );
   const name = type === 'SCAN' ? 'Scan' : 'Fitting';
   const canSchedule = type === 'SCAN' ? canScheduleScan : canScheduleFitting;
   const statusLabel = latest
-    ? type === 'SCAN' ? '측정 완료' : latest.result ?? '결과 미기록'
-    : upcoming.length ? '예정' : '대기';
+    ? type === 'SCAN'
+      ? '측정 완료'
+      : (latest.result ?? '결과 미기록')
+    : upcoming.length
+      ? '예정'
+      : '대기';
   const tone = latest
-    ? type === 'SCAN' || latest.result === 'PASS' ? 'success' : latest.result === 'FAIL' ? 'danger' : 'warning'
+    ? type === 'SCAN' || latest.result === 'PASS'
+      ? 'success'
+      : latest.result === 'FAIL'
+        ? 'danger'
+        : 'warning'
     : 'neutral';
 
   function visitRow(visit: ProjectVisit) {
     const scheduled = visit.status === 'SCHEDULED';
-    const result = visit.status === 'CANCELLED' ? '취소'
-      : scheduled ? '예정'
-      : visit.type === 'FITTING' ? visit.result ?? '결과 미기록' : '측정 완료';
+    const result =
+      visit.status === 'CANCELLED'
+        ? '취소'
+        : scheduled
+          ? '예정'
+          : visit.type === 'FITTING'
+            ? (visit.result ?? '결과 미기록')
+            : '측정 완료';
     return (
       <details className="project-visit-entry" key={visit.id}>
         <summary>
-          <span className="project-visit-date">{visit.date} · {visit.time}</span>
+          <span className="project-visit-date">
+            {visit.date} · {visit.time}
+          </span>
           <span className="project-visit-place">{visit.dealer}</span>
-          <span className="project-visit-staff">{visit.staffIds?.length ? visit.staffIds.map(id => userName(users,id)).join(', ') : '담당자 미지정'}</span>
-          {type === 'FITTING' && rounds.has(visit.id) && <span className="project-visit-round">{rounds.get(visit.id)}차</span>}
-          <StatusBadge label={result} tone={result === 'PASS' || result === '측정 완료' ? 'success' : result === 'FAIL' ? 'danger' : scheduled ? 'warning' : 'neutral'} />
-          <span className="project-visit-expand">상세 <ChevronRight aria-hidden="true" /></span>
+          <span className="project-visit-staff">
+            {visit.staffIds?.length
+              ? visit.staffIds.map((id) => userName(users, id)).join(', ')
+              : '담당자 미지정'}
+          </span>
+          {type === 'FITTING' && rounds.has(visit.id) && (
+            <span className="project-visit-round">
+              {rounds.get(visit.id)}차
+            </span>
+          )}
+          <StatusBadge
+            label={result}
+            tone={
+              result === 'PASS' || result === '측정 완료'
+                ? 'success'
+                : result === 'FAIL'
+                  ? 'danger'
+                  : scheduled
+                    ? 'warning'
+                    : 'neutral'
+            }
+          />
+          <span className="project-visit-expand">
+            상세 <ChevronRight aria-hidden="true" />
+          </span>
         </summary>
-        <VisitCard users={users} visit={visit}
-          onCancel={scheduled ? () => onCancel(visit.id) : undefined}
-          onComplete={scheduled ? (result) => onComplete(visit.id, result) : undefined} />
+        <VisitCard
+          users={users}
+          visit={visit}
+          onCancel={
+            scheduled
+              ? () => {
+                  onCancel(visit.id);
+                }
+              : undefined
+          }
+          onComplete={
+            scheduled
+              ? (result) => {
+                  onComplete(visit.id, result);
+                }
+              : undefined
+          }
+        />
       </details>
     );
   }
 
   return (
     <Card className="detail-panel project-visits">
-      <CardHeader><CardTitle>Visits <small>이 프로젝트의 스캔·피팅 진행과 이력</small></CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle>
+          Visits <small>이 프로젝트의 스캔·피팅 진행과 이력</small>
+        </CardTitle>
+      </CardHeader>
       <CardContent>
-        <Tabs value={type} onValueChange={value => { setType(value as ProjectVisit['type']); setLimit(10); setUpcomingLimit(3); }}>
+        <Tabs
+          value={type}
+          onValueChange={(value) => {
+            setType(value as ProjectVisit['type']);
+            setLimit(10);
+            setUpcomingLimit(3);
+          }}
+        >
           <TabsList variant="button" aria-label="방문 업무 구분">
-            {product !== 'Car Cover' && <TabsTrigger value="SCAN"><ScanLine aria-hidden="true" /> Scan</TabsTrigger>}
-            <TabsTrigger value="FITTING"><Wrench aria-hidden="true" /> Fitting</TabsTrigger>
+            {product !== 'Car Cover' && (
+              <TabsTrigger value="SCAN">
+                <ScanLine aria-hidden="true" /> Scan
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="FITTING">
+              <Wrench aria-hidden="true" /> Fitting
+            </TabsTrigger>
           </TabsList>
           <TabsContent value={type} key={type}>
-            {product === 'Car Cover' && <p className="project-visit-hint">Car Cover는 3D Model·Fit Review를 사용하므로 현장 Scan 탭을 표시하지 않습니다.</p>}
+            {product === 'Car Cover' && (
+              <p className="project-visit-hint">
+                Car Cover는 3D Model·Fit Review를 사용하므로 현장 Scan 탭을
+                표시하지 않습니다.
+              </p>
+            )}
             <div className="project-visit-current">
-              <div><span className="project-visit-kicker">{name} 현재 상태</span>
-                <div className="project-visit-status"><StatusBadge label={statusLabel} tone={tone} />
-                  <strong>{latest ? '최근 완료 방문 기준' : upcoming.length ? '방문 일정이 잡혀 있습니다' : '아직 완료된 방문이 없습니다'}</strong>
+              <div>
+                <span className="project-visit-kicker">{name} 현재 상태</span>
+                <div className="project-visit-status">
+                  <StatusBadge label={statusLabel} tone={tone} />
+                  <strong>
+                    {latest
+                      ? '최근 완료 방문 기준'
+                      : upcoming.length
+                        ? '방문 일정이 잡혀 있습니다'
+                        : '아직 완료된 방문이 없습니다'}
+                  </strong>
                 </div>
-                <p>{latest ? `${latest.date} · ${latest.dealer}` : '예약과 실제 작업 완료는 별도로 기록합니다.'}</p>
-                {latest && <small>현재 Revision의 적합성·다음 단계 가능 여부는 상단 NEXT ACTION에서 확인하세요.</small>}
+                <p>
+                  {latest
+                    ? `${latest.date} · ${latest.dealer}`
+                    : '예약과 실제 작업 완료는 별도로 기록합니다.'}
+                </p>
+                {latest && (
+                  <small>
+                    현재 Revision의 적합성·다음 단계 가능 여부는 상단 NEXT
+                    ACTION에서 확인하세요.
+                  </small>
+                )}
               </div>
-              <Button size="sm" variant="primary" disabled={!canSchedule}
-                title={canSchedule ? undefined : `${name} 단계 조건을 먼저 완료하세요.`}
-                onClick={() => onAdd(type)}><Plus /> {name} 일정 등록</Button>
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={!canSchedule}
+                title={
+                  canSchedule
+                    ? undefined
+                    : `${name} 단계 조건을 먼저 완료하세요.`
+                }
+                onClick={() => {
+                  onAdd(type);
+                }}
+              >
+                <Plus /> {name} 일정 등록
+              </Button>
             </div>
             <section className="project-visit-section">
-              <h3><CalendarClock aria-hidden="true" /> 다음 일정 <span>{upcoming.length}건</span></h3>
-              {upcoming[0] ? <>
-                <VisitCard users={users} visit={upcoming[0]}
-                  onCancel={() => onCancel(upcoming[0].id)}
-                  onComplete={result => onComplete(upcoming[0].id,result)} />
-                {upcoming.slice(1, upcomingLimit).map(visitRow)}
-                {upcoming.length > upcomingLimit && <Button variant="outline" size="sm" onClick={() => setUpcomingLimit(n=>n+10)}>다른 예정 일정 더 보기 ({upcoming.length-upcomingLimit}건)</Button>}
-              </> : <p className="empty-inline">예정된 {name} 방문이 없습니다.</p>}
+              <h3>
+                <CalendarClock aria-hidden="true" /> 다음 일정{' '}
+                <span>{upcoming.length}건</span>
+              </h3>
+              {upcoming[0] ? (
+                <>
+                  <VisitCard
+                    users={users}
+                    visit={upcoming[0]}
+                    onCancel={() => {
+                      onCancel(upcoming[0].id);
+                    }}
+                    onComplete={(result) => {
+                      onComplete(upcoming[0].id, result);
+                    }}
+                  />
+                  {upcoming.slice(1, upcomingLimit).map(visitRow)}
+                  {upcoming.length > upcomingLimit && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setUpcomingLimit((n) => n + 10);
+                      }}
+                    >
+                      다른 예정 일정 더 보기 ({upcoming.length - upcomingLimit}
+                      건)
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <p className="empty-inline">예정된 {name} 방문이 없습니다.</p>
+              )}
             </section>
             <section className="project-visit-section">
               <div className="project-visit-history-heading">
-                <h3><History aria-hidden="true" /> 지난 이력 <span>{past.length}건 · 최근순</span></h3>
-                <label className="project-visit-cancelled"><Checkbox checked={includeCancelled} onCheckedChange={value => { setIncludeCancelled(value === true); setLimit(10); }} /> 취소 이력 포함 ({cancelled})</label>
+                <h3>
+                  <History aria-hidden="true" /> 지난 이력{' '}
+                  <span>{past.length}건 · 최근순</span>
+                </h3>
+                <label className="project-visit-cancelled">
+                  <Checkbox
+                    checked={includeCancelled}
+                    onCheckedChange={(value) => {
+                      setIncludeCancelled(value === true);
+                      setLimit(10);
+                    }}
+                  />{' '}
+                  취소 이력 포함 ({cancelled})
+                </label>
               </div>
-              <p className="project-visit-hint">한 줄을 펼치면 상세 정보가 표시됩니다.{type === 'FITTING' ? ' 피팅 차수는 완료 방문의 수행 순서이며, 샘플 차수와 별개입니다.' : ''}</p>
-              {past.length ? past.slice(0,limit).map(visitRow) : <p className="empty-inline">표시할 {name} 이력이 없습니다.</p>}
-              {past.length > limit && <Button variant="outline" size="sm" onClick={() => setLimit(n=>n+10)}>이력 10건 더 보기 ({past.length-limit}건 남음)</Button>}
+              <p className="project-visit-hint">
+                한 줄을 펼치면 상세 정보가 표시됩니다.
+                {type === 'FITTING'
+                  ? ' 피팅 차수는 완료 방문의 수행 순서이며, 샘플 차수와 별개입니다.'
+                  : ''}
+              </p>
+              {past.length ? (
+                past.slice(0, limit).map(visitRow)
+              ) : (
+                <p className="empty-inline">표시할 {name} 이력이 없습니다.</p>
+              )}
+              {past.length > limit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setLimit((n) => n + 10);
+                  }}
+                >
+                  이력 10건 더 보기 ({past.length - limit}건 남음)
+                </Button>
+              )}
             </section>
           </TabsContent>
         </Tabs>
@@ -3712,7 +4100,13 @@ function VisitCard({
             </Button>
           )}
           {onComplete && visit.type === 'SCAN' && (
-            <Button size="sm" variant="primary" onClick={() => onComplete()}>
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => {
+                onComplete();
+              }}
+            >
               Complete Scan
             </Button>
           )}
@@ -3721,14 +4115,18 @@ function VisitCard({
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => onComplete('FAIL')}
+                onClick={() => {
+                  onComplete('FAIL');
+                }}
               >
                 Fail
               </Button>
               <Button
                 size="sm"
                 variant="primary"
-                onClick={() => onComplete('PASS')}
+                onClick={() => {
+                  onComplete('PASS');
+                }}
               >
                 Pass
               </Button>
@@ -3852,8 +4250,10 @@ function ProjectDialog({
     useState<HandoffChecklist>();
   const [zone, setZone] = useState(
     dialogZone ??
-      (dialog === 'design' ? designEligibleProjectIds[0] : undefined) ??
-      zones[0]?.id ??
+      (dialog === 'design'
+        ? designEligibleProjectIds.slice(0, 1).pop()
+        : undefined) ??
+      zones.slice(0, 1).pop()?.id ??
       '',
   );
   const selectedZone = zones.find((item) => item.id === (dialogZone ?? zone));
@@ -3891,11 +4291,12 @@ function ProjectDialog({
   const [isForMiddleSeat, setIsForMiddleSeat] = useState(false);
   const [isCustomPart, setIsCustomPart] = useState(false);
   const [visitType, setVisitType] = useState<ProjectVisit['type']>(
-    initialVisitType ?? (canScheduleFitting && selectedZone?.currentStage === 'Fitting'
-      ? 'FITTING'
-      : canScheduleScan
-        ? 'SCAN'
-        : 'FITTING'),
+    initialVisitType ??
+      (canScheduleFitting && selectedZone?.currentStage === 'Fitting'
+        ? 'FITTING'
+        : canScheduleScan
+          ? 'SCAN'
+          : 'FITTING'),
   );
   const [dealer, setDealer] = useState<(typeof DEALERS)[number]>('Galpin Ford');
   const [date, setDate] = useState(new Date().toLocaleDateString('en-CA'));
@@ -4120,7 +4521,12 @@ function ProjectDialog({
   }
 
   return (
-    <Dialog open={Boolean(dialog)} onOpenChange={(open) => !open && onClose()}>
+    <Dialog
+      open={Boolean(dialog)}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent className="project-action-dialog">
         <DialogHeader>
           <DialogTitle>{dialog ? dialogTitles[dialog] : ''}</DialogTitle>
@@ -4180,7 +4586,9 @@ function ProjectDialog({
                     type="radio"
                     name="configuration-mode"
                     checked={configurationMode === 'NEW'}
-                    onChange={() => setConfigurationMode('NEW')}
+                    onChange={() => {
+                      setConfigurationMode('NEW');
+                    }}
                   />
                   <span>
                     <strong>Create another Configuration</strong>
@@ -4194,7 +4602,9 @@ function ProjectDialog({
                     type="radio"
                     name="configuration-mode"
                     checked={configurationMode === 'FIX'}
-                    onChange={() => setConfigurationMode('FIX')}
+                    onChange={() => {
+                      setConfigurationMode('FIX');
+                    }}
                   />
                   <span>
                     <strong>Correct current Research information</strong>
@@ -4206,7 +4616,9 @@ function ProjectDialog({
                 Reason / Notes
                 <Input
                   value={configurationNote}
-                  onChange={(event) => setConfigurationNote(event.target.value)}
+                  onChange={(event) => {
+                    setConfigurationNote(event.target.value);
+                  }}
                   placeholder="예: 딜러 확인 결과 Storage 옵션 오기재"
                 />
               </label>
@@ -4262,7 +4674,9 @@ function ProjectDialog({
                   {project.product === 'Floor Mat' ? '금형 이름' : '패턴 이름'}
                   <Input
                     value={designName}
-                    onChange={(event) => setDesignName(event.target.value)}
+                    onChange={(event) => {
+                      setDesignName(event.target.value);
+                    }}
                   />
                 </label>
                 {project.product === 'Seat Cover' && (
@@ -4272,9 +4686,9 @@ function ProjectDialog({
                       type="number"
                       value={designQuantity}
                       min="1"
-                      onChange={(event) =>
-                        setDesignQuantity(event.target.value)
-                      }
+                      onChange={(event) => {
+                        setDesignQuantity(event.target.value);
+                      }}
                     />
                   </label>
                 )}
@@ -4340,12 +4754,12 @@ function ProjectDialog({
                     Side
                     <Select
                       value={seatSide}
-                      onValueChange={(value) =>
+                      onValueChange={(value) => {
                         setSeatSide(
                           value as
                             'DRIVER' | 'PASSENGER' | 'CENTER' | 'UNIVERSAL',
-                        )
-                      }
+                        );
+                      }}
                     >
                       <SelectTrigger aria-label="Seat Cover Side">
                         <SelectValue />
@@ -4362,18 +4776,18 @@ function ProjectDialog({
                     <label>
                       <Checkbox
                         checked={isForMiddleSeat}
-                        onCheckedChange={(checked) =>
-                          setIsForMiddleSeat(Boolean(checked))
-                        }
+                        onCheckedChange={(checked) => {
+                          setIsForMiddleSeat(Boolean(checked));
+                        }}
                       />
                       Middle seat part
                     </label>
                     <label>
                       <Checkbox
                         checked={isCustomPart}
-                        onCheckedChange={(checked) =>
-                          setIsCustomPart(Boolean(checked))
-                        }
+                        onCheckedChange={(checked) => {
+                          setIsCustomPart(Boolean(checked));
+                        }}
                       />
                       Custom part
                     </label>
@@ -4424,7 +4838,9 @@ function ProjectDialog({
                   Revision Note
                   <Input
                     value={revisionNote}
-                    onChange={(event) => setRevisionNote(event.target.value)}
+                    onChange={(event) => {
+                      setRevisionNote(event.target.value);
+                    }}
                   />
                 </label>
                 <label>
@@ -4455,14 +4871,7 @@ function ProjectDialog({
                   {designs.find((design) => design.id === dialogDesignId)?.name}
                 </strong>
                 <small>
-                  Current Rev{' '}
-                  {designs.find((design) => design.id === dialogDesignId)
-                    ? currentRevision(
-                        designs.find(
-                          (design) => design.id === dialogDesignId,
-                        ) as ProjectDesign,
-                      ).revisionNumber
-                    : '—'}
+                  Current Rev {previousRevision?.revisionNumber ?? '—'}
                 </small>
               </div>
               <div className="dialog-form-grid">
@@ -4488,7 +4897,9 @@ function ProjectDialog({
                   Revision Note
                   <Input
                     value={revisionNote}
-                    onChange={(event) => setRevisionNote(event.target.value)}
+                    onChange={(event) => {
+                      setRevisionNote(event.target.value);
+                    }}
                     placeholder="변경 사유를 입력하세요"
                   />
                 </label>
@@ -4496,9 +4907,9 @@ function ProjectDialog({
                   문제 출처
                   <Input
                     value={revisionIssueSource}
-                    onChange={(event) =>
-                      setRevisionIssueSource(event.target.value)
-                    }
+                    onChange={(event) => {
+                      setRevisionIssueSource(event.target.value);
+                    }}
                     placeholder="예: 1차 샘플 장착 테스트"
                   />
                 </label>
@@ -4506,9 +4917,9 @@ function ProjectDialog({
                   문제 부위
                   <Input
                     value={revisionIssueArea}
-                    onChange={(event) =>
-                      setRevisionIssueArea(event.target.value)
-                    }
+                    onChange={(event) => {
+                      setRevisionIssueArea(event.target.value);
+                    }}
                     placeholder="예: 등받이 하단"
                   />
                 </label>
@@ -4517,9 +4928,9 @@ function ProjectDialog({
                   <textarea
                     className="revision-instruction-textarea"
                     value={revisionInstruction}
-                    onChange={(event) =>
-                      setRevisionInstruction(event.target.value)
-                    }
+                    onChange={(event) => {
+                      setRevisionInstruction(event.target.value);
+                    }}
                     placeholder="무엇을 어디에서 얼마나 변경할지 입력하세요. 예: 표시된 하단 패턴 길이를 10mm 늘림"
                   />
                 </label>
@@ -4544,7 +4955,7 @@ function ProjectDialog({
                   <span>이전 버전 · 자동 연결</span>
                   <strong>
                     {previousRevision
-                      ? `Rev ${previousRevision.revisionNumber}`
+                      ? `Rev ${String(previousRevision.revisionNumber)}`
                       : '—'}
                   </strong>
                   <small>
@@ -4599,9 +5010,9 @@ function ProjectDialog({
                 <label className="revision-designer-confirmation full-width">
                   <Checkbox
                     checked={designerConfirmed}
-                    onCheckedChange={(checked) =>
-                      setDesignerConfirmed(Boolean(checked))
-                    }
+                    onCheckedChange={(checked) => {
+                      setDesignerConfirmed(Boolean(checked));
+                    }}
                   />
                   수정 설명, 참고 이미지와 새 DXF가 일치함을 디자이너가
                   확인했습니다.
@@ -4621,11 +5032,11 @@ function ProjectDialog({
                   Location Type
                   <Select
                     value={locationType}
-                    onValueChange={(value) =>
+                    onValueChange={(value) => {
                       setLocationType(
                         value as NonNullable<ProjectVisit['locationType']>,
-                      )
-                    }
+                      );
+                    }}
                   >
                     <SelectTrigger aria-label="Location Type">
                       <SelectValue />
@@ -4649,9 +5060,9 @@ function ProjectDialog({
                   Priority
                   <Select
                     value={priority}
-                    onValueChange={(value) =>
-                      setPriority(value as 'NORMAL' | 'URGENT')
-                    }
+                    onValueChange={(value) => {
+                      setPriority(value as 'NORMAL' | 'URGENT');
+                    }}
                   >
                     <SelectTrigger aria-label="Priority">
                       <SelectValue />
@@ -4666,11 +5077,11 @@ function ProjectDialog({
                   Target Vehicle
                   <Select
                     value={targetVehicleResearchId || 'NOT_REFLECTED'}
-                    onValueChange={(value) =>
+                    onValueChange={(value) => {
                       setTargetVehicleResearchId(
                         value === 'NOT_REFLECTED' ? '' : value,
-                      )
-                    }
+                      );
+                    }}
                   >
                     <SelectTrigger aria-label="Target Vehicle">
                       <SelectValue />
@@ -4718,9 +5129,9 @@ function ProjectDialog({
                   <Select
                     disabled={locationType !== 'DEALERSHIP'}
                     value={dealer}
-                    onValueChange={(value) =>
-                      setDealer(value as (typeof DEALERS)[number])
-                    }
+                    onValueChange={(value) => {
+                      setDealer(value as (typeof DEALERS)[number]);
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -4739,7 +5150,9 @@ function ProjectDialog({
                   <Input
                     type="date"
                     value={date}
-                    onChange={(event) => setDate(event.target.value)}
+                    onChange={(event) => {
+                      setDate(event.target.value);
+                    }}
                   />
                 </label>
                 <label>
@@ -4747,7 +5160,9 @@ function ProjectDialog({
                   <Input
                     type="time"
                     value={time}
-                    onChange={(event) => setTime(event.target.value)}
+                    onChange={(event) => {
+                      setTime(event.target.value);
+                    }}
                   />
                 </label>
               </div>
@@ -4767,13 +5182,13 @@ function ProjectDialog({
                     <label key={item.id}>
                       <Checkbox
                         checked={selectedProjectIds.includes(item.id)}
-                        onCheckedChange={(checked) =>
+                        onCheckedChange={(checked) => {
                           setSelectedProjectIds((current) =>
                             checked === true
                               ? [...new Set([...current, item.id])]
                               : current.filter((id) => id !== item.id),
-                          )
-                        }
+                          );
+                        }}
                       />
                       <span>
                         {item.code} · {item.label} · {item.id}
@@ -4791,13 +5206,13 @@ function ProjectDialog({
                   <label key={user.id}>
                     <Checkbox
                       checked={staffIds.includes(user.id)}
-                      onCheckedChange={(checked) =>
+                      onCheckedChange={(checked) => {
                         setStaffIds((current) =>
                           checked === true
                             ? [...new Set([...current, user.id])]
                             : current.filter((id) => id !== user.id),
-                        )
-                      }
+                        );
+                      }}
                     />
                     <span>{user.name}</span>
                   </label>
@@ -4807,7 +5222,9 @@ function ProjectDialog({
                 Visit Note
                 <Textarea
                   value={visitNote}
-                  onChange={(event) => setVisitNote(event.target.value)}
+                  onChange={(event) => {
+                    setVisitNote(event.target.value);
+                  }}
                   placeholder="Vehicle availability, equipment, or instructions for this visit."
                 />
               </label>
@@ -4820,9 +5237,9 @@ function ProjectDialog({
                   Vendor (Factory)
                   <Select
                     value={factory}
-                    onValueChange={(value) =>
-                      setFactory(value as (typeof FACTORIES)[number])
-                    }
+                    onValueChange={(value) => {
+                      setFactory(value as (typeof FACTORIES)[number]);
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -4841,7 +5258,9 @@ function ProjectDialog({
                   <Input
                     value={sampleNote}
                     placeholder="Slack 게시글의 간단한 메모 · 상세 지시는 Checklist"
-                    onChange={(event) => setSampleNote(event.target.value)}
+                    onChange={(event) => {
+                      setSampleNote(event.target.value);
+                    }}
                   />
                 </label>
               </div>
@@ -4863,11 +5282,11 @@ function ProjectDialog({
                       <label>
                         <Checkbox
                           checked={line !== undefined}
-                          onCheckedChange={(checked) =>
+                          onCheckedChange={(checked) => {
                             setLine(
                               checked ? { designId: design.id } : undefined,
-                            )
-                          }
+                            );
+                          }}
                         />
                         <span title={design.name}>
                           {design.name} · Rev{' '}
@@ -4902,16 +5321,18 @@ function ProjectDialog({
                 File Name
                 <Input
                   value={fileName}
-                  onChange={(event) => setFileName(event.target.value)}
+                  onChange={(event) => {
+                    setFileName(event.target.value);
+                  }}
                 />
               </label>
               <label>
                 Asset Type
                 <Select
                   value={fileType}
-                  onValueChange={(value) =>
-                    setFileType(value as ProjectAsset['type'])
-                  }
+                  onValueChange={(value) => {
+                    setFileType(value as ProjectAsset['type']);
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />

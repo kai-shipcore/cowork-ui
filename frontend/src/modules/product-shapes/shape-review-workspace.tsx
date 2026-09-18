@@ -1,15 +1,9 @@
 import { Button } from '@coverland-engineering/ui/button';
+import { DetailSheet } from '@coverland-engineering/ui/detail-sheet';
 import {
   FlatDataGrid,
   type FlatDataGridColumn,
 } from '@coverland-engineering/ui/flat-data-grid';
-import {
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@coverland-engineering/ui/sheet';
 import {
   getCoreRowModel,
   getSortedRowModel,
@@ -231,106 +225,100 @@ export function ShapeReviewWorkspace({
         }}
       />
 
-      <Sheet
+      <DetailSheet
         open={selected !== undefined}
         onOpenChange={(open) => {
           if (!open) closeReview();
         }}
+        title={
+          selected
+            ? `${selected.project.vehicle} · ${selected.zone.code}`
+            : 'Shape 검토'
+        }
+        description="선택한 Zone 프로젝트의 Shape 검토 상세"
+        size="lg"
+        className="w-[min(1120px,96vw)] sm:max-w-none"
       >
-        <SheetContent
-          side="right"
-          className="w-[min(1120px,96vw)] sm:max-w-none p-0 gap-0"
-          accessibleTitle="Shape 검토"
-          accessibleDescription="선택한 Zone 프로젝트의 Shape 검토 상세"
-        >
-          {selected && (
-            <>
-              <SheetHeader className="workbench-sheet-header">
-                <SheetTitle>
-                  {selected.project.vehicle} · {selected.zone.code}
-                </SheetTitle>
-                <Link
-                  to={`/vehicle-projects?project=${encodeURIComponent(selected.project.id)}&zone=${encodeURIComponent(selected.zone.code)}`}
-                >
-                  원래 프로젝트 · 자료 · 재작업 열기 →
-                </Link>
-              </SheetHeader>
-              <SheetBody className="workbench-sheet-body shape-management">
-                {detail ? (
-                  <ProjectShapePanel
-                    key={selected.zone.id}
-                    zone={selected.zone}
-                    designs={detail.designs}
-                    visits={detail.visits}
-                    onOpenTab={(tab) => {
-                      // React Router handles route errors; the click does not await navigation.
-                      void navigate(
-                        `/vehicle-projects?project=${encodeURIComponent(selected.project.id)}&zone=${encodeURIComponent(selected.zone.code)}&tab=${tab}`,
-                      );
-                    }}
-                    onReview={(review) => {
-                      updateProjectWorkflow(selected.project.id, (current) => {
-                        const next = applyShapeReview(
-                          current,
-                          selected.zone.id,
-                          review,
-                        );
-                        const now = new Date();
-                        return {
-                          ...next,
-                          activity: [
-                            {
-                              id: crypto.randomUUID(),
-                              date: now.toISOString().slice(5, 10),
-                              time: now.toTimeString().slice(0, 5),
-                              title:
-                                review.outcome === 'APPROVED'
-                                  ? 'Shape 검토 구두 승인'
-                                  : `Shape 반려 · ${review.rejectionType === 'PATTERN' ? '패턴 재작업' : '문서 보완'}`,
-                              detail: `${selected.zone.code} · ${review.reviewedBy} · ${review.note}`,
-                            },
-                            ...next.activity,
-                          ],
-                        };
-                      });
-                    }}
-                    onLink={(id) => {
-                      updateProjectWorkflow(selected.project.id, (current) => ({
-                        ...current,
-                        zones: current.zones.map((zone) =>
-                          zone.id === selected.zone.id
-                            ? {
-                                ...zone,
-                                productShapeId: id,
-                                productShape: undefined,
-                                shape: undefined,
-                              }
-                            : zone,
-                        ),
-                        activity: [
-                          {
-                            id: crypto.randomUUID(),
-                            date: new Date().toISOString().slice(5, 10),
-                            time: new Date().toTimeString().slice(0, 5),
-                            title: 'Shape 연결',
-                            detail: `${selected.zone.code} · ${id ?? '연결 해제'}`,
-                          },
-                          ...current.activity,
-                        ],
-                      }));
-                    }}
-                  />
-                ) : (
-                  <p>
-                    이전 데이터의 인계 자료가 없습니다. 원래 프로젝트에서 인계
-                    완료를 기록하세요.
-                  </p>
-                )}
-              </SheetBody>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
+        {selected && (
+          <div className="shape-management space-y-5">
+            <Link
+              to={`/vehicle-projects?project=${encodeURIComponent(selected.project.id)}&zone=${encodeURIComponent(selected.zone.code)}`}
+            >
+              원래 프로젝트 · 자료 · 재작업 열기 →
+            </Link>
+            {detail ? (
+              <ProjectShapePanel
+                key={selected.zone.id}
+                zone={selected.zone}
+                designs={detail.designs}
+                visits={detail.visits}
+                onOpenTab={(tab) => {
+                  // React Router handles route errors; the click does not await navigation.
+                  void navigate(
+                    `/vehicle-projects?project=${encodeURIComponent(selected.project.id)}&zone=${encodeURIComponent(selected.zone.code)}&tab=${tab}`,
+                  );
+                }}
+                onReview={(review) => {
+                  updateProjectWorkflow(selected.project.id, (current) => {
+                    const next = applyShapeReview(
+                      current,
+                      selected.zone.id,
+                      review,
+                    );
+                    const now = new Date();
+                    return {
+                      ...next,
+                      activity: [
+                        {
+                          id: crypto.randomUUID(),
+                          date: now.toISOString().slice(5, 10),
+                          time: now.toTimeString().slice(0, 5),
+                          title:
+                            review.outcome === 'APPROVED'
+                              ? 'Shape 검토 구두 승인'
+                              : `Shape 반려 · ${review.rejectionType === 'PATTERN' ? '패턴 재작업' : '문서 보완'}`,
+                          detail: `${selected.zone.code} · ${review.reviewedBy} · ${review.note}`,
+                        },
+                        ...next.activity,
+                      ],
+                    };
+                  });
+                }}
+                onLink={(id) => {
+                  updateProjectWorkflow(selected.project.id, (current) => ({
+                    ...current,
+                    zones: current.zones.map((zone) =>
+                      zone.id === selected.zone.id
+                        ? {
+                            ...zone,
+                            productShapeId: id,
+                            productShape: undefined,
+                            shape: undefined,
+                          }
+                        : zone,
+                    ),
+                    activity: [
+                      {
+                        id: crypto.randomUUID(),
+                        date: new Date().toISOString().slice(5, 10),
+                        time: new Date().toTimeString().slice(0, 5),
+                        title: 'Shape 연결',
+                        detail: `${selected.zone.code} · ${id ?? '연결 해제'}`,
+                      },
+                      ...current.activity,
+                    ],
+                  }));
+                }}
+              />
+            ) : (
+              <p>
+                이전 데이터의 인계 자료가 없습니다. 원래 프로젝트에서 인계
+                완료를 기록하세요.
+              </p>
+            )}
+          </div>
+        )}
+      </DetailSheet>
     </>
   );
 }

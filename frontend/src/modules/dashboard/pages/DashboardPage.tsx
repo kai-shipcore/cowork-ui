@@ -5,6 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@coverland-engineering/ui/card';
+import { SummaryCard } from '@coverland-engineering/ui/summary-card';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { findUser } from '@/shared/domain/app-user';
@@ -105,7 +106,10 @@ export function DashboardPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => navigate(warning.to)}
+                  onClick={() => {
+                    // React Router handles route errors; clicks do not await navigation.
+                    void navigate(warning.to);
+                  }}
                 >
                   확인
                 </Button>
@@ -116,51 +120,65 @@ export function DashboardPage() {
       )}
 
       <div className="dashboard-stats">
-        <Card className="dashboard-stat">
-          <CardContent>
-            <span className="dashboard-stat-label">처리할 작업</span>
-            <strong className="dashboard-stat-value">
-              {summary.actions.length}
-            </strong>
-            <span
-              className={`dashboard-stat-sub${overdueActions ? ' attention' : ''}`}
-            >
-              지연 {overdueActions}건 포함
-            </span>
-          </CardContent>
-        </Card>
-        <Card className="dashboard-stat">
-          <CardContent>
-            <span className="dashboard-stat-label">피팅 대기 Sample</span>
-            <strong className="dashboard-stat-value">
-              {summary.samplesWaitingFitting.length}
-            </strong>
-            <span
-              className={`dashboard-stat-sub${longWaits ? ' attention' : ''}`}
-            >
-              {SAMPLE_FITTING_WAIT_DAYS}일 초과 {longWaits}건
-            </span>
-          </CardContent>
-        </Card>
-        <Card className="dashboard-stat">
-          <CardContent>
-            <span className="dashboard-stat-label">승인 대기</span>
-            <strong className="dashboard-stat-value">{approvalsPending}</strong>
-            <span className="dashboard-stat-sub">
-              인계 승인 {summary.handoffPending.length} · SKU 등록{' '}
-              {summary.pendingRegistrations}
-            </span>
-          </CardContent>
-        </Card>
+        <SummaryCard
+          label="처리할 작업"
+          value={summary.actions.length}
+          description={`지연 ${String(overdueActions)}건 포함`}
+          className={
+            overdueActions
+              ? '[&_.text-xs]:text-amber-700 dark:[&_.text-xs]:text-amber-400'
+              : undefined
+          }
+        />
+        <SummaryCard
+          label="피팅 대기 Sample"
+          value={summary.samplesWaitingFitting.length}
+          description={`${String(SAMPLE_FITTING_WAIT_DAYS)}일 초과 ${String(longWaits)}건`}
+          className={
+            longWaits
+              ? '[&_.text-xs]:text-amber-700 dark:[&_.text-xs]:text-amber-400'
+              : undefined
+          }
+        />
+        <SummaryCard
+          label="승인 대기"
+          value={approvalsPending}
+          description={`인계 승인 ${String(summary.handoffPending.length)} · SKU 등록 ${String(summary.pendingRegistrations)}`}
+        />
       </div>
 
       <div className="dashboard-kpis">
-        <Kpi label="Active Project" value={summary.activeZones.length} />
-        <Kpi label="Overdue" value={summary.overdue.length} attention />
-        <Kpi label="Stalled" value={summary.stalled.length} attention />
-        <Kpi label="High · Urgent" value={summary.highPriority.length} />
-        <Kpi label="3차 이상 Sample" value={summary.repeatSampleCount} />
-        <Kpi label="도착 예정 · 도착" value={summary.arrivals.length} />
+        <SummaryCard
+          label="Active Project"
+          value={summary.activeZones.length}
+        />
+        <SummaryCard
+          label="Overdue"
+          value={summary.overdue.length}
+          className={
+            summary.overdue.length
+              ? '[&_strong]:text-red-600 dark:[&_strong]:text-red-400'
+              : undefined
+          }
+        />
+        <SummaryCard
+          label="Stalled"
+          value={summary.stalled.length}
+          className={
+            summary.stalled.length
+              ? '[&_strong]:text-red-600 dark:[&_strong]:text-red-400'
+              : undefined
+          }
+        />
+        <SummaryCard
+          label="High · Urgent"
+          value={summary.highPriority.length}
+        />
+        <SummaryCard
+          label="3차 이상 Sample"
+          value={summary.repeatSampleCount}
+        />
+        <SummaryCard label="도착 예정 · 도착" value={summary.arrivals.length} />
       </div>
 
       <Card className="dashboard-panel">
@@ -173,13 +191,16 @@ export function DashboardPage() {
         <CardContent>
           <div className="dashboard-stages">
             {summary.stageCounts.map(({ stage, count }) => (
-              <div
-                className={`dashboard-stage${count ? ' active' : ''}`}
+              <SummaryCard
                 key={stage}
-              >
-                <span>{stage}</span>
-                <strong>{count}</strong>
-              </div>
+                label={stage}
+                value={count}
+                className={
+                  count
+                    ? 'flex-1 min-w-25 border-primary/25 bg-primary/5'
+                    : 'flex-1 min-w-25'
+                }
+              />
             ))}
           </div>
         </CardContent>
@@ -194,7 +215,10 @@ export function DashboardPage() {
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => navigate(ROUTES.vehicleProjects)}
+              onClick={() => {
+                // React Router handles route errors; clicks do not await navigation.
+                void navigate(ROUTES.vehicleProjects);
+              }}
             >
               전체 보기
             </Button>
@@ -206,7 +230,10 @@ export function DashboardPage() {
                   key={action.id}
                   action={action}
                   owner={findUser(appUsers, action.ownerId)}
-                  onOpen={() => navigate(action.to)}
+                  onOpen={() => {
+                    // React Router handles route errors; clicks do not await navigation.
+                    void navigate(action.to);
+                  }}
                 />
               ))
             ) : (
@@ -224,7 +251,10 @@ export function DashboardPage() {
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => navigate(ROUTES.samples)}
+              onClick={() => {
+                // React Router handles route errors; clicks do not await navigation.
+                void navigate(ROUTES.samples);
+              }}
             >
               배송 보기
             </Button>
@@ -256,22 +286,6 @@ export function DashboardPage() {
         </Card>
       </div>
     </section>
-  );
-}
-
-interface KpiProps {
-  label: string;
-  value: number;
-  /** Highlight a non-zero value as something to act on. */
-  attention?: boolean;
-}
-
-function Kpi({ label, value, attention = false }: KpiProps) {
-  return (
-    <div className={`dashboard-kpi${attention && value ? ' attention' : ''}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
   );
 }
 
