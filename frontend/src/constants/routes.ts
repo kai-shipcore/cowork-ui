@@ -1,5 +1,8 @@
 export const ROUTES = {
   dashboard: '/dashboard',
+  planningDashboard: '/dashboard/demand-planning',
+  customerServicesDashboard: '/dashboard/customer-services',
+  ecommerceDashboard: '/dashboard/ecommerce',
   vehicleResearch: '/vehicle-research',
   vehicleProjects: '/vehicle-projects',
   productShapes: '/product-shapes',

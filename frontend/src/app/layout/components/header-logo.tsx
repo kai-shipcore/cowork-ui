@@ -24,6 +24,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { ROUTES } from '@/constants/routes';
 import { toAbsoluteUrl } from '@/shared/lib/helpers';
 import { cn } from '@/shared/lib/utils';
 import { useLayout } from './context';
@@ -34,6 +35,7 @@ export interface Team {
   icon: React.ElementType;
   name: string;
   toolsMenuTitle: string;
+  dashboardPath: string;
   color: string;
   members: number;
 }
@@ -43,6 +45,7 @@ export const teams: Team[] = [
     icon: Zap,
     name: 'R & D Team',
     toolsMenuTitle: 'R&D Tools',
+    dashboardPath: ROUTES.dashboard,
     color: 'bg-teal-600 text-white',
     members: 8,
   },
@@ -50,6 +53,7 @@ export const teams: Team[] = [
     icon: Gem,
     name: 'Demand Planning',
     toolsMenuTitle: 'Planning Tools',
+    dashboardPath: ROUTES.planningDashboard,
     color: 'bg-fuchsia-600 text-white',
     members: 6,
   },
@@ -57,6 +61,7 @@ export const teams: Team[] = [
     icon: Hexagon,
     name: 'Customer Services',
     toolsMenuTitle: 'Customer Service Tools',
+    dashboardPath: ROUTES.customerServicesDashboard,
     color: 'bg-yellow-600 text-white',
     members: 12,
   },
@@ -64,6 +69,7 @@ export const teams: Team[] = [
     icon: Layers2,
     name: 'eCommerce Team',
     toolsMenuTitle: 'eCommerce Tools',
+    dashboardPath: ROUTES.ecommerceDashboard,
     color: 'bg-blue-600 text-white',
     members: 4,
   },
@@ -90,7 +96,7 @@ export function HeaderLogo({ selectedTeam, onTeamChange }: HeaderLogoProps) {
       <div className="flex items-center w-full">
         {/* Logo */}
         <div className="flex items-center justify-center shrink-0 border-e border-border w-(--sidebar-collapsed-width) h-(--header-height) bg-muted">
-          <Link to="/dashboard">
+          <Link to={selectedTeam.dashboardPath}>
             <img
               src={toAbsoluteUrl('/media/app/mini-logo-gray.svg')}
               className="dark:hidden min-h-[25px]"
@@ -121,7 +127,7 @@ export function HeaderLogo({ selectedTeam, onTeamChange }: HeaderLogoProps) {
             >
               <SheetHeader className="p-0 space-y-0" />
               <SheetBody className="flex grow p-0">
-                <SidebarPrimary />
+                <SidebarPrimary dashboardPath={selectedTeam.dashboardPath} />
                 <SidebarSecondary
                   toolsMenuTitle={selectedTeam.toolsMenuTitle}
                 />

@@ -85,7 +85,13 @@ const menuItems = [
   },
 ];
 
-export function SidebarPrimary() {
+interface SidebarPrimaryProps {
+  dashboardPath?: string;
+}
+
+export function SidebarPrimary({
+  dashboardPath = '/dashboard',
+}: SidebarPrimaryProps) {
   const { pathname } = useLocation();
   const [selectedMenuItem, setSelectedMenuItem] = useState(menuItems[1]);
 
@@ -105,30 +111,35 @@ export function SidebarPrimary() {
       {/* Navigation */}
       <ScrollArea className="grow w-full h-[calc(100vh-13rem)] lg:h-[calc(100vh-5.5rem)]">
         <div className="grow gap-1 shrink-0 flex items-center flex-col">
-          {menuItems.map((item, index) => (
-            <Tooltip key={index}>
-              <TooltipTrigger asChild>
-                <Button
-                  asChild
-                  variant="ghost"
-                  mode="icon"
-                  {...(item === selectedMenuItem
-                    ? { 'data-state': 'open' }
-                    : {})}
-                  className={cn(
-                    'shrink-0 rounded-md size-9',
-                    'data-[state=open]:bg-primary data-[state=open]:text-primary-foreground',
-                    'hover:text-foreground',
-                  )}
-                >
-                  <Link to={item.path}>
-                    <item.icon className="size-4.5!" />
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">{item.tooltip}</TooltipContent>
-            </Tooltip>
-          ))}
+          {menuItems.map((item, index) => {
+            const itemPath =
+              item.rootPath === '/dashboard' ? dashboardPath : item.path;
+
+            return (
+              <Tooltip key={index}>
+                <TooltipTrigger asChild>
+                  <Button
+                    asChild
+                    variant="ghost"
+                    mode="icon"
+                    {...(item === selectedMenuItem
+                      ? { 'data-state': 'open' }
+                      : {})}
+                    className={cn(
+                      'shrink-0 rounded-md size-9',
+                      'data-[state=open]:bg-primary data-[state=open]:text-primary-foreground',
+                      'hover:text-foreground',
+                    )}
+                  >
+                    <Link to={itemPath}>
+                      <item.icon className="size-4.5!" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">{item.tooltip}</TooltipContent>
+              </Tooltip>
+            );
+          })}
         </div>
       </ScrollArea>
 
