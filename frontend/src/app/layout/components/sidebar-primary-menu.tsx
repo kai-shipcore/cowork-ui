@@ -10,7 +10,11 @@ import {
 } from '@coverland-engineering/ui/accordion-menu';
 import { Badge } from '@coverland-engineering/ui/badge';
 import { Link, useLocation } from 'react-router';
-import { MENU_SIDEBAR_MAIN, type MenuItem } from '@/app/layout/navigation';
+import {
+  MENU_SIDEBAR_MAIN,
+  MENU_SIDEBAR_TEAM_TOOLS,
+  type MenuItem,
+} from '@/app/layout/navigation';
 
 // Same open-by-default trick as SidebarResourcesMenu: selecting the trigger
 // value makes AccordionMenu expand the titled group on first render.
@@ -18,9 +22,9 @@ const TOOLS_GROUP_VALUE = 'rd-tools';
 const TOOLS_GROUP_TRIGGER = 'rd-tools-trigger';
 
 function renderItems(children: MenuItem[] | undefined) {
-  return children?.map((child, index) => (
-    <AccordionMenuItem key={index} value={child.path ?? '#'}>
-      <Link to={child.path ?? '#'}>
+  return children?.map((child, index) => {
+    const content = (
+      <>
         {child.icon && <child.icon />}
         <span>{child.title}</span>
         {child.badge == 'Beta' && (
@@ -28,13 +32,33 @@ function renderItems(children: MenuItem[] | undefined) {
             {child.badge}
           </Badge>
         )}
-      </Link>
-    </AccordionMenuItem>
-  ));
+      </>
+    );
+
+    return (
+      <AccordionMenuItem
+        key={child.title ?? index}
+        value={child.path ?? child.title ?? String(index)}
+      >
+        {child.path ? (
+          <Link to={child.path}>{content}</Link>
+        ) : (
+          <div className="flex items-center gap-2">{content}</div>
+        )}
+      </AccordionMenuItem>
+    );
+  });
 }
 
-export function SidebarPrimaryMenu() {
+interface SidebarPrimaryMenuProps {
+  toolsMenuTitle: string;
+}
+
+export function SidebarPrimaryMenu({
+  toolsMenuTitle,
+}: SidebarPrimaryMenuProps) {
   const { pathname } = useLocation();
+  const teamToolItems = MENU_SIDEBAR_TEAM_TOOLS[toolsMenuTitle];
 
   // Memoize matchPath to prevent unnecessary re-renders
   const matchPath = useCallback(
@@ -64,7 +88,7 @@ export function SidebarPrimaryMenu() {
         item.title ? (
           <AccordionMenuSub key={index} value={TOOLS_GROUP_VALUE}>
             <AccordionMenuSubTrigger value={TOOLS_GROUP_TRIGGER}>
-              <span>{item.title}</span>
+              <span>{toolsMenuTitle}</span>
               <AccordionMenuIndicator />
             </AccordionMenuSubTrigger>
 
@@ -73,7 +97,7 @@ export function SidebarPrimaryMenu() {
               collapsible
               parentValue={TOOLS_GROUP_TRIGGER}
             >
-              {renderItems(item.children)}
+              {renderItems(teamToolItems ?? item.children)}
             </AccordionMenuSubContent>
           </AccordionMenuSub>
         ) : (

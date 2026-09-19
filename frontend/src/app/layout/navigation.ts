@@ -11,10 +11,18 @@ import {
   FolderKanban,
   Grid,
   Handshake,
+  Headphones,
+  MessageSquare,
   Package,
   PackageCheck,
   Palette,
+  RotateCcw,
   Search,
+  ShoppingCart,
+  Store,
+  Tags,
+  TrendingUp,
+  Warehouse,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
@@ -97,6 +105,27 @@ export const MENU_SIDEBAR_MAIN: MenuConfig = [
     ],
   },
 ];
+
+export const MENU_SIDEBAR_TEAM_TOOLS: Partial<Record<string, MenuConfig>> = {
+  'Planning Tools': [
+    { title: 'Demand Forecast', icon: TrendingUp },
+    { title: 'Inventory Planning', icon: Warehouse },
+    { title: 'Purchase Planning', icon: ClipboardList },
+    { title: 'Planning Calendar', icon: CalendarDays },
+  ],
+  'Customer Service Tools': [
+    { title: 'Customer Inquiries', icon: MessageSquare },
+    { title: 'Returns & Refunds', icon: RotateCcw },
+    { title: 'Case Management', icon: Headphones },
+    { title: 'Service Reports', icon: BarChart2 },
+  ],
+  'eCommerce Tools': [
+    { title: 'Listing Management', icon: Store },
+    { title: 'Channel Operations', icon: ShoppingCart },
+    { title: 'Promotion Calendar', icon: Tags },
+    { title: 'Sales Analytics', icon: ChartLine },
+  ],
+};
 
 export const MENU_SIDEBAR_RESOURCES: MenuConfig = [
   {

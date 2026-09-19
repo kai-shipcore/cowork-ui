@@ -30,46 +30,54 @@ import { useLayout } from './context';
 import { SidebarPrimary } from './sidebar-primary';
 import { SidebarSecondary } from './sidebar-secondary';
 
-interface Team {
+export interface Team {
   icon: React.ElementType;
   name: string;
+  toolsMenuTitle: string;
   color: string;
   members: number;
 }
 
-export function HeaderLogo() {
+export const teams: Team[] = [
+  {
+    icon: Zap,
+    name: 'R & D Team',
+    toolsMenuTitle: 'R&D Tools',
+    color: 'bg-teal-600 text-white',
+    members: 8,
+  },
+  {
+    icon: Gem,
+    name: 'Demand Planning',
+    toolsMenuTitle: 'Planning Tools',
+    color: 'bg-fuchsia-600 text-white',
+    members: 6,
+  },
+  {
+    icon: Hexagon,
+    name: 'Customer Services',
+    toolsMenuTitle: 'Customer Service Tools',
+    color: 'bg-yellow-600 text-white',
+    members: 12,
+  },
+  {
+    icon: Layers2,
+    name: 'eCommerce Team',
+    toolsMenuTitle: 'eCommerce Tools',
+    color: 'bg-blue-600 text-white',
+    members: 4,
+  },
+];
+
+interface HeaderLogoProps {
+  selectedTeam: Team;
+  onTeamChange: (team: Team) => void;
+}
+
+export function HeaderLogo({ selectedTeam, onTeamChange }: HeaderLogoProps) {
   const { pathname } = useLocation();
   const { isMobile, sidebarToggle } = useLayout();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-
-  const teams: Team[] = [
-    {
-      icon: Zap,
-      name: 'Thunder AI',
-      color: 'bg-teal-600 text-white',
-      members: 8,
-    },
-    {
-      icon: Gem,
-      name: 'Clarity AI',
-      color: 'bg-fuchsia-600 text-white',
-      members: 6,
-    },
-    {
-      icon: Hexagon,
-      name: 'Lightning AI',
-      color: 'bg-yellow-600 text-white',
-      members: 12,
-    },
-    {
-      icon: Layers2,
-      name: 'Bold AI',
-      color: 'bg-blue-600 text-white',
-      members: 4,
-    },
-  ];
-
-  const [selectedTeam, setSelectedTeam] = useState<Team>(teams[0]);
 
   // Close sheet when route changes
   useEffect(() => {
@@ -85,13 +93,13 @@ export function HeaderLogo() {
           <Link to="/dashboard">
             <img
               src={toAbsoluteUrl('/media/app/mini-logo-gray.svg')}
-              className="dark:hidden min-h-[30px]"
-              alt="Thunder AI Logo"
+              className="dark:hidden min-h-[25px]"
+              alt="Coverland Logo"
             />
             <img
               src={toAbsoluteUrl('/media/app/mini-logo-gray-dark.svg')}
-              className="hidden dark:block min-h-[30px]"
-              alt="Thunder AI Logo"
+              className="hidden dark:block min-h-[25px]"
+              alt="Coverland Logo"
             />
           </Link>
         </div>
@@ -114,7 +122,9 @@ export function HeaderLogo() {
               <SheetHeader className="p-0 space-y-0" />
               <SheetBody className="flex grow p-0">
                 <SidebarPrimary />
-                <SidebarSecondary />
+                <SidebarSecondary
+                  toolsMenuTitle={selectedTeam.toolsMenuTitle}
+                />
               </SheetBody>
             </SheetContent>
           </Sheet>
@@ -154,7 +164,7 @@ export function HeaderLogo() {
                 <DropdownMenuItem
                   key={team.name}
                   onClick={() => {
-                    setSelectedTeam(team);
+                    onTeamChange(team);
                   }}
                   data-active={selectedTeam.name === team.name}
                 >
