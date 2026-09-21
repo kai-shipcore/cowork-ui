@@ -14,14 +14,14 @@ import {
   SheetTrigger,
 } from '@coverland-engineering/ui/sheet';
 import {
+  CarFront,
   Check,
   ChevronsUpDown,
-  Gem,
-  Hexagon,
-  Layers2,
+  Headset,
   Menu,
   PanelRight,
-  Zap,
+  ShoppingCart,
+  TrendingUp,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
@@ -42,7 +42,7 @@ export interface Team {
 
 export const teams: Team[] = [
   {
-    icon: Zap,
+    icon: CarFront,
     name: 'R & D Team',
     toolsMenuTitle: 'R&D Tools',
     dashboardPath: ROUTES.dashboard,
@@ -50,7 +50,7 @@ export const teams: Team[] = [
     members: 8,
   },
   {
-    icon: Gem,
+    icon: TrendingUp,
     name: 'Demand Planning',
     toolsMenuTitle: 'Planning Tools',
     dashboardPath: ROUTES.planningDashboard,
@@ -58,7 +58,7 @@ export const teams: Team[] = [
     members: 6,
   },
   {
-    icon: Hexagon,
+    icon: Headset,
     name: 'Customer Services',
     toolsMenuTitle: 'Customer Service Tools',
     dashboardPath: ROUTES.customerServicesDashboard,
@@ -66,7 +66,7 @@ export const teams: Team[] = [
     members: 12,
   },
   {
-    icon: Layers2,
+    icon: ShoppingCart,
     name: 'eCommerce Team',
     toolsMenuTitle: 'eCommerce Tools',
     dashboardPath: ROUTES.ecommerceDashboard,
