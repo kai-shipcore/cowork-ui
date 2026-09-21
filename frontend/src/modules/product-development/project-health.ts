@@ -21,6 +21,13 @@ interface HealthResult {
   reason: string;
 }
 
+/** Only the current, unfinished stage can supply the board's stage deadline. */
+export function currentStageTiming(zone: VehicleZoneProject) {
+  return zone.stageHistory
+    ?.filter((entry) => entry.stage === zone.currentStage && !entry.completedAt)
+    .slice(-1)[0];
+}
+
 function calendarDay(value?: string): number | undefined {
   const date = reportDate(value);
   if (!date) return undefined;
@@ -50,7 +57,9 @@ export function projectHealth(
   if (zone.currentStage === 'Approved')
     return { value: 'complete', reason: '개발 완료 · 일정 위험도 집계 제외' };
   const current = calendarDay(currentDate);
-  const target = calendarDay(zone.targetAt);
+  const target = calendarDay(
+    currentStageTiming(zone)?.targetDueAt ?? zone.targetAt,
+  );
   const activity = calendarDay(zone.lastActivityAt);
   if (current === undefined)
     return { value: 'unknown', reason: '기준일 확인 필요' };

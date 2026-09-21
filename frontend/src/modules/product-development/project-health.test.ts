@@ -26,6 +26,35 @@ const ZONE: VehicleZoneProject = {
   lastActivityAt: CURRENT_DATE,
 };
 
+await test('current stage deadline takes precedence while closed or different stages do not override project delivery', () => {
+  const record = {
+    id: 'stage1',
+    stage: 'Design',
+    stageSequence: 1,
+    startedAt: '2026-09-01',
+    targetDays: 5,
+    targetDueAt: '2026-09-06',
+  };
+  assert.equal(
+    projectHealth({ ...ZONE, stageHistory: [record] }, CURRENT_DATE).value,
+    'late',
+  );
+  assert.equal(
+    projectHealth(
+      { ...ZONE, stageHistory: [{ ...record, completedAt: '2026-09-05' }] },
+      CURRENT_DATE,
+    ).value,
+    'on-track',
+  );
+  assert.equal(
+    projectHealth(
+      { ...ZONE, stageHistory: [{ ...record, stage: 'Scan' }] },
+      CURRENT_DATE,
+    ).value,
+    'on-track',
+  );
+});
+
 await test('calendar-day target boundaries map to the four health colors', () => {
   for (const [targetAt, expected] of [
     ['2026-09-20', 'late'],

@@ -23,7 +23,17 @@ import {
   TabsList,
   TabsTrigger,
 } from '@coverland-engineering/ui/tabs';
-import { Armchair, Layers, Palette, Plus, Search, Tag, X } from 'lucide-react';
+import {
+  Armchair,
+  Layers,
+  Palette,
+  Plus,
+  Search,
+  Tag,
+  Timer,
+  X,
+} from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/shared/components/page-header';
 import { PRODUCT_TYPES } from '@/shared/types/workbench';
 import type { ProductReferenceItem } from '@/shared/types/workbench';
@@ -37,6 +47,8 @@ import {
 import { ReferenceItemTable } from '../components/reference-item-table';
 import { SeatCoverCodePanel } from '../components/seat-cover-code-panel';
 import { SeatCoverPartPanel } from '../components/seat-cover-part-panel';
+import { StageDurationSettings } from '../components/stage-duration-settings';
+import '../stage-duration.css';
 
 const KIND_LABELS: Record<ReferenceKind, string> = {
   colors: '색상',
@@ -67,7 +79,15 @@ export function ReferenceDataPage() {
     seatCoverParts,
     seatCoverCodes,
   } = useWorkbenchStore();
-  const [kind, setKind] = useState<ReferenceKind>('colors');
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab');
+  const kind =
+    tab === 'materials' ||
+    tab === 'parts' ||
+    tab === 'codes' ||
+    tab === 'stages'
+      ? tab
+      : 'colors';
   const [query, setQuery] = useState('');
   const [productTypeFilter, setProductTypeFilter] = useState('ALL');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -80,7 +100,7 @@ export function ReferenceDataPage() {
     : 'colors';
   const items = isMaterials ? productMaterials : productColors;
   const setItems = isMaterials ? setProductMaterials : setProductColors;
-  const entityLabel = KIND_LABELS[kind];
+  const entityLabel = kind === 'stages' ? '개발 단계 기준' : KIND_LABELS[kind];
 
   const normalizedQuery = query.trim().toLowerCase();
   const visibleItems = items.filter(
@@ -152,7 +172,7 @@ export function ReferenceDataPage() {
   return (
     <section>
       <PageHeader
-        description="SKU와 BOM을 구성하는 사전 — 색상·재질 Code는 SKU 문자열에 그대로 들어갑니다. Size는 테이블이 아니라 vehicle_product_shape.name 입니다"
+        description="SKU·BOM 기준정보와 제품별 개발 단계 표준 기간을 관리합니다."
         tables={
           import.meta.env.DEV
             ? [
@@ -161,6 +181,7 @@ export function ReferenceDataPage() {
                 { name: 'seat_cover_part' },
                 { name: 'seat_cover_code' },
                 { name: 'seat_cover_code_x_option_value' },
+                { name: 'vehicle_project_stage_template' },
               ]
             : undefined
         }
@@ -169,7 +190,13 @@ export function ReferenceDataPage() {
       <Card>
         <Tabs
           value={kind}
-          onValueChange={(value) => setKind(value as ReferenceKind)}
+          onValueChange={(value) => {
+            setParams((current) => {
+              const next = new URLSearchParams(current);
+              next.set('tab', value);
+              return next;
+            });
+          }}
         >
           <TabsList variant="line" className="grid-tabs-list">
             <TabsTrigger value="colors">
@@ -192,10 +219,16 @@ export function ReferenceDataPage() {
               Seat Cover Code
               <span className="stage-tab-count">{seatCoverCodes.length}</span>
             </TabsTrigger>
+            <TabsTrigger value="stages">
+              <Timer aria-hidden="true" />
+              개발 단계 기준
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value={kind} className="mt-0">
-            {isGeneric ? (
+            {kind === 'stages' ? (
+              <StageDurationSettings />
+            ) : isGeneric ? (
               <>
                 <div className="grid-toolbar">
                   <div className="grid-toolbar-filters">
@@ -205,7 +238,9 @@ export function ReferenceDataPage() {
                         aria-label="Code 또는 이름 검색"
                         placeholder="Code / 이름 검색"
                         value={query}
-                        onChange={(event) => setQuery(event.target.value)}
+                        onChange={(event) => {
+                          setQuery(event.target.value);
+                        }}
                       />
                     </div>
                     <Select
@@ -283,7 +318,9 @@ export function ReferenceDataPage() {
 
       <Dialog
         open={pendingDelete !== undefined}
-        onOpenChange={(open) => !open && setPendingDelete(undefined)}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(undefined);
+        }}
       >
         <DialogContent>
           <DialogHeader>
@@ -323,7 +360,9 @@ export function ReferenceDataPage() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setPendingDelete(undefined)}
+              onClick={() => {
+                setPendingDelete(undefined);
+              }}
             >
               취소
             </Button>

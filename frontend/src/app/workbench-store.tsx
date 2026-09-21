@@ -59,6 +59,7 @@ import {
   removeLegacyAdoption,
 } from '@/modules/product-shapes/shape-model';
 import { CURRENT_USER_ID } from './current-user';
+import { readStageDurationRevisions } from './stage-duration-model';
 import {
   APP_USERS,
   COMPLAINTS,
@@ -1038,17 +1039,43 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
 
   const saveProjectDetail = useCallback(
     (projectId: string, detail: ProjectDetailSnapshot) => {
-      setState((current) => ({
-        ...current,
-        projectDetails: {
-          ...current.projectDetails,
-          [projectId]: recordStageTransitions(
-            current.projectDetails[projectId],
-            detail,
-            CURRENT_USER_ID,
+      const standards = readStageDurationRevisions();
+      setState((current) => {
+        const next = recordStageTransitions(
+          current.projectDetails[projectId],
+          detail,
+          CURRENT_USER_ID,
+          new Date().toISOString(),
+          standards,
+        );
+        return {
+          ...current,
+          projects: current.projects.map((project) =>
+            project.id !== projectId
+              ? project
+              : {
+                  ...project,
+                  zoneProjects: project.zoneProjects.map((zone) => {
+                    const updated = next.zones.find(
+                      (entry) => entry.id === zone.id,
+                    );
+                    return updated
+                      ? {
+                          ...zone,
+                          stageHistory: updated.stageHistory,
+                          lastActivityAt:
+                            updated.lastActivityAt ?? zone.lastActivityAt,
+                        }
+                      : zone;
+                  }),
+                },
           ),
-        },
-      }));
+          projectDetails: {
+            ...current.projectDetails,
+            [projectId]: next,
+          },
+        };
+      });
     },
     [],
   );
@@ -1058,6 +1085,7 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       projectId: string,
       transform: (detail: ProjectDetailSnapshot) => ProjectDetailSnapshot,
     ) => {
+      const standards = readStageDurationRevisions();
       setState((current) => {
         const detail = current.projectDetails[projectId];
         const project = current.projects.find((item) => item.id === projectId);
@@ -1073,6 +1101,8 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
           detail,
           transform(detail),
           CURRENT_USER_ID,
+          new Date().toISOString(),
+          standards,
         );
         // Do not introduce a second development owner for a Shape. Existing
         // ambiguous legacy links remain visible until deliberately corrected.

@@ -1,3 +1,7 @@
+import {
+  stageTarget,
+  type StageDurationRevision,
+} from '@/app/stage-duration-model';
 import type { ProjectDetailSnapshot } from '../types/workbench';
 
 /** Preserve earlier history without inventing the unknown start of legacy stages. */
@@ -6,6 +10,7 @@ export function recordStageTransitions(
   next: ProjectDetailSnapshot,
   actor: string,
   now = new Date().toISOString(),
+  standards: readonly StageDurationRevision[] = [],
 ): ProjectDetailSnapshot {
   return {
     ...next,
@@ -13,9 +18,14 @@ export function recordStageTransitions(
       const old = previous?.zones.find((row) => row.id === zone.id);
       const history = old?.stageHistory ?? zone.stageHistory ?? [];
       if (!old || old.currentStage === zone.currentStage)
-        return { ...zone, stageHistory: history };
+        return {
+          ...zone,
+          stageHistory: history,
+          lastActivityAt: old?.lastActivityAt ?? zone.lastActivityAt,
+        };
       return {
         ...zone,
+        lastActivityAt: now,
         stageHistory: [
           ...history.map((row) =>
             row.completedAt
@@ -29,7 +39,12 @@ export function recordStageTransitions(
               Math.max(0, ...history.map((row) => row.stageSequence)) + 1,
             startedAt: now,
             startedBy: actor,
-            targetDueAt: zone.targetAt,
+            ...stageTarget(
+              standards,
+              zone.productTypeId,
+              zone.currentStage,
+              now,
+            ),
           },
         ],
       };

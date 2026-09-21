@@ -49,6 +49,10 @@ export function ProjectHealthFilters({
       <details className="project-health-help">
         <summary>상태 판정 기준</summary>
         <p>
+          현재 단계에 저장된 목표일을 우선 사용합니다. 단계 목표가 없는 기존
+          프로젝트는 전체 프로젝트 목표일을 사용합니다.
+        </p>
+        <p>
           프로토타입 기준 · LA 날짜 기준 · 목표일까지 남은 날짜와 최근 활동
           기록을 사용합니다.
         </p>

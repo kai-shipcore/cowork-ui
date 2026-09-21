@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import { userName } from '@/shared/domain/app-user';
 import type { AppUser, VehicleProjectGroup } from '@/shared/types/workbench';
 import { today } from '@/modules/operations/operations-model';
-import { projectHealth } from '../project-health';
+import { currentStageTiming, projectHealth } from '../project-health';
 import { ProjectHealthBadge } from './project-health-badge';
 
 interface ProjectStageBoardProps {
@@ -52,6 +52,7 @@ export function ProjectStageBoard({
               </h3>
               {entries.map(({ project, zone }) => {
                 const health = projectHealth(zone, currentDate);
+                const timing = currentStageTiming(zone);
                 return (
                   <button
                     type="button"
@@ -78,8 +79,16 @@ export function ProjectStageBoard({
                       {zone.status ?? 'ACTIVE'}
                     </small>
                     <span className={health.value === 'late' ? 'rd-error' : ''}>
-                      목표 {zone.targetAt?.slice(0, 10) ?? '미지정'}
+                      {timing?.targetDueAt ? '단계 목표 ' : '프로젝트 목표 '}
+                      {(timing?.targetDueAt ?? zone.targetAt)?.slice(0, 10) ??
+                        '미지정'}
                     </span>
+                    {timing?.targetDays !== undefined && (
+                      <small>
+                        적용 표준 {timing.targetDays}일 · 시작{' '}
+                        {timing.startedAt.slice(0, 10)}
+                      </small>
+                    )}
                     <small>{health.reason}</small>
                     <small>
                       최근 활동{' '}

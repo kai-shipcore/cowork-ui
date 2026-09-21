@@ -122,6 +122,7 @@ import {
 import { getSampleGate, type SampleGate } from '../sample-gate';
 import { defaultVisitType, visitHistory } from '../visit-history';
 import { HandoffChecklistForm } from './handoff-checklist-form';
+import { StageTimingSummary } from './stage-timing-summary';
 import './project-visits.css';
 import '@/modules/product-shapes/shape-management.css';
 
@@ -1254,6 +1255,12 @@ export function ProjectDetailView({
               setActiveTab('visits');
             }}
           />
+          <StageTimingSummary
+            zone={
+              savedDetail?.zones.find((zone) => zone.id === focusedZone.id) ??
+              focusedZone
+            }
+          />
           <details className="shape-section">
             <summary>단계 전환 이력</summary>
             <p>
@@ -1266,8 +1273,11 @@ export function ProjectDetailView({
             ).map((record) => (
               <p key={record.id}>
                 {record.stageSequence}. {record.stage} · 시작 {record.startedAt}{' '}
-                · 완료 {record.completedAt ?? '진행 중'} · 목표{' '}
-                {record.targetDueAt ?? '미설정'}
+                · 완료 {record.completedAt ?? '진행 중'} · 표준{' '}
+                {record.targetDays !== undefined
+                  ? `${String(record.targetDays)}일`
+                  : '미설정'}{' '}
+                · 단계 목표 {record.targetDueAt ?? '미설정'}
               </p>
             ))}
           </details>

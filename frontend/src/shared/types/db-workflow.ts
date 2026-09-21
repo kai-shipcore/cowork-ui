@@ -35,6 +35,7 @@ export interface ProjectStageRecord {
   completedBy?: string;
   targetDays?: number;
   targetDueAt?: string;
+  templateRevisionId?: string;
 }
 
 export interface ApprovalGrant {

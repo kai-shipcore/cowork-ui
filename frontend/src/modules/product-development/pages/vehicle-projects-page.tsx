@@ -29,7 +29,7 @@ import {
   Plus,
   RectangleHorizontal,
 } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { userName } from '@/shared/domain/app-user';
 import { ConfigChips } from '@/shared/domain/config-chips';
 import { PROJECT_PIPELINES } from '@/shared/domain/project-stage';
@@ -50,6 +50,10 @@ import {
   intakesSchema,
 } from '@/modules/rd-workspace/intake-model';
 import { useRdRecords } from '@/modules/rd-workspace/use-rd-records';
+import {
+  readStageDurationRevisions,
+  stageTarget,
+} from '@/app/stage-duration-model';
 import '@/modules/rd-workspace/rd-workspace.css';
 import { VEHICLE_CONFIGURATIONS as INITIAL_CONFIGURATIONS } from '@/app/workbench-mock-data';
 import { useWorkbenchStore } from '@/app/workbench-store';
@@ -64,6 +68,7 @@ import { ProjectStageBoard } from '../components/project-stage-board';
 import { ProjectViewTabs } from '../components/project-view-tabs';
 import {
   countProjectHealth,
+  currentStageTiming,
   filterProjectsByHealth,
   parseHealthFilter,
   projectHealth,
@@ -374,6 +379,8 @@ export function VehicleProjectsPage() {
       return;
     }
     const projectGroupId = nextProjectGroupId;
+    const standards = readStageDurationRevisions();
+    const startedAt = new Date().toISOString();
     const zoneProjects: readonly VehicleZoneProject[] = wizardZones.map(
       (code) => {
         const initialStage =
@@ -390,13 +397,19 @@ export function VehicleProjectsPage() {
           currentStage: initialStage,
           status: 'ACTIVE',
           priority: intake?.priority ?? 'NORMAL',
-          lastActivityAt: new Date().toISOString(),
+          lastActivityAt: startedAt,
           stageHistory: [
             {
               id: crypto.randomUUID(),
               stage: initialStage,
               stageSequence: 1,
-              startedAt: new Date().toISOString(),
+              startedAt,
+              ...stageTarget(
+                standards,
+                wizardProductChoice.id,
+                initialStage,
+                startedAt,
+              ),
             },
           ],
         };
@@ -530,10 +543,12 @@ export function VehicleProjectsPage() {
     },
     {
       id: 'target',
-      header: 'Target',
+      header: '목표 (단계 우선)',
       width: 100,
-      sortValue: ({ zone }) => zone.targetAt,
-      cell: ({ zone }) => shortDate(zone.targetAt),
+      sortValue: ({ zone }) =>
+        currentStageTiming(zone)?.targetDueAt ?? zone.targetAt,
+      cell: ({ zone }) =>
+        shortDate(currentStageTiming(zone)?.targetDueAt ?? zone.targetAt),
     },
     {
       id: 'updated',
@@ -612,18 +627,25 @@ export function VehicleProjectsPage() {
 
       <ProjectViewTabs
         toolbar={
-          <ProjectHealthFilters
-            value={healthFilter}
-            counts={healthCounts}
-            onChange={(value) => {
-              setSearchParams((current) => {
-                const next = new URLSearchParams(current);
-                if (value === 'all') next.delete('health');
-                else next.set('health', value);
-                return next;
-              });
-            }}
-          />
+          <div>
+            <div className="flex justify-end px-5 pt-4">
+              <Button asChild variant="outline" size="sm">
+                <Link to="/reference-data?tab=stages">단계 기준 설정</Link>
+              </Button>
+            </div>
+            <ProjectHealthFilters
+              value={healthFilter}
+              counts={healthCounts}
+              onChange={(value) => {
+                setSearchParams((current) => {
+                  const next = new URLSearchParams(current);
+                  if (value === 'all') next.delete('health');
+                  else next.set('health', value);
+                  return next;
+                });
+              }}
+            />
+          </div>
         }
         board={
           <div className="rd-workspace p-5">

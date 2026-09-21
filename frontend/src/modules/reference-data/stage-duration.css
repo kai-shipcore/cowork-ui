@@ -1,0 +1,99 @@
+.stage-duration-settings {
+  padding: 22px;
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.stage-duration-settings h2 {
+  font-size: 20px;
+  font-weight: 600;
+}
+.stage-duration-settings p,
+.stage-duration-heading > span,
+.stage-duration-actions > span {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  line-height: 1.6;
+}
+.stage-duration-heading,
+.stage-duration-actions,
+.stage-duration-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.stage-duration-products {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.stage-duration-notice {
+  padding: 12px;
+  border-radius: 6px;
+  background: var(--muted);
+}
+.stage-duration-settings form {
+  display: grid;
+  gap: 18px;
+}
+.stage-duration-table {
+  overflow-x: auto;
+}
+.stage-duration-table table {
+  width: 100%;
+  text-align: left;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.stage-duration-table th {
+  background: var(--muted);
+  font-weight: 500;
+}
+.stage-duration-table td,
+.stage-duration-table th {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.stage-duration-table input {
+  display: inline-flex;
+  width: 76px;
+  text-align: right;
+}
+.stage-duration-table td:nth-child(2) {
+  white-space: nowrap;
+}
+.stage-duration-total {
+  background: var(--muted);
+  padding: 12px;
+  font-size: 13px;
+}
+.stage-duration-reason {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+.stage-duration-history {
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.stage-duration-history summary {
+  cursor: pointer;
+}
+.stage-duration-history article {
+  margin-top: 14px;
+  padding: 12px;
+  background: var(--muted);
+  border-radius: 6px;
+}
+@media (max-width: 640px) {
+  .stage-duration-settings {
+    padding: 14px;
+  }
+  .stage-duration-table td:last-child,
+  .stage-duration-table th:last-child {
+    display: none;
+  }
+}
