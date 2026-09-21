@@ -3,9 +3,9 @@ import { Ellipsis } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { teamFromLocation } from '@/modules/operations/operations-model';
 import {
+  getResourcesMenu,
   getWorkspaceMenu,
   MENU_SIDEBAR_MAIN,
-  MENU_SIDEBAR_RESOURCES,
   MENU_SIDEBAR_TEAM_TOOLS,
 } from '../navigation';
 import { SidebarIconLink } from './sidebar-icon-link';
@@ -29,12 +29,7 @@ export function SidebarPrimary({
     [];
   const groups = [
     { title: toolsMenuTitle, items: toolItems },
-    ...(team === 'rd'
-      ? MENU_SIDEBAR_RESOURCES.map((group) => ({
-          title: group.title ?? 'Resources',
-          items: group.children ?? [],
-        }))
-      : []),
+    { title: 'Resources', items: getResourcesMenu(team) },
     {
       title: 'Common Workspace',
       items: [menu.requests, menu.reports],

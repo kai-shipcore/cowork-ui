@@ -28,6 +28,7 @@ import {
   ChevronRight,
   Plus,
   RectangleHorizontal,
+  Search,
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { userName } from '@/shared/domain/app-user';
@@ -43,7 +44,6 @@ import type {
   VehicleZoneProject,
 } from '@/shared/types/workbench';
 import { today } from '@/modules/operations/operations-model';
-import { resetPartLibrary } from '@/modules/parts/part-library';
 import {
   EMPTY_INTAKES,
   INTAKE_KEY,
@@ -85,7 +85,7 @@ const PROJECT_STAGE_FILTERS = [
   { label: 'Design', value: 'Design' },
   { label: 'Sample', value: 'Sample' },
   { label: 'Fitting', value: 'Fitting' },
-  { label: 'Development complete', value: 'Approved' },
+  { label: 'Complete', value: 'Approved' },
 ] as const;
 type ProjectStageFilter = (typeof PROJECT_STAGE_FILTERS)[number]['value'];
 
@@ -189,14 +189,8 @@ export function VehicleProjectsPage() {
   const intake = intakes.find(
     (entry) => entry.id === searchParams.get('intake'),
   );
-  const {
-    configurations,
-    projects,
-    setConfigurations,
-    setProjects,
-    resetWorkbench,
-    appUsers,
-  } = useWorkbenchStore();
+  const { configurations, projects, setConfigurations, setProjects, appUsers } =
+    useWorkbenchStore();
   const [stageFilter, setStageFilter] = useState<ProjectStageFilter>('ALL');
   const [product, setProduct] = useState('ALL');
   const [query, setQuery] = useState('');
@@ -487,7 +481,7 @@ export function VehicleProjectsPage() {
         const stageIndex = Math.max(0, pipeline.indexOf(zone.currentStage));
         return (
           <StatusBadge
-            label={`${String(stageIndex + 1)} / ${String(pipeline.length)} · ${zone.currentStage === 'Approved' ? 'Development complete' : zone.currentStage}`}
+            label={`${String(stageIndex + 1)} / ${String(pipeline.length)} · ${zone.currentStage === 'Approved' ? 'Complete' : zone.currentStage}`}
             tone={zone.currentStage === 'Approved' ? 'success' : 'progress'}
           />
         );
@@ -627,37 +621,39 @@ export function VehicleProjectsPage() {
 
       <ProjectViewTabs
         toolbar={
-          <div>
-            <div className="flex justify-end px-5 pt-4">
+          <ProjectHealthFilters
+            value={healthFilter}
+            counts={healthCounts}
+            onChange={(value) => {
+              setSearchParams((current) => {
+                const next = new URLSearchParams(current);
+                if (value === 'all') next.delete('health');
+                else next.set('health', value);
+                return next;
+              });
+            }}
+            actions={
               <Button asChild variant="outline" size="sm">
                 <Link to="/reference-data?tab=stages">Stage Standards</Link>
               </Button>
-            </div>
-            <ProjectHealthFilters
-              value={healthFilter}
-              counts={healthCounts}
-              onChange={(value) => {
-                setSearchParams((current) => {
-                  const next = new URLSearchParams(current);
-                  if (value === 'all') next.delete('health');
-                  else next.set('health', value);
-                  return next;
-                });
-              }}
-            />
-          </div>
+            }
+          />
         }
         board={
           <div className="rd-workspace p-5">
-            <div className="grid min-w-0 grid-cols-1 items-end gap-4 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+            <div className="board-toolbar">
               <label>
                 Search vehicles
-                <input
-                  value={query}
-                  onChange={(event) => {
-                    setQuery(event.target.value);
-                  }}
-                />
+                <span className="search-field">
+                  <Search aria-hidden="true" />
+                  <input
+                    placeholder="Search make / model"
+                    value={query}
+                    onChange={(event) => {
+                      setQuery(event.target.value);
+                    }}
+                  />
+                </span>
               </label>
               <label>
                 Product
@@ -691,10 +687,7 @@ export function VehicleProjectsPage() {
                   ))}
                 </select>
               </label>
-              <Button
-                className="justify-self-end whitespace-nowrap"
-                onClick={openWizard}
-              >
+              <Button className="board-toolbar-action" onClick={openWizard}>
                 <Plus /> New Project
               </Button>
             </div>
@@ -771,20 +764,9 @@ export function VehicleProjectsPage() {
               </div>
             }
             actions={
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    resetWorkbench();
-                    resetPartLibrary();
-                  }}
-                >
-                  Reset Mock Data
-                </Button>
-                <Button variant="primary" onClick={openWizard}>
-                  <Plus /> New Project
-                </Button>
-              </>
+              <Button variant="primary" onClick={openWizard}>
+                <Plus /> New Project
+              </Button>
             }
             emptyMessage="No projects match these filters."
             pagination={{

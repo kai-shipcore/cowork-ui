@@ -2,7 +2,11 @@ import { ScrollArea } from '@coverland-engineering/ui/scroll-area';
 import { Separator } from '@coverland-engineering/ui/separator';
 import { Link, useLocation } from 'react-router-dom';
 import { teamFromLocation } from '@/modules/operations/operations-model';
-import { getWorkspaceMenu, isSidebarLinkActive } from '../navigation';
+import {
+  getResourcesMenu,
+  getWorkspaceMenu,
+  isSidebarLinkActive,
+} from '../navigation';
 import { SidebarPrimaryMenu } from './sidebar-primary-menu';
 import { SidebarResourcesMenu } from './sidebar-resources-menu';
 import { SidebarSearch } from './sidebar-search';
@@ -20,7 +24,7 @@ export function SidebarSecondary({ toolsMenuTitle }: SidebarSecondaryProps) {
       <SidebarSearch />
       <SidebarPrimaryMenu toolsMenuTitle={toolsMenuTitle} />
       <Separator className="my-2.5" />
-      {team === 'rd' && <SidebarResourcesMenu />}
+      <SidebarResourcesMenu items={getResourcesMenu(team)} />
       <Separator className="my-2.5" />
       <div className="grid gap-3 px-5 py-3 text-sm">
         <span className="text-xs text-muted-foreground">Common Workspace</span>

@@ -201,6 +201,34 @@ export const MENU_SIDEBAR_RESOURCES: MenuConfig = [
   },
 ];
 
+/** Company storefronts; every team gets these under Resources. */
+export const MENU_SIDEBAR_SITE_LINKS: MenuItem[] = [
+  {
+    title: 'Coverland',
+    path: 'https://www.coverland.com',
+    img: '/brand/coverland-favicon.ico',
+  },
+  {
+    title: 'iCarCover',
+    path: 'https://www.icarcover.com',
+    img: '/brand/icarcover-favicon.png',
+  },
+];
+
+/** R&D keeps its reference tools; other teams see only the site shortcuts. */
+export function getResourcesMenu(team: TeamId): MenuItem[] {
+  const teamItems =
+    team === 'rd'
+      ? MENU_SIDEBAR_RESOURCES.flatMap((group) => group.children ?? [])
+      : [];
+  return [...teamItems, ...MENU_SIDEBAR_SITE_LINKS];
+}
+
+/** External shortcuts open in a new tab and never count as the current page. */
+export function isExternalPath(path?: string): boolean {
+  return /^https?:\/\//.test(path ?? '');
+}
+
 export const MENU_SIDEBAR_WORKSPACES: MenuConfig = [
   {
     title: 'Workspaces',

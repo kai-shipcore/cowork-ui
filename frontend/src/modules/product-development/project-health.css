@@ -26,6 +26,38 @@
   align-items: center;
   gap: 8px;
 }
+.board-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.board-toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.board-toolbar .search-field {
+  display: block;
+}
+/* Outranks the .rd-workspace input rule so the field clears the icon. */
+.rd-workspace .board-toolbar .search-field input {
+  padding-left: 32px;
+}
+.board-toolbar-action {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.project-health-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.project-health-actions {
+  flex-shrink: 0;
+}
 .project-health-heading {
   font-size: 12px;
   font-weight: 600;

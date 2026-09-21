@@ -75,8 +75,11 @@ await test('switching teams selects their own icons without inventing placeholde
     }
     assert.doesNotMatch(
       html,
-      /href="#"|href="\/vehicle-research"|aria-label="Resources"/,
+      /href="#"|href="\/vehicle-research"|href="\/vehicle-options"/,
     );
+    assert.match(html, /aria-label="Resources"/);
+    assert.match(html, /href="https:\/\/www\.coverland\.com"/);
+    assert.match(html, /href="https:\/\/www\.icarcover\.com"/);
     assert.ok(html.includes('href="/work/requests?team=' + team + '"'));
   }
 });

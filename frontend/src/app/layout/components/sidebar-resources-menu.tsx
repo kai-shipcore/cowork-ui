@@ -9,9 +9,13 @@ import {
 } from '@coverland-engineering/ui/accordion-menu';
 import { Badge } from '@coverland-engineering/ui/badge';
 import { Link, useLocation } from 'react-router';
-import { MENU_SIDEBAR_RESOURCES } from '@/app/layout/navigation';
+import { isExternalPath, type MenuItem } from '@/app/layout/navigation';
 
-export function SidebarResourcesMenu() {
+interface SidebarResourcesMenuProps {
+  items: MenuItem[];
+}
+
+export function SidebarResourcesMenu({ items }: SidebarResourcesMenuProps) {
   const { pathname } = useLocation();
 
   // Memoize matchPath to prevent unnecessary re-renders
@@ -37,20 +41,39 @@ export function SidebarResourcesMenu() {
         subContent: 'ps-0',
       }}
     >
-      {MENU_SIDEBAR_RESOURCES.map((item, index) => (
-        <AccordionMenuSub key={index} value="resources">
-          <AccordionMenuSubTrigger value="resource-trigger">
-            <span>{item.title}</span>
-            <AccordionMenuIndicator />
-          </AccordionMenuSubTrigger>
+      <AccordionMenuSub value="resources">
+        <AccordionMenuSubTrigger value="resource-trigger">
+          <span>Resources</span>
+          <AccordionMenuIndicator />
+        </AccordionMenuSubTrigger>
 
-          <AccordionMenuSubContent
-            type="single"
-            collapsible
-            parentValue="resource-trigger"
-          >
-            {item.children?.map((child, index) => (
-              <AccordionMenuItem key={index} value={child.path ?? '#'}>
+        <AccordionMenuSubContent
+          type="single"
+          collapsible
+          parentValue="resource-trigger"
+        >
+          {items.map((child, index) => (
+            <AccordionMenuItem key={index} value={child.path ?? '#'}>
+              {isExternalPath(child.path) ? (
+                <a
+                  href={child.path}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={(child.title ?? '') + ' · Opens in a new tab'}
+                  onClick={(event) => {
+                    // The menu item trigger calls preventDefault on bubbled
+                    // clicks, which would cancel the browser's new-tab open.
+                    event.stopPropagation();
+                  }}
+                >
+                  {child.img ? (
+                    <img src={child.img} alt="" className="size-4 rounded-sm" />
+                  ) : (
+                    child.icon && <child.icon />
+                  )}
+                  <span>{child.title}</span>
+                </a>
+              ) : (
                 <Link to={child.path ?? '#'}>
                   {child.icon && <child.icon />}
                   <span>{child.title}</span>
@@ -60,11 +83,11 @@ export function SidebarResourcesMenu() {
                     </Badge>
                   )}
                 </Link>
-              </AccordionMenuItem>
-            ))}
-          </AccordionMenuSubContent>
-        </AccordionMenuSub>
-      ))}
+              )}
+            </AccordionMenuItem>
+          ))}
+        </AccordionMenuSubContent>
+      </AccordionMenuSub>
     </AccordionMenu>
   );
 }

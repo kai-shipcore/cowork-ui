@@ -7,7 +7,11 @@ import {
 import { Circle } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { isSidebarLinkActive, type MenuItem } from '../navigation';
+import {
+  isExternalPath,
+  isSidebarLinkActive,
+  type MenuItem,
+} from '../navigation';
 
 /** Named, keyboard-accessible shortcut; tooltips escape the scrolling rail. */
 export function SidebarIconLink({
@@ -18,10 +22,20 @@ export function SidebarIconLink({
   pathname: string;
 }) {
   const available = Boolean(item.path && item.path !== '#' && !item.disabled);
-  const label = (item.title ?? 'Menu') + (available ? '' : ' · Coming soon');
+  const external = isExternalPath(item.path);
+  const label =
+    (item.title ?? 'Menu') +
+    (available ? (external ? ' · Opens in a new tab' : '') : ' · Coming soon');
   const active =
-    available && Boolean(item.path && isSidebarLinkActive(pathname, item.path));
+    available &&
+    !external &&
+    Boolean(item.path && isSidebarLinkActive(pathname, item.path));
   const Icon = item.icon ?? Circle;
+  const visual = item.img ? (
+    <img src={item.img} alt="" className="size-4 rounded-sm" />
+  ) : (
+    <Icon aria-hidden="true" className="size-4" strokeWidth={1.5} />
+  );
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -34,9 +48,15 @@ export function SidebarIconLink({
             className="size-9 shrink-0 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 data-[active=true]:bg-zinc-100 data-[active=true]:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 dark:data-[active=true]:bg-zinc-800 dark:data-[active=true]:text-zinc-100"
             aria-label={label}
           >
-            <Link to={item.path} aria-current={active ? 'page' : undefined}>
-              <Icon aria-hidden="true" className="size-4" strokeWidth={1.5} />
-            </Link>
+            {external ? (
+              <a href={item.path} target="_blank" rel="noopener noreferrer">
+                {visual}
+              </a>
+            ) : (
+              <Link to={item.path} aria-current={active ? 'page' : undefined}>
+                {visual}
+              </Link>
+            )}
           </Button>
         ) : (
           <Button

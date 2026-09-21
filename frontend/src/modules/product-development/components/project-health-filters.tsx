@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
 import { PROJECT_HEALTH, type ProjectHealthFilter } from '../project-health';
 
@@ -6,6 +6,8 @@ interface ProjectHealthFiltersProps {
   value: ProjectHealthFilter;
   counts: Record<ProjectHealthFilter, number>;
   onChange: (value: ProjectHealthFilter) => void;
+  /** Rendered at the right end of the filter row. */
+  actions?: ReactNode;
 }
 
 /** Shared health legend and counted filters for both project views. */
@@ -13,38 +15,44 @@ export function ProjectHealthFilters({
   value,
   counts,
   onChange,
+  actions,
 }: ProjectHealthFiltersProps): ReactElement {
   return (
     <div className="project-health-toolbar">
-      <div
-        className="project-health-filters"
-        role="group"
-        aria-label="Project health filters"
-      >
-        <span className="project-health-heading">
-          Progress status <small>By zone</small>
-        </span>
-        {[{ value: 'all', label: 'All' } as const, ...PROJECT_HEALTH].map(
-          (item) => (
-            <Button
-              key={item.value}
-              variant="outline"
-              size="sm"
-              className="project-health-filter"
-              data-health={item.value}
-              aria-pressed={value === item.value}
-              onClick={() => {
-                onChange(item.value);
-              }}
-            >
-              {item.value !== 'all' && (
-                <span className="project-health-dot" aria-hidden="true" />
-              )}
-              {item.label}
-              <span className="project-health-count">{counts[item.value]}</span>
-            </Button>
-          ),
-        )}
+      <div className="project-health-row">
+        <div
+          className="project-health-filters"
+          role="group"
+          aria-label="Project health filters"
+        >
+          <span className="project-health-heading">
+            Progress status <small>By zone</small>
+          </span>
+          {[{ value: 'all', label: 'All' } as const, ...PROJECT_HEALTH].map(
+            (item) => (
+              <Button
+                key={item.value}
+                variant="outline"
+                size="sm"
+                className="project-health-filter"
+                data-health={item.value}
+                aria-pressed={value === item.value}
+                onClick={() => {
+                  onChange(item.value);
+                }}
+              >
+                {item.value !== 'all' && (
+                  <span className="project-health-dot" aria-hidden="true" />
+                )}
+                {item.label}
+                <span className="project-health-count">
+                  {counts[item.value]}
+                </span>
+              </Button>
+            ),
+          )}
+        </div>
+        {actions && <div className="project-health-actions">{actions}</div>}
       </div>
       <details className="project-health-help">
         <summary>Health classification rules</summary>

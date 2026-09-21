@@ -14,6 +14,7 @@ import { Header } from './header';
 import { HeaderBreadcrumbs } from './header-breadcrumbs';
 import { teams } from './header-logo';
 import { PageContent } from './page-content';
+import { ResetMockDataButton } from './reset-mock-data-button';
 import { ScreenHelp } from './screen-help';
 import { Sidebar } from './sidebar';
 import '../workbench-layout.css';
@@ -63,22 +64,25 @@ export function Wrapper() {
               sign-in/shared storage not connected · R&D actor: Kai ·{' '}
               {saving ? 'Saving…' : message}
             </span>
-            <label>
-              Request demo actor
-              <select
-                aria-label="Select demo actor"
-                value={actor.id}
-                onChange={(event) => {
-                  changeActor(event.target.value);
-                }}
-              >
-                {PEOPLE.map((person) => (
-                  <option key={person.id} value={person.id}>
-                    {person.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="ops-demo-actions">
+              <label>
+                Request demo actor
+                <select
+                  aria-label="Select demo actor"
+                  value={actor.id}
+                  onChange={(event) => {
+                    changeActor(event.target.value);
+                  }}
+                >
+                  {PEOPLE.map((person) => (
+                    <option key={person.id} value={person.id}>
+                      {person.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <ResetMockDataButton />
+            </div>
           </div>
           {error && (
             <div className="ops-save-error" role="alert">

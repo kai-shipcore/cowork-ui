@@ -47,7 +47,8 @@ export class ProjectDetailBoundary extends Component<
         <strong>Unable to display this project.</strong>
         <p>
           Saved local data may not match the current data model. Back up your
-          data before using &quot;Reset Mock Data&quot; on the project list.
+          data before using &quot;Reset Mock Data&quot; in the demo banner at
+          the top of the page.
         </p>
         <pre>{error.message}</pre>
         <Button variant="outline" onClick={this.props.onBack}>
