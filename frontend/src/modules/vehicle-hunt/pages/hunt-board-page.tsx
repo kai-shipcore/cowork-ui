@@ -42,6 +42,8 @@ import { StatusBadge } from '@/shared/components/status-badge';
 import type { Dealer, Visit } from '@/shared/types/workbench';
 import { useWorkbenchStore } from '@/app/workbench-store';
 import { HuntWorkList } from '../components/hunt-work-list';
+import { ScheduleAgenda } from '../components/schedule-agenda';
+import '@/modules/rd-workspace/rd-workspace.css';
 import { huntRow } from '../hunt-rows';
 
 const WORKBENCH_TIME_ZONE = 'America/Los_Angeles';
@@ -122,6 +124,9 @@ export function HuntBoardPage() {
   const [calendarDealer, setCalendarDealer] = useState('');
   const [calendarAssignee, setCalendarAssignee] = useState('');
   const [calendarLegend, setCalendarLegend] = useState<CalendarLegend>();
+  const [calendarView, setCalendarView] = useState<'month' | 'week' | 'day'>(
+    'month',
+  );
   const [dealerQuery, setDealerQuery] = useState('');
   const [dealerType, setDealerType] = useState<DealerTypeFilter>('ALL');
   const [selectedDealerId, setSelectedDealerId] = useState<string>();
@@ -347,7 +352,7 @@ export function HuntBoardPage() {
           </TabsTrigger>
           <TabsTrigger value="calendar">
             <CalendarDays aria-hidden="true" />
-            월간 스케줄
+            통합 일정
             <span className="stage-tab-count">{visibleVisits.length}</span>
           </TabsTrigger>
           <TabsTrigger value="dealers">
@@ -459,161 +464,205 @@ export function HuntBoardPage() {
           </div>
 
           <div className="hunt-tab-body">
-            <div className="calendar-toolbar">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setSelectedDay(undefined);
-                  setCalendarMonth(
-                    (current) =>
-                      new Date(
-                        current.getFullYear(),
-                        current.getMonth() - 1,
-                        1,
-                      ),
-                  );
+            <div
+              className="flex gap-2 mb-4"
+              role="group"
+              aria-label="일정 보기"
+            >
+              {(['month', 'week', 'day'] as const).map((mode) => (
+                <Button
+                  key={mode}
+                  variant={calendarView === mode ? 'primary' : 'outline'}
+                  onClick={() => {
+                    setCalendarView(mode);
+                  }}
+                >
+                  {mode === 'month'
+                    ? '월간'
+                    : mode === 'week'
+                      ? '주간'
+                      : '일간'}
+                </Button>
+              ))}
+            </div>
+            {calendarView !== 'month' ? (
+              <ScheduleAgenda
+                mode={calendarView}
+                visits={visibleVisits}
+                users={appUsers}
+                scanQueue={scanWaitingProjects}
+                fittingQueue={fittingProjects}
+                onVisit={(id) => {
+                  setSelectedVisitId(id);
                 }}
-              >
-                ← 이전 달
-              </Button>
-              <h2>
-                {calendarYear}년 {calendarMonthNumber}월
-              </h2>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setSelectedDay(undefined);
-                  setCalendarMonth(
-                    (current) =>
-                      new Date(
-                        current.getFullYear(),
-                        current.getMonth() + 1,
-                        1,
-                      ),
-                  );
-                }}
-              >
-                다음 달 →
-              </Button>
-              <Input
-                className="calendar-month-picker"
-                aria-label="표시할 월 선택"
-                type="month"
-                value={calendarMonthKey}
-                onChange={(event) => {
-                  const [year, month] = event.target.value
-                    .split('-')
-                    .map(Number);
-                  if (!year || !month) return;
-                  setSelectedDay(undefined);
-                  setCalendarMonth(new Date(year, month - 1, 1));
+                onBook={(projectId, kind, date) => {
+                  setVisitKind(kind);
+                  setVisitDate(date);
+                  openVisitDialog(projectId);
                 }}
               />
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={
-                  calendarYear === TODAY.year &&
-                  calendarMonthNumber === TODAY.month
-                }
-                onClick={() => {
-                  setSelectedDay(undefined);
-                  setCalendarMonth(new Date(TODAY.year, TODAY.month - 1, 1));
-                }}
-              >
-                오늘
-              </Button>
-              <div
-                className="calendar-legend"
-                role="group"
-                aria-label="일정 유형 필터"
-              >
-                {CALENDAR_LEGEND.map((legend) => (
-                  <button
-                    type="button"
-                    key={legend.value}
-                    className="calendar-legend-item"
-                    aria-pressed={calendarLegend === legend.value}
+            ) : (
+              <>
+                <div className="calendar-toolbar">
+                  <Button
+                    size="sm"
+                    variant="outline"
                     onClick={() => {
-                      setCalendarLegend((current) =>
-                        current === legend.value ? undefined : legend.value,
+                      setSelectedDay(undefined);
+                      setCalendarMonth(
+                        (current) =>
+                          new Date(
+                            current.getFullYear(),
+                            current.getMonth() - 1,
+                            1,
+                          ),
                       );
                     }}
                   >
-                    <i className={`calendar-legend-dot ${legend.dot}`} />{' '}
-                    {legend.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="month-grid">
-              {['일', '월', '화', '수', '목', '금', '토'].map((day) => (
-                <div className="weekday" key={day}>
-                  {day}
-                </div>
-              ))}
-              {calendarBlanks.map((blank) => (
-                <div key={blank} />
-              ))}
-              {calendarDays.map((day) => {
-                const dayVisits = visitsOnDay(day);
-                const isToday =
-                  day === TODAY.day &&
-                  calendarMonthNumber === TODAY.month &&
-                  calendarYear === TODAY.year;
-                const dayClass = isToday
-                  ? 'calendar-day today'
-                  : 'calendar-day';
-                const dayContent = (
-                  <>
-                    <span className="day-number">
-                      {day}
-                      {isToday ? ' · 오늘' : ''}
-                    </span>
-                    {dayVisits.map((visit) => (
-                      <span
-                        className={`calendar-event ${visit.kind.toLowerCase()}${
-                          visit.status === 'COMPLETED' ? ' completed' : ''
-                        }`}
-                        key={visit.id}
-                      >
-                        <small className="calendar-event-kind">
-                          {visit.time} ·{' '}
-                          {visit.kind === 'SCAN' ? '스캔' : '피팅'}
-                        </small>
-                        <strong>{visit.dealer}</strong>
-                        <small>
-                          {visitAssigneeNames(visit)} · {visit.projectGroupId}
-                        </small>
-                      </span>
-                    ))}
-                  </>
-                );
-
-                if (!dayVisits.length) {
-                  return (
-                    <div className={dayClass} key={day}>
-                      {dayContent}
-                    </div>
-                  );
-                }
-                return (
-                  <button
-                    type="button"
-                    className={`${dayClass} has-visits`}
-                    key={day}
-                    aria-label={`${String(calendarMonthNumber)}월 ${String(day)}일 일정 ${String(dayVisits.length)}건 상세 보기`}
+                    ← 이전 달
+                  </Button>
+                  <h2>
+                    {calendarYear}년 {calendarMonthNumber}월
+                  </h2>
+                  <Button
+                    size="sm"
+                    variant="outline"
                     onClick={() => {
-                      setSelectedDay(day);
+                      setSelectedDay(undefined);
+                      setCalendarMonth(
+                        (current) =>
+                          new Date(
+                            current.getFullYear(),
+                            current.getMonth() + 1,
+                            1,
+                          ),
+                      );
                     }}
                   >
-                    {dayContent}
-                  </button>
-                );
-              })}
-            </div>
+                    다음 달 →
+                  </Button>
+                  <Input
+                    className="calendar-month-picker"
+                    aria-label="표시할 월 선택"
+                    type="month"
+                    value={calendarMonthKey}
+                    onChange={(event) => {
+                      const [year, month] = event.target.value
+                        .split('-')
+                        .map(Number);
+                      if (!year || !month) return;
+                      setSelectedDay(undefined);
+                      setCalendarMonth(new Date(year, month - 1, 1));
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={
+                      calendarYear === TODAY.year &&
+                      calendarMonthNumber === TODAY.month
+                    }
+                    onClick={() => {
+                      setSelectedDay(undefined);
+                      setCalendarMonth(
+                        new Date(TODAY.year, TODAY.month - 1, 1),
+                      );
+                    }}
+                  >
+                    오늘
+                  </Button>
+                  <div
+                    className="calendar-legend"
+                    role="group"
+                    aria-label="일정 유형 필터"
+                  >
+                    {CALENDAR_LEGEND.map((legend) => (
+                      <button
+                        type="button"
+                        key={legend.value}
+                        className="calendar-legend-item"
+                        aria-pressed={calendarLegend === legend.value}
+                        onClick={() => {
+                          setCalendarLegend((current) =>
+                            current === legend.value ? undefined : legend.value,
+                          );
+                        }}
+                      >
+                        <i className={`calendar-legend-dot ${legend.dot}`} />{' '}
+                        {legend.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="month-grid">
+                  {['일', '월', '화', '수', '목', '금', '토'].map((day) => (
+                    <div className="weekday" key={day}>
+                      {day}
+                    </div>
+                  ))}
+                  {calendarBlanks.map((blank) => (
+                    <div key={blank} />
+                  ))}
+                  {calendarDays.map((day) => {
+                    const dayVisits = visitsOnDay(day);
+                    const isToday =
+                      day === TODAY.day &&
+                      calendarMonthNumber === TODAY.month &&
+                      calendarYear === TODAY.year;
+                    const dayClass = isToday
+                      ? 'calendar-day today'
+                      : 'calendar-day';
+                    const dayContent = (
+                      <>
+                        <span className="day-number">
+                          {day}
+                          {isToday ? ' · 오늘' : ''}
+                        </span>
+                        {dayVisits.map((visit) => (
+                          <span
+                            className={`calendar-event ${visit.kind.toLowerCase()}${
+                              visit.status === 'COMPLETED' ? ' completed' : ''
+                            }`}
+                            key={visit.id}
+                          >
+                            <small className="calendar-event-kind">
+                              {visit.time} ·{' '}
+                              {visit.kind === 'SCAN' ? '스캔' : '피팅'}
+                            </small>
+                            <strong>{visit.dealer}</strong>
+                            <small>
+                              {visitAssigneeNames(visit)} ·{' '}
+                              {visit.projectGroupId}
+                            </small>
+                          </span>
+                        ))}
+                      </>
+                    );
+
+                    if (!dayVisits.length) {
+                      return (
+                        <div className={dayClass} key={day}>
+                          {dayContent}
+                        </div>
+                      );
+                    }
+                    return (
+                      <button
+                        type="button"
+                        className={`${dayClass} has-visits`}
+                        key={day}
+                        aria-label={`${String(calendarMonthNumber)}월 ${String(day)}일 일정 ${String(dayVisits.length)}건 상세 보기`}
+                        onClick={() => {
+                          setSelectedDay(day);
+                        }}
+                      >
+                        {dayContent}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         </TabsContent>
 

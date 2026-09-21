@@ -1,7 +1,7 @@
 /* Dashboard uses the shared Metronic workbench theme tokens. */
 .dashboard {
   display: grid;
-  gap: 16px;
+  gap: 24px;
 }
 
 .dashboard-alerts {
@@ -41,7 +41,7 @@
 .dashboard-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: 20px;
 }
 
 .dashboard-stat > [data-slot='card-content'] {
@@ -73,8 +73,8 @@
 
 .dashboard-kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 14px;
 }
 
 .dashboard-kpi {
@@ -137,7 +137,7 @@
 .dashboard-columns {
   display: grid;
   grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr);
-  gap: 16px;
+  gap: 24px;
   align-items: start;
 }
 
@@ -365,6 +365,13 @@
 .team-dashboard-member-meta > span:last-child {
   color: var(--wb-muted);
   font-size: 10.5px;
+}
+
+/* React to the usable page width, including an expanded sidebar. */
+@container workbench (max-width: 1050px) {
+  .dashboard-columns {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 900px) {

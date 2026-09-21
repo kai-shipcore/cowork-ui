@@ -14,7 +14,7 @@ export function pageTitle(pathname: string, search: string): string {
     search: '통합 검색',
     reports: '업무 리포트',
     notifications: '알림 · 활동',
-    settings: '데이터 · 운영 설정',
+    settings: '개인 환경 설정',
   };
   if (pathname.startsWith('/work/'))
     return pages[pathname.split('/')[2]] ?? '업무';

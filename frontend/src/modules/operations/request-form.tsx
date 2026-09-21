@@ -11,6 +11,10 @@ import {
   TEAM_NAMES,
   type TeamId,
 } from './operations-model';
+import {
+  loadPersonalSettings,
+  requestApprovalDefaults,
+} from './personal-settings-model';
 
 const TEMPLATES = [
   {
@@ -46,7 +50,14 @@ export function RequestForm({ team }: { team: TeamId }) {
   const { projects, masterProducts } = useWorkbenchStore();
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const [targetTeam, setTargetTeam] = useState<TeamId>('rd');
+  const [personal] = useState(() => loadPersonalSettings(actor));
+  const [targetTeam, setTargetTeam] = useState<TeamId>(
+    personal.settings.targetTeam,
+  );
+  const approvalDefaults = requestApprovalDefaults(
+    personal.settings,
+    targetTeam,
+  );
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('일반 요청');
   const [referenceId, setReferenceId] = useState(params.get('reference') ?? '');
@@ -98,6 +109,7 @@ export function RequestForm({ team }: { team: TeamId }) {
       }}
     >
       <h2>팀 간 업무 요청</h2>
+      {personal.error && <p role="alert">{personal.error}</p>}
       <p>
         요청 팀: {TEAM_NAMES[actor.team]} · 등록 후 수신 담당자가 접수하고 지정
         검토자가 완료를 승인합니다.
@@ -161,13 +173,9 @@ export function RequestForm({ team }: { team: TeamId }) {
             key={'assignee-' + targetTeam}
             name="assignee"
             required
-            defaultValue={
-              PEOPLE.find(
-                (person) =>
-                  person.team === targetTeam && person.role === 'member',
-              )?.id
-            }
+            defaultValue={approvalDefaults.assigneeId}
           >
+            <option value="">담당자 선택</option>
             {PEOPLE.filter(
               (person) =>
                 person.team === targetTeam && person.role === 'member',
@@ -180,7 +188,13 @@ export function RequestForm({ team }: { team: TeamId }) {
         </label>
         <label>
           완료 검토자
-          <select key={'reviewer-' + targetTeam} name="reviewer" required>
+          <select
+            key={'reviewer-' + targetTeam}
+            name="reviewer"
+            required
+            defaultValue={approvalDefaults.reviewerId}
+          >
+            <option value="">결재자 선택</option>
             {PEOPLE.filter(
               (person) => person.team === targetTeam && person.role === 'lead',
             ).map((person) => (
@@ -196,7 +210,7 @@ export function RequestForm({ team }: { team: TeamId }) {
         </label>
         <label>
           우선순위
-          <select name="priority">
+          <select name="priority" defaultValue={personal.settings.priority}>
             <option value="normal">보통</option>
             <option value="high">높음</option>
             <option value="urgent">긴급</option>

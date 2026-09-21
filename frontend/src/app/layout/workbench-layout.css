@@ -2968,7 +2968,8 @@
 
 /* Project Group detail workspace */
 .project-workspace {
-  max-width: 1180px;
+  width: 100%;
+  min-width: 0;
 }
 
 .project-back-button {

@@ -1,7 +1,8 @@
 .ops {
   display: grid;
-  gap: 20px;
-  max-width: 1500px;
+  gap: 24px;
+  width: 100%;
+  min-width: 0;
   margin: auto;
 }
 .ops h1 {
@@ -72,7 +73,7 @@
 .ops-two {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 20px;
 }
 .ops-table-wrap {
   overflow: auto;
@@ -190,7 +191,7 @@
 .ops-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  gap: 20px;
 }
 .ops-metric {
   padding: 20px;
@@ -221,5 +222,24 @@
   .ops-panel,
   .ops-form {
     padding: 14px;
+  }
+}
+
+@container workbench (max-width: 1000px) {
+  .ops-metrics,
+  .ops-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container workbench (max-width: 760px) {
+  .ops-two {
+    grid-template-columns: 1fr;
+  }
+}
+
+@container workbench (max-width: 480px) {
+  .ops-metrics {
+    grid-template-columns: 1fr;
   }
 }

@@ -16,7 +16,7 @@ import {
 /** Displays the sample default profile page. */
 export function ProfilePage() {
   return (
-    <div className="container">
+    <div className="w-full min-w-0">
       <Toolbar>
         <ToolbarHeading>
           <ToolbarPageTitle>Profiles-Default</ToolbarPageTitle>

@@ -7,6 +7,7 @@ import {
   useParams,
   useSearchParams,
 } from 'react-router-dom';
+import { RdPerformance } from '@/modules/rd-workspace/rd-performance';
 import { useOperations } from '@/app/operations-store';
 import { useWorkbenchStore } from '@/app/workbench-store';
 import {
@@ -20,10 +21,16 @@ import {
   teamFromLocation,
   today,
 } from './operations-model';
+import { PersonalSettings } from './personal-settings';
+import {
+  loadPersonalSettings,
+  visiblePersonalNotifications,
+} from './personal-settings-model';
 import { RequestDetail } from './request-detail';
 import { RequestForm } from './request-form';
 import { useRdActions } from './use-rd-actions';
 import './operations.css';
+import './personal-settings.css';
 
 function download(content: string, filename: string) {
   const url = URL.createObjectURL(
@@ -79,6 +86,12 @@ export function OperationsPage() {
   );
   const rd = useRdActions();
   const section = location.pathname.split('/')[2] ?? 'tasks';
+  const personal = loadPersonalSettings(actor);
+  const notifications = visiblePersonalNotifications(
+    snapshot.requests,
+    actor.id,
+    personal.settings,
+  );
   function update(key: string, value: string) {
     const next = new URLSearchParams(params);
     next.set(key, value);
@@ -154,7 +167,7 @@ export function OperationsPage() {
     notifications: '알림 · 나의 활동',
     search: '통합 검색',
     reports: '업무 리포트',
-    settings: '데이터 · 운영 설정',
+    settings: '개인 환경 설정',
   };
   if (requestId) {
     const request = snapshot.requests.find((entry) => entry.id === requestId);
@@ -171,121 +184,149 @@ export function OperationsPage() {
   }
   return (
     <section className="ops">
-      <div className="ops-heading">
-        <div>
-          <h1>{titles[section] ?? '업무함'}</h1>
-          <p>
-            {TEAM_NAMES[team]} · {personName(actor.id)}
-          </p>
+      {section !== 'settings' && (
+        <div className="ops-heading">
+          <div>
+            <h1>{titles[section] ?? '업무함'}</h1>
+            <p>
+              {TEAM_NAMES[team]} · {personName(actor.id)}
+            </p>
+          </div>
+          <Button asChild>
+            <Link to={'/work/requests?new=1&team=' + team}>새 요청</Link>
+          </Button>
         </div>
-        <Button asChild>
-          <Link to={'/work/requests?new=1&team=' + team}>새 요청</Link>
-        </Button>
-      </div>
-      {params.get('new') === '1' && <RequestForm team={team} />}
-      {section === 'notifications' ? (
+      )}
+      {section === 'reports' && (
+        <div className="ops-actions" role="group" aria-label="리포트 종류">
+          <Button
+            variant={params.get('report') !== 'rd' ? 'primary' : 'outline'}
+            onClick={() => {
+              update('report', 'operations');
+            }}
+          >
+            팀 간 요청 현황
+          </Button>
+          <Button
+            variant={params.get('report') === 'rd' ? 'primary' : 'outline'}
+            onClick={() => {
+              update('report', 'rd');
+            }}
+          >
+            R&D 성과
+          </Button>
+        </div>
+      )}
+      {section !== 'settings' && params.get('new') === '1' && (
+        <RequestForm key={actor.id} team={team} />
+      )}
+      {section === 'reports' && params.get('report') === 'rd' ? (
+        <RdPerformance />
+      ) : section === 'notifications' ? (
         <div className="ops-panel">
           <h2>나에게 전달된 요청·멘션·상태 변경</h2>
-          {snapshot.requests
-            .flatMap((request) =>
-              request.events
-                .filter((event) => event.mentions.includes(actor.id))
-                .map((event) => ({ request, event })),
-            )
-            .sort((a, b) => b.event.at.localeCompare(a.event.at))
-            .map(({ request, event }) => (
-              <div className="ops-row" key={event.id}>
-                <Link to={requestLink(request.id, team)}>
-                  {request.title} · {event.message}
-                </Link>
-                <span>
-                  {personName(event.actorId)} ·{' '}
-                  {new Date(event.at).toLocaleString()}
-                </span>
-              </div>
-            ))}
-          {!snapshot.requests.some((request) =>
-            request.events.some((event) => event.mentions.includes(actor.id)),
-          ) && <p>새로 표시할 활동이 없습니다.</p>}
+          <p>
+            개인 알림 설정에 따라 표시합니다.{' '}
+            <Link to={'/work/settings?team=' + team + '#notifications'}>
+              알림 설정 변경
+            </Link>
+          </p>
+          {personal.error && <p role="alert">{personal.error}</p>}
+          {notifications.map(({ request, event }) => (
+            <div className="ops-row" key={event.id}>
+              <Link to={requestLink(request.id, team)}>
+                {request.title} · {event.message}
+              </Link>
+              <span>
+                {personName(event.actorId)} ·{' '}
+                {new Date(event.at).toLocaleString()}
+              </span>
+            </div>
+          ))}
+          {!notifications.length && (
+            <p>선택한 알림 종류에 표시할 활동이 없습니다.</p>
+          )}
         </div>
       ) : section === 'settings' ? (
-        <div className="ops-panel ops-form">
-          <h2>데모 업무 데이터 백업</h2>
-          <p>
-            팀 간 요청·댓글·문서 링크·활동 이력을 JSON으로 내보냅니다. 기존 R&D
-            데이터는 별도이며 이 백업에 포함되지 않습니다.
-          </p>
-          <Button
-            variant="outline"
-            onClick={() => {
-              download(
-                JSON.stringify(snapshot, null, 2),
-                'coverland-requests-' + today() + '.json',
-              );
-            }}
-          >
-            현재 요청 데이터 내보내기
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              try {
-                const previous = previousBackup();
-                if (previous)
-                  download(previous, 'coverland-requests-previous.json');
-                else setBackupMessage('아직 이전 저장본이 없습니다.');
-              } catch {
-                setBackupMessage('이전 저장본을 읽을 수 없습니다.');
-              }
-            }}
-          >
-            이전 저장본 내보내기
-          </Button>
-          <label>
-            백업 파일
-            <input
-              type="file"
-              accept="application/json,.json"
-              onChange={(event) => {
-                void readBackup(event);
+        <PersonalSettings key={actor.id} actor={actor}>
+          <div className="ops-panel ops-form">
+            <h2>데모 업무 데이터 백업</h2>
+            <p>
+              팀 간 요청·댓글·문서 링크·활동 이력을 JSON으로 내보냅니다. 기존
+              R&D 데이터는 별도이며 이 백업에 포함되지 않습니다.
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                download(
+                  JSON.stringify(snapshot, null, 2),
+                  'coverland-requests-' + today() + '.json',
+                );
               }}
-            />
-          </label>
-          <p role="status">{backupMessage}</p>
-          <Button
-            disabled={!backup || saving}
-            onClick={() => {
-              void restore(backup).then((success) => {
-                if (success) {
-                  setBackup(undefined);
-                  setBackupMessage(
-                    '새 요청을 복원했습니다. 기존 기록은 보존했습니다.',
-                  );
+            >
+              현재 요청 데이터 내보내기
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                try {
+                  const previous = previousBackup();
+                  if (previous)
+                    download(previous, 'coverland-requests-previous.json');
+                  else setBackupMessage('아직 이전 저장본이 없습니다.');
+                } catch {
+                  setBackupMessage('이전 저장본을 읽을 수 없습니다.');
                 }
-              });
-            }}
-          >
-            누락된 요청 복원
-          </Button>
-          <h2>R&D 데이터 백업</h2>
-          <p>
-            {storageMessage} · 기존 R&D 데이터의 현재 상태를 내보냅니다. 이
-            파일은 요청 백업 복원기에 넣을 수 없습니다.
-          </p>
-          <Button
-            variant="outline"
-            onClick={() => {
-              download(exportSnapshot(), 'coverland-rd-' + today() + '.json');
-            }}
-          >
-            R&D 데이터 내보내기
-          </Button>
-          <h2>실사용 연결 준비</h2>
-          <p>
-            Google 회사 로그인: 설정 대기 · 공용 API/DB: 연결 대기 · 현재 역할
-            선택은 테스트용입니다. 실제 회사 정보는 운영 연결 후 입력하세요.
-          </p>
-        </div>
+              }}
+            >
+              이전 저장본 내보내기
+            </Button>
+            <label>
+              백업 파일
+              <input
+                type="file"
+                accept="application/json,.json"
+                onChange={(event) => {
+                  void readBackup(event);
+                }}
+              />
+            </label>
+            <p role="status">{backupMessage}</p>
+            <Button
+              disabled={!backup || saving}
+              onClick={() => {
+                void restore(backup).then((success) => {
+                  if (success) {
+                    setBackup(undefined);
+                    setBackupMessage(
+                      '새 요청을 복원했습니다. 기존 기록은 보존했습니다.',
+                    );
+                  }
+                });
+              }}
+            >
+              누락된 요청 복원
+            </Button>
+            <h2>R&D 데이터 백업</h2>
+            <p>
+              {storageMessage} · 기존 R&D 데이터의 현재 상태를 내보냅니다. 이
+              파일은 요청 백업 복원기에 넣을 수 없습니다.
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                download(exportSnapshot(), 'coverland-rd-' + today() + '.json');
+              }}
+            >
+              R&D 데이터 내보내기
+            </Button>
+            <h2>실사용 연결 준비</h2>
+            <p>
+              Google 회사 로그인: 설정 대기 · 공용 API/DB: 연결 대기 · 현재 역할
+              선택은 테스트용입니다. 실제 회사 정보는 운영 연결 후 입력하세요.
+            </p>
+          </div>
+        </PersonalSettings>
       ) : (
         <>
           {section === 'reports' && (

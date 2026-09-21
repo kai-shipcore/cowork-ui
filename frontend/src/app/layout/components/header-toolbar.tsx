@@ -1,11 +1,10 @@
 import { Button } from '@coverland-engineering/ui/button';
-import { Bell, Moon, Plus, Sun } from 'lucide-react';
-import { useTheme } from 'next-themes';
+import { Bell, Plus } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { teamFromLocation } from '@/modules/operations/operations-model';
+import { HeaderUserMenu } from './header-user-menu';
 
 export function HeaderToolbar() {
-  const { theme, setTheme } = useTheme();
   const { pathname, search } = useLocation();
   const team = teamFromLocation(pathname, search);
   return (
@@ -26,16 +25,7 @@ export function HeaderToolbar() {
           <Plus /> 요청
         </Link>
       </Button>
-      <Button
-        mode="icon"
-        variant="ghost"
-        aria-label="테마 변경"
-        onClick={() => {
-          setTheme(theme === 'dark' ? 'light' : 'dark');
-        }}
-      >
-        {theme === 'dark' ? <Sun /> : <Moon />}
-      </Button>
+      <HeaderUserMenu team={team} />
     </nav>
   );
 }

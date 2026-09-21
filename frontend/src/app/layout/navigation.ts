@@ -1,5 +1,7 @@
 import {
   BarChart2,
+  BarChart3,
+  Bell,
   Bolt,
   Briefcase,
   Calendar,
@@ -9,15 +11,18 @@ import {
   ClipboardList,
   Cog,
   FolderKanban,
+  GitPullRequest,
   Grid,
   Handshake,
   Headphones,
+  House,
   MessageSquare,
   Package,
   PackageCheck,
   Palette,
   RotateCcw,
   Search,
+  Settings,
   ShoppingCart,
   Store,
   Tags,
@@ -26,6 +31,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
+import { teamHome, type TeamId } from '@/modules/operations/operations-model';
 
 export interface MenuItem {
   title?: string;
@@ -47,24 +53,74 @@ export interface MenuItem {
 
 export type MenuConfig = MenuItem[];
 
+type WorkspaceMenu = Record<
+  'home' | 'tasks' | 'requests' | 'notifications' | 'reports' | 'settings',
+  Required<Pick<MenuItem, 'title' | 'path' | 'icon'>>
+>;
+
+/** One destination definition for both the icon rail and labelled sidebar. */
+export function getWorkspaceMenu(
+  team: TeamId,
+  dashboardPath = teamHome(team),
+): WorkspaceMenu {
+  return {
+    home: { title: 'Home', path: dashboardPath, icon: House },
+    tasks: {
+      title: 'My Tasks',
+      path: '/work/tasks?team=' + team,
+      icon: ClipboardList,
+    },
+    requests: {
+      title: '팀 간 요청',
+      path: '/work/requests?team=' + team,
+      icon: GitPullRequest,
+    },
+    notifications: {
+      title: '알림 · 활동',
+      path: '/work/notifications?team=' + team,
+      icon: Bell,
+    },
+    reports: {
+      title: '업무 리포트',
+      path: '/work/reports?team=' + team,
+      icon: BarChart3,
+    },
+    settings: {
+      title: '설정',
+      path: '/work/settings?team=' + team,
+      icon: Settings,
+    },
+  };
+}
+
+/** Match a destination and its detail routes without matching unrelated prefixes. */
+export function isSidebarLinkActive(pathname: string, path: string): boolean {
+  const destination = path.split('?')[0];
+  return (
+    destination !== '#' &&
+    (pathname === destination || pathname.startsWith(destination + '/'))
+  );
+}
+
+const RD_WORKSPACE_MENU = getWorkspaceMenu('rd');
+
 export const MENU_SIDEBAR_MAIN: MenuConfig = [
   {
     children: [
-      {
-        title: 'Home',
-        path: ROUTES.dashboard,
-        icon: Bolt,
-      },
-      {
-        title: 'My Tasks',
-        path: '#',
-        icon: ChartLine,
-      },
+      RD_WORKSPACE_MENU.home,
+      RD_WORKSPACE_MENU.tasks,
+      RD_WORKSPACE_MENU.requests,
+      RD_WORKSPACE_MENU.notifications,
     ],
   },
   {
     title: 'R&D Tools',
     children: [
+      {
+        title: 'Development Requests',
+        path: '/development-requests',
+        icon: GitPullRequest,
+      },
       {
         title: 'Vehicle Research',
         path: ROUTES.vehicleResearch,

@@ -95,7 +95,7 @@ export function HeaderLogo({ selectedTeam, onTeamChange }: HeaderLogoProps) {
       {/* Brand */}
       <div className="flex items-center w-full">
         {/* Logo */}
-        <div className="flex items-center justify-center shrink-0 border-e border-border w-(--sidebar-collapsed-width) h-(--header-height) bg-muted">
+        <div className="flex items-center justify-center shrink-0 border-e border-zinc-200 w-(--sidebar-collapsed-width) h-(--header-height) bg-white dark:border-zinc-800 dark:bg-zinc-950">
           <Link to={selectedTeam.dashboardPath}>
             <img
               src={toAbsoluteUrl('/media/app/mini-logo-gray.svg')}

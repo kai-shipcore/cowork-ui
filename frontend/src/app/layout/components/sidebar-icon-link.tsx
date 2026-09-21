@@ -7,7 +7,7 @@ import {
 import { Circle } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import type { MenuItem } from '../navigation';
+import { isSidebarLinkActive, type MenuItem } from '../navigation';
 
 /** Named, keyboard-accessible shortcut; tooltips escape the scrolling rail. */
 export function SidebarIconLink({
@@ -19,10 +19,8 @@ export function SidebarIconLink({
 }) {
   const available = Boolean(item.path && item.path !== '#' && !item.disabled);
   const label = (item.title ?? '메뉴') + (available ? '' : ' · 준비 중');
-  const path = item.path?.split('?')[0];
   const active =
-    available &&
-    (pathname === path || Boolean(path && pathname.startsWith(path + '/')));
+    available && Boolean(item.path && isSidebarLinkActive(pathname, item.path));
   const Icon = item.icon ?? Circle;
   return (
     <Tooltip>
@@ -31,12 +29,13 @@ export function SidebarIconLink({
           <Button
             asChild
             mode="icon"
-            variant={active ? 'primary' : 'ghost'}
-            className="shrink-0"
+            variant="ghost"
+            data-active={active}
+            className="size-9 shrink-0 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 data-[active=true]:bg-zinc-100 data-[active=true]:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 dark:data-[active=true]:bg-zinc-800 dark:data-[active=true]:text-zinc-100"
             aria-label={label}
           >
             <Link to={item.path} aria-current={active ? 'page' : undefined}>
-              <Icon aria-hidden="true" className="size-4" />
+              <Icon aria-hidden="true" className="size-4" strokeWidth={1.5} />
             </Link>
           </Button>
         ) : (
@@ -44,11 +43,11 @@ export function SidebarIconLink({
             type="button"
             mode="icon"
             variant="ghost"
-            className="shrink-0 opacity-45 cursor-not-allowed"
+            className="size-9 shrink-0 cursor-not-allowed rounded-lg text-zinc-400 hover:bg-transparent dark:text-zinc-600 dark:hover:bg-transparent"
             aria-label={label}
             aria-disabled="true"
           >
-            <Icon aria-hidden="true" className="size-4" />
+            <Icon aria-hidden="true" className="size-4" strokeWidth={1.5} />
           </Button>
         )}
       </TooltipTrigger>

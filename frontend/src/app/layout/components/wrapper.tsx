@@ -13,6 +13,7 @@ import { useLayout } from './context';
 import { Header } from './header';
 import { HeaderBreadcrumbs } from './header-breadcrumbs';
 import { teams } from './header-logo';
+import { PageContent } from './page-content';
 import { ScreenHelp } from './screen-help';
 import { Sidebar } from './sidebar';
 import '../workbench-layout.css';
@@ -45,8 +46,8 @@ export function Wrapper() {
           dashboardPath={selectedTeam.dashboardPath}
         />
       )}
-      <div className="grow overflow-y-auto pt-(--header-height-mobile) lg:pt-(--header-height) lg:ps-(--sidebar-width) lg:in-data-[sidebar-open=false]:ps-(--sidebar-collapsed-width) transition-all duration-300">
-        <main className="workbench-content metronic-content grow p-5">
+      <div className="w-full min-w-0 grow overflow-y-auto pt-(--header-height-mobile) lg:pt-(--header-height) lg:ps-(--sidebar-width) lg:in-data-[sidebar-open=false]:ps-(--sidebar-collapsed-width) transition-all duration-300">
+        <PageContent>
           {isMobile && <HeaderBreadcrumbs />}
           {storageError && (
             <div className="ops-save-error" role="alert">
@@ -89,7 +90,7 @@ export function Wrapper() {
           <ScreenHelp />
           <Outlet />
           <RelatedRequests />
-        </main>
+        </PageContent>
       </div>
     </>
   );

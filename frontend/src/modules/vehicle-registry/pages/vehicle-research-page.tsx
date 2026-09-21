@@ -30,6 +30,7 @@ import { StatusBadge } from '@/shared/components/status-badge';
 import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import type { VehicleConfiguration } from '@/shared/types/workbench';
 import { useWorkbenchStore } from '@/app/workbench-store';
+import { ResearchEvidence } from '../research-evidence';
 import { groupVehicleResearch } from '../vehicle-research-grid-model';
 
 const RESEARCH_STATUS_FILTERS = [
@@ -83,6 +84,10 @@ export function VehicleResearchPage() {
   const [status, setStatus] = useState<ResearchStatusFilter>('ALL');
   const [product, setProduct] = useState('ALL');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [evidenceConfigurationId, setEvidenceConfigurationId] = useState('');
+  const evidenceConfiguration = configurations.find(
+    (entry) => entry.id === evidenceConfigurationId,
+  );
   const [manufacturer, setManufacturer] = useState('Toyota');
   const [vehicleClass, setVehicleClass] = useState('SUV');
   const [model, setModel] = useState('');
@@ -221,6 +226,22 @@ export function VehicleResearchPage() {
   }
 
   const columns: GroupedDataGridColumn<VehicleConfiguration>[] = [
+    {
+      id: 'evidence',
+      header: 'Research Evidence',
+      width: 150,
+      cell: (configuration) => (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setEvidenceConfigurationId(configuration.id);
+          }}
+        >
+          조사 근거 · 판단
+        </Button>
+      ),
+    },
     {
       id: 'configuration',
       header: 'Configuration',
@@ -363,6 +384,16 @@ export function VehicleResearchPage() {
         }
       />
 
+      {evidenceConfiguration && (
+        <ResearchEvidence
+          key={evidenceConfiguration.id}
+          configuration={evidenceConfiguration}
+          configurations={configurations}
+          onClose={() => {
+            setEvidenceConfigurationId('');
+          }}
+        />
+      )}
       <GroupedDataGrid
         label="Vehicle Research"
         columns={columns}

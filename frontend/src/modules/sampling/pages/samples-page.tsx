@@ -43,6 +43,7 @@ import { toSampleTrackingRows } from '../sample-tracking';
 import { SampleTrackingTable } from '../sample-tracking-table';
 import { ShipmentDialog } from '../shipment-dialog';
 import { ShipmentSummary } from '../shipment-summary';
+import { VendorQualityReport } from '../vendor-quality-report';
 
 type SampleLifecycle = 'DRAFT' | 'SENT' | 'IN_TRANSIT' | 'ARRIVED';
 type SampleFilter = SampleLifecycle | 'PASSED';
@@ -475,6 +476,14 @@ export function SamplesPage() {
         요청 행 또는 검수 버튼을 선택해 입고·검수를 진행하세요. 저장 결과는
         목록에 바로 반영됩니다.
       </p>
+      <details className="mb-5 rounded-xl border border-border p-5">
+        <summary className="cursor-pointer text-sm font-semibold">
+          공장별 품질 · 납기 리포트 / 샘플 연계 품질 이슈
+        </summary>
+        <div className="mt-5">
+          <VendorQualityReport />
+        </div>
+      </details>
       {inspectionMessage && (
         <p
           role="status"

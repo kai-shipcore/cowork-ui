@@ -10,11 +10,10 @@ import {
 } from '@coverland-engineering/ui/accordion-menu';
 import { Badge } from '@coverland-engineering/ui/badge';
 import { Link, useLocation } from 'react-router';
+import { teamFromLocation } from '@/modules/operations/operations-model';
 import {
-  teamFromLocation,
-  teamHome,
-} from '@/modules/operations/operations-model';
-import {
+  getWorkspaceMenu,
+  isSidebarLinkActive,
   MENU_SIDEBAR_MAIN,
   MENU_SIDEBAR_TEAM_TOOLS,
   type MenuItem,
@@ -29,7 +28,7 @@ function renderItems(children: MenuItem[] | undefined) {
   return children?.map((child, index) => {
     const content = (
       <>
-        {child.icon && <child.icon />}
+        {child.icon && <child.icon aria-hidden="true" strokeWidth={1.5} />}
         <span>{child.title}</span>
         {child.badge == 'Beta' && (
           <Badge size="sm" variant="destructive" appearance="light">
@@ -69,13 +68,12 @@ export function SidebarPrimaryMenu({
 }: SidebarPrimaryMenuProps) {
   const { pathname, search } = useLocation();
   const team = teamFromLocation(pathname, search);
+  const menu = getWorkspaceMenu(team);
   const teamToolItems = MENU_SIDEBAR_TEAM_TOOLS[toolsMenuTitle];
 
   // Memoize matchPath to prevent unnecessary re-renders
   const matchPath = useCallback(
-    (path: string): boolean =>
-      path.split('?')[0] === pathname ||
-      (path.length > 1 && pathname.startsWith(path) && path !== '/dashboard'),
+    (path: string): boolean => isSidebarLinkActive(pathname, path),
     [pathname],
   );
 
@@ -114,26 +112,10 @@ export function SidebarPrimaryMenu({
         ) : (
           <AccordionMenuGroup key={index}>
             {renderItems([
-              {
-                title: 'Home',
-                path: teamHome(team),
-                icon: item.children?.[0]?.icon,
-              },
-              {
-                title: 'My Tasks',
-                path: '/work/tasks?team=' + team,
-                icon: item.children?.[1]?.icon,
-              },
-              {
-                title: '팀 간 요청',
-                path: '/work/requests?team=' + team,
-                icon: item.children?.[1]?.icon,
-              },
-              {
-                title: '알림 · 활동',
-                path: '/work/notifications?team=' + team,
-                icon: item.children?.[1]?.icon,
-              },
+              menu.home,
+              menu.tasks,
+              menu.requests,
+              menu.notifications,
             ])}
           </AccordionMenuGroup>
         ),

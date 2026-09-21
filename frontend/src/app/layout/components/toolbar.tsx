@@ -19,7 +19,7 @@ export interface ToolbarHeadingProps {
 
 function Toolbar({ children }: { children?: ReactNode }) {
   return (
-    <div className="py-2.5 lg:py-0 lg:fixed top-(--header-height) start-[calc(var(--sidebar-width))] lg:in-data-[sidebar-open=false]:start-[calc(var(--sidebar-collapsed-width))] transition-all duration-300 end-0 z-10 px-5 flex flex-wrap items-center justify-between gap-2.5 min-h-(--toolbar-height) bg-background border-b border-border shrink-0">
+    <div className="mb-6 flex min-w-0 flex-wrap items-center justify-between gap-2.5 border-b border-border bg-background py-2.5 min-h-(--toolbar-height)">
       {children}
     </div>
   );

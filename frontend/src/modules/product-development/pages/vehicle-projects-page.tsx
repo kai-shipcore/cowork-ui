@@ -43,6 +43,13 @@ import type {
   VehicleZoneProject,
 } from '@/shared/types/workbench';
 import { resetPartLibrary } from '@/modules/parts/part-library';
+import {
+  EMPTY_INTAKES,
+  INTAKE_KEY,
+  intakesSchema,
+} from '@/modules/rd-workspace/intake-model';
+import { useRdRecords } from '@/modules/rd-workspace/use-rd-records';
+import '@/modules/rd-workspace/rd-workspace.css';
 import { VEHICLE_CONFIGURATIONS as INITIAL_CONFIGURATIONS } from '@/app/workbench-mock-data';
 import { useWorkbenchStore } from '@/app/workbench-store';
 import { ProjectDetailBoundary } from '../components/project-detail-boundary';
@@ -50,12 +57,15 @@ import {
   ProjectDetailView,
   toDetailTab,
 } from '../components/project-detail-view';
+import { ProjectStageBoard } from '../components/project-stage-board';
 
 const PROJECT_STAGE_FILTERS = [
   { label: 'All', value: 'ALL' },
   { label: 'Pending', value: 'PENDING' },
   { label: 'Vehicle Hunt', value: 'Vehicle Hunt' },
   { label: 'Scan', value: 'Scan' },
+  { label: '3D Model', value: '3D Model' },
+  { label: 'Fit Review', value: 'Fit Review' },
   { label: 'Design', value: 'Design' },
   { label: 'Sample', value: 'Sample' },
   { label: 'Fitting', value: 'Fitting' },
@@ -181,6 +191,15 @@ function zoneLabel(product: ProductType, zone: string) {
 /** Product-development project groups by vehicle configuration. */
 export function VehicleProjectsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { records: intakes } = useRdRecords(
+    INTAKE_KEY,
+    intakesSchema,
+    EMPTY_INTAKES,
+  );
+  const intake = intakes.find(
+    (entry) => entry.id === searchParams.get('intake'),
+  );
+  const boardView = searchParams.get('view') === 'board';
   const {
     configurations,
     projects,
@@ -269,7 +288,7 @@ export function VehicleProjectsPage() {
       return;
     }
     setWizardStep(1);
-    setWizardProduct('Seat Cover');
+    setWizardProduct(intake?.product ?? 'Seat Cover');
     setWizardConfigurationId(requestedConfigurationId);
     setWizardManagerId('USR-KAI');
     setWizardMessage('');
@@ -280,7 +299,7 @@ export function VehicleProjectsPage() {
       next.delete('configuration');
       return next;
     });
-  }, [configurations, searchParams, setSearchParams]);
+  }, [configurations, searchParams, setSearchParams, intake]);
 
   const openProject = (projectId: string, zoneCode?: string) => {
     setSearchParams((current) => {
@@ -304,6 +323,11 @@ export function VehicleProjectsPage() {
   };
 
   const openWizard = () => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete('intake');
+      return next;
+    });
     setWizardStep(1);
     setWizardProduct('Seat Cover');
     setWizardConfigurationId(undefined);
@@ -330,6 +354,35 @@ export function VehicleProjectsPage() {
   const createProject = () => {
     if (!wizardConfiguration) return;
     if (!wizardProductChoice) return;
+    if (searchParams.has('intake') && !intake) {
+      setWizardMessage(
+        '원본 개발 요청을 읽지 못했습니다. 요청 화면에서 다시 시작하세요.',
+      );
+      return;
+    }
+    if (
+      intake &&
+      (intake.status !== '개발 승인' ||
+        intake.configurationId !== wizardConfiguration.id ||
+        intake.product !== wizardProduct)
+    ) {
+      setWizardMessage(
+        '개발 승인된 요청의 구성·제품과 일치해야 합니다. 요청을 다시 검토하세요.',
+      );
+      return;
+    }
+    if (
+      projects.some(
+        (project) =>
+          project.vehicleResearchId === wizardConfiguration.id &&
+          project.product === wizardProduct,
+      )
+    ) {
+      setWizardMessage(
+        '동일 구성·제품의 프로젝트가 이미 있습니다. 기존 프로젝트를 확인하세요.',
+      );
+      return;
+    }
     const projectGroupId = nextProjectGroupId;
     const zoneProjects: readonly VehicleZoneProject[] = wizardZones.map(
       (code) => {
@@ -346,8 +399,16 @@ export function VehicleProjectsPage() {
           managerId: wizardManagerId,
           currentStage: initialStage,
           status: 'ACTIVE',
-          priority: 'NORMAL',
+          priority: intake?.priority ?? 'NORMAL',
           lastActivityAt: new Date().toISOString(),
+          stageHistory: [
+            {
+              id: crypto.randomUUID(),
+              stage: initialStage,
+              stageSequence: 1,
+              startedAt: new Date().toISOString(),
+            },
+          ],
         };
       },
     );
@@ -557,95 +618,175 @@ export function VehicleProjectsPage() {
         }
       />
 
-      <GroupedDataGrid
-        label="Vehicle Projects"
-        columns={columns}
-        groups={groups}
-        getRowId={({ zone }) => zone.id}
-        onRowClick={({ project, zone }) => {
-          openProject(project.id, zone.code);
-        }}
-        rowActionLabel={({ zone }) => `Open ${zone.id}`}
-        collapsedGroupIds={collapsedGroups}
-        onCollapsedGroupIdsChange={setCollapsedGroups}
-        sorting={{ mode: 'client' }}
-        colors={{
-          primary: '#2F80FF',
-          primaryForeground: '#FFFFFF',
-          primarySoft: '#EFF6FF',
-        }}
-        search={{
-          label: 'Make 또는 Model 검색',
-          placeholder: 'Make / Model 검색',
-          value: query,
-          onChange: setQuery,
-        }}
-        filters={[
-          {
-            id: 'product',
-            label: 'Product filter',
-            value: product,
-            onChange: setProduct,
-            options: [
-              { value: 'ALL', label: 'All' },
-              ...PRODUCT_CHOICES.map((choice) => ({
-                value: choice.name,
-                label: choice.name,
-              })),
-            ],
-          },
-        ]}
-        toolbarContent={
-          <div className="stage-tabs" role="group" aria-label="Project stage">
-            {PROJECT_STAGE_FILTERS.map((filter) => (
-              <button
-                type="button"
-                key={filter.value}
-                className="stage-tab"
-                aria-pressed={stageFilter === filter.value}
-                onClick={() => {
-                  setStageFilter(filter.value);
+      <div className="rd-toolbar mb-4" role="group" aria-label="프로젝트 보기">
+        <Button
+          variant={!boardView ? 'primary' : 'outline'}
+          onClick={() => {
+            setSearchParams((current) => {
+              const next = new URLSearchParams(current);
+              next.set('view', 'list');
+              return next;
+            });
+          }}
+        >
+          목록
+        </Button>
+        <Button
+          variant={boardView ? 'primary' : 'outline'}
+          onClick={() => {
+            setSearchParams((current) => {
+              const next = new URLSearchParams(current);
+              next.set('view', 'board');
+              return next;
+            });
+          }}
+        >
+          단계별 보드
+        </Button>
+      </div>
+      {boardView && (
+        <div className="rd-workspace mb-5">
+          <div className="rd-fields">
+            <label>
+              차량 검색
+              <input
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                }}
+              />
+            </label>
+            <label>
+              제품
+              <select
+                value={product}
+                onChange={(event) => {
+                  setProduct(event.target.value);
                 }}
               >
-                {filter.label}
-                <span className="stage-tab-count">
-                  {stageCounts.get(filter.value) ?? 0}
-                </span>
-              </button>
-            ))}
+                <option value="ALL">All</option>
+                {PRODUCT_CHOICES.map((choice) => (
+                  <option key={choice.id}>{choice.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              단계
+              <select
+                value={stageFilter}
+                onChange={(event) => {
+                  const filter = PROJECT_STAGE_FILTERS.find(
+                    (entry) => entry.value === event.target.value,
+                  );
+                  if (filter) setStageFilter(filter.value);
+                }}
+              >
+                {PROJECT_STAGE_FILTERS.map((filter) => (
+                  <option key={filter.value} value={filter.value}>
+                    {filter.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
-        }
-        actions={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                resetWorkbench();
-                resetPartLibrary();
-              }}
-            >
-              Reset Mock Data
-            </Button>
-            <Button variant="primary" onClick={openWizard}>
-              <Plus /> New Project
-            </Button>
-          </>
-        }
-        emptyMessage="조건에 맞는 프로젝트가 없습니다."
-        pagination={{
-          page: pagination.pageIndex + 1,
-          pageSize: pagination.pageSize,
-          totalCount: visibleProjects.length,
-          pageSizeOptions: [5, 10, 25],
-          onPageChange: (page) => {
-            setPagination((current) => ({ ...current, pageIndex: page - 1 }));
-          },
-          onPageSizeChange: (pageSize) => {
-            setPagination({ pageIndex: 0, pageSize });
-          },
-        }}
-      />
-
+          <Button onClick={openWizard}>New Project</Button>
+          <ProjectStageBoard
+            projects={visibleProjects}
+            users={appUsers}
+            onOpen={openProject}
+          />
+        </div>
+      )}
+      {!boardView && (
+        <GroupedDataGrid
+          label="Vehicle Projects"
+          columns={columns}
+          groups={groups}
+          getRowId={({ zone }) => zone.id}
+          onRowClick={({ project, zone }) => {
+            openProject(project.id, zone.code);
+          }}
+          rowActionLabel={({ zone }) => `Open ${zone.id}`}
+          collapsedGroupIds={collapsedGroups}
+          onCollapsedGroupIdsChange={setCollapsedGroups}
+          sorting={{ mode: 'client' }}
+          colors={{
+            primary: '#2F80FF',
+            primaryForeground: '#FFFFFF',
+            primarySoft: '#EFF6FF',
+          }}
+          search={{
+            label: 'Make 또는 Model 검색',
+            placeholder: 'Make / Model 검색',
+            value: query,
+            onChange: setQuery,
+          }}
+          filters={[
+            {
+              id: 'product',
+              label: 'Product filter',
+              value: product,
+              onChange: setProduct,
+              options: [
+                { value: 'ALL', label: 'All' },
+                ...PRODUCT_CHOICES.map((choice) => ({
+                  value: choice.name,
+                  label: choice.name,
+                })),
+              ],
+            },
+          ]}
+          toolbarContent={
+            <div className="stage-tabs" role="group" aria-label="Project stage">
+              {PROJECT_STAGE_FILTERS.map((filter) => (
+                <button
+                  type="button"
+                  key={filter.value}
+                  className="stage-tab"
+                  aria-pressed={stageFilter === filter.value}
+                  onClick={() => {
+                    setStageFilter(filter.value);
+                  }}
+                >
+                  {filter.label}
+                  <span className="stage-tab-count">
+                    {stageCounts.get(filter.value) ?? 0}
+                  </span>
+                </button>
+              ))}
+            </div>
+          }
+          actions={
+            <>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  resetWorkbench();
+                  resetPartLibrary();
+                }}
+              >
+                Reset Mock Data
+              </Button>
+              <Button variant="primary" onClick={openWizard}>
+                <Plus /> New Project
+              </Button>
+            </>
+          }
+          emptyMessage="조건에 맞는 프로젝트가 없습니다."
+          pagination={{
+            page: pagination.pageIndex + 1,
+            pageSize: pagination.pageSize,
+            totalCount: visibleProjects.length,
+            pageSizeOptions: [5, 10, 25],
+            onPageChange: (page) => {
+              setPagination((current) => ({ ...current, pageIndex: page - 1 }));
+            },
+            onPageSizeChange: (pageSize) => {
+              setPagination({ pageIndex: 0, pageSize });
+            },
+          }}
+        />
+      )}
       <Dialog open={wizardOpen} onOpenChange={setWizardOpen}>
         <DialogContent className="project-wizard-dialog">
           <DialogHeader>

@@ -25,6 +25,12 @@ const OperationsPage = lazy(() =>
   })),
 );
 
+const DevelopmentRequestsPage = lazy(() =>
+  import('@/modules/rd-workspace/development-requests-page').then((module) => ({
+    default: module.DevelopmentRequestsPage,
+  })),
+);
+
 const VehicleResearchPage = lazy(() =>
   import('@/modules/vehicle-registry/pages/vehicle-research-page').then(
     (module) => ({ default: module.VehicleResearchPage }),
@@ -124,6 +130,14 @@ export function AppRouter() {
   return (
     <Routes>
       <Route element={<Layout />}>
+        <Route
+          path="/development-requests"
+          element={
+            <Suspense fallback={<RouteFallback />}>
+              <DevelopmentRequestsPage />
+            </Suspense>
+          }
+        />
         <Route
           path="/work/:section"
           element={

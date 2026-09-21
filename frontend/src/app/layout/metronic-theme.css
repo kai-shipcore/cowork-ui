@@ -104,7 +104,7 @@
   background: color-mix(in srgb, var(--muted) 45%, transparent);
 }
 .metronic-content .workbench-filters {
-  gap: 12px;
+  gap: 12px 16px;
   margin-bottom: 20px;
 }
 .metronic-content .filter-count {
