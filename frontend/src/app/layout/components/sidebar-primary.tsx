@@ -79,7 +79,10 @@ export function SidebarPrimary({
           .filter((group) => group.items.length > 0)
           .map((group) => (
             <Fragment key={group.title}>
-              <Separator decorative={false} className="my-1" />
+              <Separator
+                decorative={false}
+                className="my-2 h-0.5 w-9 rounded-full bg-zinc-500 dark:bg-zinc-400"
+              />
               <div
                 role="group"
                 aria-label={group.title}
