@@ -49,6 +49,18 @@
   padding: 0;
   border: 0;
 }
+.ops-report-panel > .ops-panel,
+.ops-report-panel > .rd-workspace > .rd-panel {
+  border: 0;
+  border-radius: 0;
+}
+.ops-report-panel > .ops-panel + .ops-panel,
+.ops-report-panel > .rd-workspace > .rd-panel + .rd-panel {
+  border-top: 1px solid var(--border);
+}
+.ops-report-panel > .rd-workspace {
+  gap: 0;
+}
 .ops label {
   display: grid;
   gap: 6px;

@@ -28,6 +28,7 @@ await test('board exposes each zone as an accessible detail action without bypas
           label: 'Body',
           managerId: '',
           currentStage: '3D Model',
+          targetAt: '2026-09-18',
         },
       ],
     },
@@ -35,6 +36,7 @@ await test('board exposes each zone as an accessible detail action without bypas
   const html = renderToStaticMarkup(
     createElement(ProjectStageBoard, {
       projects,
+      currentDate: '2026-09-21',
       users: [],
       onOpen: () => {
         /* SSR has no clicks. */
@@ -45,6 +47,9 @@ await test('board exposes each zone as an accessible detail action without bypas
   assert.match(html, /3D Model/);
   assert.match(html, /Unassigned/);
   assert.match(html, /type="button" class="rd-board-card"/);
+  assert.match(html, /data-health="late"/);
+  assert.match(html, /Late/);
+  assert.match(html, /목표일 3일 초과/);
   assert.doesNotMatch(html, /draggable=/);
 });
 await test('empty board explains the active-filter empty state', () => {

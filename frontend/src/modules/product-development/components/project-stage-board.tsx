@@ -2,11 +2,14 @@ import type { ReactElement } from 'react';
 import { userName } from '@/shared/domain/app-user';
 import type { AppUser, VehicleProjectGroup } from '@/shared/types/workbench';
 import { today } from '@/modules/operations/operations-model';
+import { projectHealth } from '../project-health';
+import { ProjectHealthBadge } from './project-health-badge';
 
 interface ProjectStageBoardProps {
   projects: readonly VehicleProjectGroup[];
   users: readonly AppUser[];
   onOpen: (projectId: string, zoneCode: string) => void;
+  currentDate?: string;
 }
 const STAGES = [
   'Research',
@@ -25,11 +28,11 @@ export function ProjectStageBoard({
   projects,
   users,
   onOpen,
+  currentDate = today(),
 }: ProjectStageBoardProps): ReactElement {
   const rows = projects.flatMap((project) =>
     project.zoneProjects.map((zone) => ({ project, zone })),
   );
-  const currentDate = today();
   return (
     <div className="rd-workspace">
       <p>
@@ -48,21 +51,21 @@ export function ProjectStageBoard({
                 <span>{entries.length}</span>
               </h3>
               {entries.map(({ project, zone }) => {
-                const overdue =
-                  zone.currentStage !== 'Approved' &&
-                  zone.status !== 'CANCELLED' &&
-                  zone.status !== 'MERGED' &&
-                  zone.targetAt &&
-                  zone.targetAt.slice(0, 10) < currentDate;
+                const health = projectHealth(zone, currentDate);
                 return (
                   <button
                     type="button"
                     className="rd-board-card"
+                    data-health={health.value}
                     key={zone.id}
                     onClick={() => {
                       onOpen(project.id, zone.code);
                     }}
                   >
+                    <ProjectHealthBadge
+                      value={health.value}
+                      reason={health.reason}
+                    />
                     <strong>{project.vehicle}</strong>
                     <span>
                       {zone.label} · {project.product}
@@ -74,10 +77,10 @@ export function ProjectStageBoard({
                       {userName(users, zone.managerId)} ·{' '}
                       {zone.status ?? 'ACTIVE'}
                     </small>
-                    <span className={overdue ? 'rd-error' : ''}>
+                    <span className={health.value === 'late' ? 'rd-error' : ''}>
                       목표 {zone.targetAt?.slice(0, 10) ?? '미지정'}
-                      {overdue ? ' · 지연' : ''}
                     </span>
+                    <small>{health.reason}</small>
                     <small>
                       최근 활동{' '}
                       {zone.lastActivityAt?.slice(0, 10) ?? '기록 없음'}
