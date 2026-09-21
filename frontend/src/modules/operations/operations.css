@@ -1,0 +1,225 @@
+.ops {
+  display: grid;
+  gap: 20px;
+  max-width: 1500px;
+  margin: auto;
+}
+.ops h1 {
+  font-size: 24px;
+  font-weight: 750;
+}
+.ops h2 {
+  font-size: 16px;
+  font-weight: 700;
+}
+.ops p,
+.ops small,
+.ops-muted {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.ops a {
+  color: var(--primary);
+}
+.ops-heading,
+.ops-actions {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.ops-actions {
+  justify-content: flex-start;
+  align-items: end;
+}
+.ops-panel,
+.ops-form {
+  padding: 22px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  border-radius: 12px;
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.ops-form .ops-form {
+  padding: 0;
+  border: 0;
+}
+.ops label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.ops select,
+.ops textarea,
+.ops-demo select {
+  border: 1px solid var(--border);
+  background: var(--background);
+  border-radius: 6px;
+  padding: 9px 10px;
+  color: var(--foreground);
+  min-width: 0;
+}
+.ops select:focus-visible,
+.ops textarea:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.ops-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.ops-table-wrap {
+  overflow: auto;
+}
+.ops table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+.ops th {
+  color: var(--muted-foreground);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ops th,
+.ops td {
+  padding: 13px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.ops td small {
+  display: block;
+  margin-top: 4px;
+}
+.ops-empty {
+  padding: 24px;
+  text-align: center;
+}
+.ops-danger {
+  color: var(--destructive);
+  font-weight: 700;
+}
+.ops-row {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.ops-row span {
+  color: var(--muted-foreground);
+}
+.ops-detail {
+  display: grid;
+  gap: 16px;
+  max-width: 1050px;
+}
+.ops-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.ops-facts dt {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.ops-facts dd {
+  font-size: 13px;
+  margin: 6px 0;
+}
+.ops .ops-preserve {
+  white-space: pre-wrap;
+  color: var(--foreground);
+}
+.ops-status {
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.ops-timeline {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding-left: 20px;
+  list-style: disc;
+}
+.ops-timeline li strong,
+.ops-timeline li span,
+.ops-timeline li small {
+  display: block;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+.ops-timeline li span {
+  color: var(--muted-foreground);
+  margin-top: 4px;
+}
+.ops-demo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 11px;
+}
+.ops-demo label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ops-save-error {
+  padding: 12px;
+  border: 1px solid var(--destructive);
+  margin-bottom: 16px;
+  border-radius: 8px;
+}
+.ops-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.ops-metric {
+  padding: 20px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+}
+.ops-metric strong {
+  font-size: 28px;
+}
+.ops-metric span {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+@media (max-width: 1000px) {
+  .ops-metrics,
+  .ops-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .ops-two,
+  .ops-metrics {
+    grid-template-columns: 1fr;
+  }
+  .ops-panel,
+  .ops-form {
+    padding: 14px;
+  }
+}

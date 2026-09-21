@@ -11,6 +11,10 @@ import {
 import { Badge } from '@coverland-engineering/ui/badge';
 import { Link, useLocation } from 'react-router';
 import {
+  teamFromLocation,
+  teamHome,
+} from '@/modules/operations/operations-model';
+import {
   MENU_SIDEBAR_MAIN,
   MENU_SIDEBAR_TEAM_TOOLS,
   type MenuItem,
@@ -43,7 +47,13 @@ function renderItems(children: MenuItem[] | undefined) {
         {child.path ? (
           <Link to={child.path}>{content}</Link>
         ) : (
-          <div className="flex items-center gap-2">{content}</div>
+          <div
+            className="flex items-center gap-2 text-muted-foreground"
+            aria-disabled="true"
+          >
+            {content}
+            <span className="text-[10px]">준비 중</span>
+          </div>
         )}
       </AccordionMenuItem>
     );
@@ -57,13 +67,14 @@ interface SidebarPrimaryMenuProps {
 export function SidebarPrimaryMenu({
   toolsMenuTitle,
 }: SidebarPrimaryMenuProps) {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const team = teamFromLocation(pathname, search);
   const teamToolItems = MENU_SIDEBAR_TEAM_TOOLS[toolsMenuTitle];
 
   // Memoize matchPath to prevent unnecessary re-renders
   const matchPath = useCallback(
     (path: string): boolean =>
-      path === pathname ||
+      path.split('?')[0] === pathname ||
       (path.length > 1 && pathname.startsWith(path) && path !== '/dashboard'),
     [pathname],
   );
@@ -102,7 +113,28 @@ export function SidebarPrimaryMenu({
           </AccordionMenuSub>
         ) : (
           <AccordionMenuGroup key={index}>
-            {renderItems(item.children)}
+            {renderItems([
+              {
+                title: 'Home',
+                path: teamHome(team),
+                icon: item.children?.[0]?.icon,
+              },
+              {
+                title: 'My Tasks',
+                path: '/work/tasks?team=' + team,
+                icon: item.children?.[1]?.icon,
+              },
+              {
+                title: '팀 간 요청',
+                path: '/work/requests?team=' + team,
+                icon: item.children?.[1]?.icon,
+              },
+              {
+                title: '알림 · 활동',
+                path: '/work/notifications?team=' + team,
+                icon: item.children?.[1]?.icon,
+              },
+            ])}
           </AccordionMenuGroup>
         ),
       )}

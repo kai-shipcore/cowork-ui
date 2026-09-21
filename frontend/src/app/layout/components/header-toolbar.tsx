@@ -1,150 +1,41 @@
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  AvatarIndicator,
-  AvatarStatus,
-} from '@coverland-engineering/ui/avatar';
 import { Button } from '@coverland-engineering/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@coverland-engineering/ui/dropdown-menu';
-import { Input, InputWrapper } from '@coverland-engineering/ui/input';
-import {
-  ClipboardList,
-  Coffee,
-  MessageSquareCode,
-  Moon,
-  Pin,
-  Plus,
-  Search,
-  Settings,
-  Sun,
-  User,
-} from 'lucide-react';
+import { Bell, Moon, Plus, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { toAbsoluteUrl } from '@/shared/lib/helpers';
-import { useLayout } from './context';
+import { Link, useLocation } from 'react-router-dom';
+import { teamFromLocation } from '@/modules/operations/operations-model';
 
 export function HeaderToolbar() {
-  const { isMobile } = useLayout();
   const { theme, setTheme } = useTheme();
-
-  const toggleTheme = () => {
-    setTheme(theme === 'light' ? 'dark' : 'light');
-  };
-
+  const { pathname, search } = useLocation();
+  const team = teamFromLocation(pathname, search);
   return (
-    <nav className="flex items-center gap-2.5">
-      <Button mode="icon" variant="outline">
-        <Coffee />
+    <nav aria-label="Workspace actions" className="flex items-center gap-2">
+      <Button asChild variant="outline" size="sm">
+        <Link to={'/work/search?team=' + team}>검색</Link>
       </Button>
-      <Button mode="icon" variant="outline">
-        <MessageSquareCode />
+      <Button asChild variant="outline" size="sm">
+        <Link to={'/work/reports?team=' + team}>Reports</Link>
       </Button>
-      <Button mode="icon" variant="outline">
-        <Pin />
+      <Button asChild mode="icon" variant="outline" aria-label="나의 알림">
+        <Link to={'/work/notifications?team=' + team}>
+          <Bell />
+        </Link>
       </Button>
-
-      {!isMobile && (
-        <InputWrapper className="w-full lg:w-40">
-          <Search />
-          <Input type="search" placeholder="Search" />
-        </InputWrapper>
-      )}
-
-      {isMobile ? (
-        <>
-          <Button variant="outline" mode="icon">
-            <ClipboardList />
-          </Button>
-          <Button variant="mono" mode="icon">
-            <Plus />
-          </Button>
-        </>
-      ) : (
-        <>
-          <Button variant="outline">
-            <ClipboardList /> Reports
-          </Button>
-          <Button variant="mono">
-            <Plus /> Add
-          </Button>
-        </>
-      )}
-
-      {/* User Dropdown Menu */}
-      <DropdownMenu>
-        <DropdownMenuTrigger className="cursor-pointer">
-          <Avatar className="size-7">
-            <AvatarImage
-              src={toAbsoluteUrl('/media/avatars/300-2.png')}
-              alt="@reui"
-            />
-            <AvatarFallback>CH</AvatarFallback>
-            <AvatarIndicator className="-end-2 -top-2">
-              <AvatarStatus variant="online" className="size-2.5" />
-            </AvatarIndicator>
-          </Avatar>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          className="w-56"
-          side="bottom"
-          align="end"
-          sideOffset={11}
-        >
-          {/* User Information Section */}
-          <div className="flex items-center gap-3 px-3 py-2">
-            <Avatar>
-              <AvatarImage
-                src={toAbsoluteUrl('/media/avatars/300-2.png')}
-                alt="@reui"
-              />
-              <AvatarFallback>CH</AvatarFallback>
-              <AvatarIndicator className="-end-1.5 -top-1.5">
-                <AvatarStatus variant="online" className="size-2.5" />
-              </AvatarIndicator>
-            </Avatar>
-            <div className="flex flex-col items-start">
-              <span className="text-sm font-semibold text-foreground">
-                Chris Harris
-              </span>
-              <span className="text-xs text-muted-foreground">
-                Senior Developer
-              </span>
-            </div>
-          </div>
-
-          <DropdownMenuSeparator />
-
-          {/* User Actions */}
-          <DropdownMenuItem>
-            <User />
-            <span>Profile</span>
-          </DropdownMenuItem>
-
-          <DropdownMenuItem>
-            <Settings />
-            <span>Settings</span>
-          </DropdownMenuItem>
-
-          <DropdownMenuSeparator />
-
-          {/* Theme Toggle */}
-          <DropdownMenuItem onClick={toggleTheme}>
-            {theme === 'light' ? (
-              <Moon className="size-4" />
-            ) : (
-              <Sun className="size-4" />
-            )}
-            <span>{theme === 'light' ? 'Dark mode' : 'Light mode'}</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <Button asChild size="sm">
+        <Link to={'/work/requests?new=1&team=' + team}>
+          <Plus /> 요청
+        </Link>
+      </Button>
+      <Button
+        mode="icon"
+        variant="ghost"
+        aria-label="테마 변경"
+        onClick={() => {
+          setTheme(theme === 'dark' ? 'light' : 'dark');
+        }}
+      >
+        {theme === 'dark' ? <Sun /> : <Moon />}
+      </Button>
     </nav>
   );
 }

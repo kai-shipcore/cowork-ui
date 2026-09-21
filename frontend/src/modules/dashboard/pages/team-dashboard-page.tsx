@@ -1,416 +1,152 @@
-import { Badge } from '@coverland-engineering/ui/badge';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@coverland-engineering/ui/card';
-import { SummaryCard } from '@coverland-engineering/ui/summary-card';
-import { Navigate, useParams } from 'react-router-dom';
-import { ROUTES } from '@/constants/routes';
-import { StatusBadge } from '@/shared/components/status-badge';
-import '../dashboard.css';
+  isOpen,
+  isOverdue,
+  PEOPLE,
+  personName,
+  requestLink,
+  STATUS_NAMES,
+  TEAM_IDS,
+  TEAM_NAMES,
+} from '@/modules/operations/operations-model';
+import { useOperations } from '@/app/operations-store';
+import '@/modules/operations/operations.css';
 
-interface TeamDashboard {
-  name: string;
-  description: string;
-  objective: string;
-  skills: string[];
-  metrics: { label: string; value: string; description: string }[];
-  focusTitle: string;
-  focusItems: {
-    title: string;
-    detail: string;
-    owner: string;
-    status: string;
-    tone: 'success' | 'warning' | 'danger' | 'cyan' | 'purple' | 'neutral';
-  }[];
-  members: {
-    name: string;
-    role: string;
-    initials: string;
-    color: string;
-    status: string;
-    activity: string;
-  }[];
-}
-
-const TEAM_DASHBOARDS: Record<string, TeamDashboard> = {
-  'demand-planning': {
-    name: 'Demand Planning',
-    description:
-      'Balance demand, inventory, and purchasing so every sales channel has the right products at the right time.',
-    objective: 'Forecast accuracy and healthy weeks of cover',
-    skills: ['Forecasting', 'Inventory', 'Purchasing', 'Seasonality'],
-    metrics: [
-      {
-        label: 'Forecast Accuracy',
-        value: '87.4%',
-        description: '+2.8% vs last month',
-      },
-      {
-        label: 'Stockout Risk',
-        value: '18',
-        description: '6 high-priority SKUs',
-      },
-      {
-        label: 'Open Purchase Orders',
-        value: '26',
-        description: '8 arriving this week',
-      },
-      {
-        label: 'Weeks of Cover',
-        value: '6.8',
-        description: 'Target range 6–8 weeks',
-      },
-    ],
-    focusTitle: 'Planning Priorities',
-    focusItems: [
-      {
-        title: 'Car Cover Q4 demand plan',
-        detail: 'Amazon US · 42 SKUs',
-        owner: 'Mina Park',
-        status: 'Review',
-        tone: 'warning',
-      },
-      {
-        title: 'Prime Day inventory allocation',
-        detail: 'All channels · 18 SKUs',
-        owner: 'Daniel Kim',
-        status: 'At Risk',
-        tone: 'danger',
-      },
-      {
-        title: 'October purchase plan',
-        detail: '3 suppliers · 9 POs',
-        owner: 'Grace Lee',
-        status: 'On Track',
-        tone: 'success',
-      },
-      {
-        title: 'Slow-moving stock review',
-        detail: 'Warehouse · 27 SKUs',
-        owner: 'Evan Cho',
-        status: 'Analysis',
-        tone: 'cyan',
-      },
-    ],
-    members: [
-      {
-        name: 'Mina Park',
-        role: 'Demand Planning Lead',
-        initials: 'MP',
-        color: 'bg-fuchsia-600',
-        status: 'In Office',
-        activity: 'Forecast review · 20 min ago',
-      },
-      {
-        name: 'Daniel Kim',
-        role: 'Inventory Planner',
-        initials: 'DK',
-        color: 'bg-violet-600',
-        status: 'Remote',
-        activity: 'Allocation updated · 1 hr ago',
-      },
-      {
-        name: 'Grace Lee',
-        role: 'Purchase Planner',
-        initials: 'GL',
-        color: 'bg-pink-600',
-        status: 'In Office',
-        activity: 'PO confirmed · Today',
-      },
-      {
-        name: 'Evan Cho',
-        role: 'Planning Analyst',
-        initials: 'EC',
-        color: 'bg-indigo-600',
-        status: 'Remote',
-        activity: 'Report refreshed · Today',
-      },
-    ],
-  },
-  'customer-services': {
-    name: 'Customer Services',
-    description:
-      'Resolve customer questions, returns, and marketplace cases quickly while protecting service quality.',
-    objective: 'Fast resolution with a consistent customer experience',
-    skills: ['Customer Care', 'Returns', 'Marketplace Cases', 'SLA'],
-    metrics: [
-      { label: 'Open Cases', value: '42', description: '11 assigned today' },
-      { label: 'SLA Met', value: '92%', description: '+4% this week' },
-      {
-        label: 'Returns Awaiting',
-        value: '13',
-        description: '4 need inspection',
-      },
-      {
-        label: 'Customer Satisfaction',
-        value: '4.7',
-        description: 'Based on 186 responses',
-      },
-    ],
-    focusTitle: 'Service Queue',
-    focusItems: [
-      {
-        title: 'Amazon A-to-z claims',
-        detail: '5 cases · Response due today',
-        owner: 'Sophia Chen',
-        status: 'Urgent',
-        tone: 'danger',
-      },
-      {
-        title: 'Fitment-related returns',
-        detail: 'Car Cover · 8 returns',
-        owner: 'Alex Rivera',
-        status: 'Investigating',
-        tone: 'warning',
-      },
-      {
-        title: 'Walmart customer messages',
-        detail: '12 unread conversations',
-        owner: 'Jamie Wu',
-        status: 'In Progress',
-        tone: 'cyan',
-      },
-      {
-        title: 'Refund approval batch',
-        detail: '7 orders · $684 total',
-        owner: 'Nina Patel',
-        status: 'Ready',
-        tone: 'success',
-      },
-    ],
-    members: [
-      {
-        name: 'Sophia Chen',
-        role: 'Customer Service Lead',
-        initials: 'SC',
-        color: 'bg-amber-600',
-        status: 'In Office',
-        activity: 'Case assigned · 8 min ago',
-      },
-      {
-        name: 'Alex Rivera',
-        role: 'Returns Specialist',
-        initials: 'AR',
-        color: 'bg-orange-600',
-        status: 'In Office',
-        activity: 'Return inspected · 35 min ago',
-      },
-      {
-        name: 'Jamie Wu',
-        role: 'Marketplace Support',
-        initials: 'JW',
-        color: 'bg-yellow-600',
-        status: 'Remote',
-        activity: 'Customer replied · 1 hr ago',
-      },
-      {
-        name: 'Nina Patel',
-        role: 'Resolution Specialist',
-        initials: 'NP',
-        color: 'bg-lime-600',
-        status: 'In Office',
-        activity: 'Refund batch prepared · Today',
-      },
-    ],
-  },
-  ecommerce: {
-    name: 'eCommerce Team',
-    description:
-      'Keep product listings healthy, coordinate channel operations, and improve sales performance across marketplaces.',
-    objective: 'Accurate listings and profitable channel growth',
-    skills: ['Listings', 'Marketplaces', 'Promotions', 'Analytics'],
-    metrics: [
-      {
-        label: 'Active Listings',
-        value: '1,248',
-        description: 'Across 5 channels',
-      },
-      {
-        label: 'Listing Issues',
-        value: '23',
-        description: '7 suppressions need action',
-      },
-      {
-        label: 'Promotions Live',
-        value: '8',
-        description: '3 ending this week',
-      },
-      {
-        label: 'Sales Growth',
-        value: '+12.6%',
-        description: 'Compared with last month',
-      },
-    ],
-    focusTitle: 'Channel Operations',
-    focusItems: [
-      {
-        title: 'Amazon suppressed listings',
-        detail: '7 ASINs · Image compliance',
-        owner: 'Kevin Tran',
-        status: 'Blocked',
-        tone: 'danger',
-      },
-      {
-        title: 'Walmart catalog refresh',
-        detail: '126 items · Content sync',
-        owner: 'Olivia Martin',
-        status: 'Running',
-        tone: 'cyan',
-      },
-      {
-        title: 'eBay fall promotion',
-        detail: 'Car Covers · 15% campaign',
-        owner: 'Leo Zhang',
-        status: 'Scheduled',
-        tone: 'purple',
-      },
-      {
-        title: 'Shopify SEO improvements',
-        detail: '32 product pages',
-        owner: 'Emma Davis',
-        status: 'On Track',
-        tone: 'success',
-      },
-    ],
-    members: [
-      {
-        name: 'Kevin Tran',
-        role: 'eCommerce Lead',
-        initials: 'KT',
-        color: 'bg-blue-600',
-        status: 'In Office',
-        activity: 'Listing fixed · 12 min ago',
-      },
-      {
-        name: 'Olivia Martin',
-        role: 'Marketplace Manager',
-        initials: 'OM',
-        color: 'bg-sky-600',
-        status: 'Remote',
-        activity: 'Catalog synced · 40 min ago',
-      },
-      {
-        name: 'Leo Zhang',
-        role: 'Promotion Specialist',
-        initials: 'LZ',
-        color: 'bg-cyan-600',
-        status: 'In Office',
-        activity: 'Campaign scheduled · Today',
-      },
-      {
-        name: 'Emma Davis',
-        role: 'Content Specialist',
-        initials: 'ED',
-        color: 'bg-indigo-600',
-        status: 'Remote',
-        activity: 'Content updated · Today',
-      },
-    ],
-  },
+const DESCRIPTIONS = {
+  rd: '차량 연구, 제품 개발, 샘플 검증과 출시 인계를 관리합니다.',
+  'demand-planning':
+    '수요·재고·구매 계획과 다른 팀의 재고 확보 요청을 관리합니다.',
+  'customer-services':
+    '고객 문의, 반품과 반복 불만을 접수하고 조사 결과를 추적합니다.',
+  ecommerce: '상품 출시 인계, 채널 운영과 프로모션 준비를 조율합니다.',
 };
 
 export function TeamDashboardPage() {
   const { teamId } = useParams();
-  const dashboard = teamId ? TEAM_DASHBOARDS[teamId] : undefined;
-
-  if (!dashboard) return <Navigate to={ROUTES.dashboard} replace />;
-
+  const { snapshot } = useOperations();
+  const team = TEAM_IDS.find((id) => id === teamId);
+  if (!team) return <Navigate to="/dashboard" replace />;
+  const requests = snapshot.requests.filter(
+    (request) => request.targetTeam === team,
+  );
+  const metrics = [
+    {
+      label: '처리할 요청',
+      value: requests.filter(isOpen).length,
+      filter: 'open',
+    },
+    {
+      label: '기한 초과',
+      value: requests.filter(isOverdue).length,
+      filter: 'overdue',
+    },
+    {
+      label: '승인 대기',
+      value: requests.filter((request) => request.status === 'review').length,
+      filter: 'review',
+    },
+    {
+      label: '완료',
+      value: requests.filter((request) => request.status === 'done').length,
+      filter: 'done',
+    },
+  ];
+  const members = PEOPLE.filter((person) => person.team === team);
   return (
-    <section className="dashboard team-dashboard">
-      <Card className="team-dashboard-profile">
-        <CardContent>
-          <div className="team-dashboard-profile-copy">
-            <span className="team-dashboard-eyebrow">Team Dashboard</span>
-            <h1>{dashboard.name}</h1>
-            <p>{dashboard.description}</p>
-            <div className="team-dashboard-skills" aria-label="Team skills">
-              {dashboard.skills.map((skill) => (
-                <Badge key={skill} variant="secondary" appearance="light">
-                  {skill}
-                </Badge>
-              ))}
-            </div>
-          </div>
-          <dl className="team-dashboard-objective">
-            <div>
-              <dt>Visibility</dt>
-              <dd>Company-wide</dd>
-            </div>
-            <div>
-              <dt>Primary objective</dt>
-              <dd>{dashboard.objective}</dd>
-            </div>
-            <div>
-              <dt>Members</dt>
-              <dd>{dashboard.members.length} active</dd>
-            </div>
-          </dl>
-        </CardContent>
-      </Card>
-
-      <div className="team-dashboard-metrics">
-        {dashboard.metrics.map((metric) => (
-          <SummaryCard
+    <section className="ops">
+      <div className="ops-heading">
+        <div>
+          <h1>{TEAM_NAMES[team]}</h1>
+          <p>{DESCRIPTIONS[team]}</p>
+        </div>
+        <Link to={'/work/requests?new=1&team=' + team}>팀 간 요청 등록 →</Link>
+      </div>
+      <p>
+        Demo 데이터 · 수신 팀 기준 전체 요청 · 최종 갱신{' '}
+        {new Date(snapshot.updatedAt).toLocaleString()} · 지표를 선택해 해당
+        업무를 처리하세요.
+      </p>
+      <div className="ops-metrics">
+        {metrics.map((metric) => (
+          <Link
+            className="ops-metric"
             key={metric.label}
-            label={metric.label}
-            value={metric.value}
-            description={metric.description}
-          />
+            to={
+              '/work/requests?team=' +
+              team +
+              '&target=' +
+              team +
+              '&filter=' +
+              metric.filter
+            }
+          >
+            <span>{metric.label}</span>
+            <strong>{metric.value}</strong>
+            <span>업무 목록 열기 →</span>
+          </Link>
         ))}
       </div>
-
-      <div className="team-dashboard-columns">
-        <Card className="dashboard-panel">
-          <CardHeader>
-            <CardTitle>
-              {dashboard.focusTitle}
-              <small>{dashboard.focusItems.length} items</small>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {dashboard.focusItems.map((item) => (
-              <div className="team-dashboard-focus-row" key={item.title}>
-                <StatusBadge label={item.status} tone={item.tone} />
-                <div className="dashboard-row-text">
-                  <strong>{item.title}</strong>
-                  <span>{item.detail}</span>
-                </div>
-                <span className="team-dashboard-owner">{item.owner}</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card className="dashboard-panel">
-          <CardHeader>
-            <CardTitle>
-              Team Members<small>{dashboard.members.length} active</small>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {dashboard.members.map((member) => (
-              <div className="team-dashboard-member" key={member.name}>
-                <span className={`team-dashboard-avatar ${member.color}`}>
-                  {member.initials}
-                </span>
-                <div className="dashboard-row-text">
-                  <strong>{member.name}</strong>
-                  <span>{member.role}</span>
-                </div>
-                <div className="team-dashboard-member-meta">
-                  <StatusBadge
-                    label={member.status}
-                    tone={member.status === 'In Office' ? 'success' : 'neutral'}
-                  />
-                  <span>{member.activity}</span>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+      <div className="ops-panel">
+        <h2>우선 처리할 업무</h2>
+        {requests
+          .filter(isOpen)
+          .sort(
+            (a, b) =>
+              Number(isOverdue(b)) - Number(isOverdue(a)) ||
+              a.dueDate.localeCompare(b.dueDate),
+          )
+          .slice(0, 8)
+          .map((request) => (
+            <div className="ops-row" key={request.id}>
+              <Link to={requestLink(request.id, team)}>{request.title}</Link>
+              <span>
+                {STATUS_NAMES[request.status]} ·{' '}
+                {personName(request.assigneeId)} · {request.dueDate}
+              </span>
+            </div>
+          ))}
+        {!requests.some(isOpen) && <p>처리 대기 중인 요청이 없습니다.</p>}
+      </div>
+      <div className="ops-panel">
+        <h2>팀 역할 · 업무 분담</h2>
+        <p>아래 구성원은 역할 테스트를 위한 데모 사용자입니다.</p>
+        {members.map((person) => (
+          <div className="ops-row" key={person.id}>
+            <strong>{person.name}</strong>
+            <span>
+              {person.role === 'lead'
+                ? '완료 검토 및 반려'
+                : '접수·작업·자료 등록'}{' '}
+              · 진행{' '}
+              {
+                requests.filter(
+                  (request) =>
+                    request.assigneeId === person.id && isOpen(request),
+                ).length
+              }
+              건 · 검토{' '}
+              {
+                requests.filter(
+                  (request) =>
+                    request.reviewerId === person.id &&
+                    request.status === 'review',
+                ).length
+              }
+              건
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="ops-panel">
+        <h2>업무 지표 연결 상태</h2>
+        <p>
+          {team === 'demand-planning'
+            ? '수요 정확도·품절 예상·발주량은 재고/판매 데이터 연결 후 제공됩니다.'
+            : team === 'customer-services'
+              ? '고객 만족도·응답 SLA·환불 금액은 고객 문의 및 주문 데이터 연결 후 제공됩니다.'
+              : '매출·리스팅 오류·채널 재고는 판매 채널 데이터 연결 후 제공됩니다.'}
+        </p>
+        <Link to={'/work/reports?team=' + team}>현재 요청 데이터 리포트 →</Link>
       </div>
     </section>
   );

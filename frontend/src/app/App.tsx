@@ -4,6 +4,7 @@ import { HelmetProvider } from 'react-helmet-async';
 import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
 import { LoadingBarContainer } from 'react-top-loading-bar';
+import { OperationsProvider } from './operations-store';
 import { AppRouter } from './router';
 import { store } from './store';
 import { WorkbenchProvider } from './workbench-store';
@@ -26,7 +27,9 @@ export function App() {
             <BrowserRouter basename={BASE_URL}>
               <WorkbenchProvider>
                 <Toaster />
-                <AppRouter />
+                <OperationsProvider>
+                  <AppRouter />
+                </OperationsProvider>
               </WorkbenchProvider>
             </BrowserRouter>
           </LoadingBarContainer>

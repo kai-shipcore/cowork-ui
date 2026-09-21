@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type Dispatch,
   type ReactNode,
@@ -124,6 +125,10 @@ export interface WorkbenchState {
 }
 
 interface WorkbenchStore extends WorkbenchState {
+  storageMessage: string;
+  storageError: boolean;
+  retryPersistence: () => void;
+  exportSnapshot: () => string;
   updateWorkbench: (
     transform: (state: WorkbenchState) => WorkbenchState,
   ) => void;
@@ -214,11 +219,19 @@ function baselineState(): WorkbenchState {
   };
 }
 
-interface LegacyVehicleConfiguration extends VehicleConfiguration {
+interface LegacyVehicleConfiguration extends Omit<
+  VehicleConfiguration,
+  'projectGroupIds'
+> {
+  projectGroupIds?: readonly string[];
   projectGroups?: readonly string[];
 }
 
-interface LegacyVehicleProject extends VehicleProjectGroup {
+interface LegacyVehicleProject extends Omit<
+  VehicleProjectGroup,
+  'zoneProjects'
+> {
+  zoneProjects?: readonly VehicleZoneProject[];
   configurationId?: string;
   zones?: readonly string[];
 }
@@ -228,7 +241,8 @@ interface LegacySampleShipment extends SampleShipment {
   shipmentReference?: string;
 }
 
-interface LegacyVisit extends Omit<Visit, 'taskIds'> {
+interface LegacyVisit extends Omit<Visit, 'taskIds' | 'vehicleProjectIds'> {
+  vehicleProjectIds?: readonly string[];
   /** Legacy single staff member. */
   assignee?: string;
   taskIds?: readonly string[];
@@ -236,7 +250,8 @@ interface LegacyVisit extends Omit<Visit, 'taskIds'> {
   zones?: readonly string[];
 }
 
-interface LegacySampleRequest extends SampleRequest {
+interface LegacySampleRequest extends Omit<SampleRequest, 'createdAt'> {
+  createdAt?: string;
   project?: string;
   items?: number;
   round?: number;
@@ -255,7 +270,8 @@ type LegacyProjectTask = Omit<ProjectTask, 'status'> & {
   status: ProjectTask['status'] | 'PENDING' | 'IN PROGRESS' | 'COMPLETED';
 };
 
-interface LegacyProjectVisit extends ProjectVisit {
+interface LegacyProjectVisit extends Omit<ProjectVisit, 'vehicleProjectIds'> {
+  vehicleProjectIds?: readonly string[];
   zones?: readonly string[];
 }
 
@@ -282,7 +298,9 @@ type LegacyZoneProject = Omit<
   | 'zoneId'
   | 'managerId'
   | 'currentStage'
+  | 'shape'
 > & {
+  shape?: string;
   projectGroupId?: string;
   productTypeId?: string;
   vehicleResearchId?: string;
@@ -325,12 +343,12 @@ function migrateZoneShape(
         : undefined,
     };
   }
-  const shapeId = zone.productShapeId || zone.shape;
+  const shapeId = nonEmptyId(zone.productShapeId, zone.shape);
   if (!shapeId) return undefined;
   return {
     id: shapeId,
     productTypeId: productType,
-    name: zone.shape || shapeId,
+    name: nonEmptyId(zone.shape, shapeId),
     status: 'ACTIVE',
     source: 'NEW',
     ...(productType === 'PT-CC'
@@ -355,9 +373,16 @@ function productTypeId(product: VehicleProjectGroup['product']): string {
   }[product];
 }
 
+// Empty IDs in older snapshots mean "not assigned", just like missing IDs.
+function nonEmptyId(...values: (string | undefined)[]): string {
+  return values.find((value) => value !== undefined && value !== '') ?? '';
+}
+
 function migrateProject(project: LegacyVehicleProject): VehicleProjectGroup {
-  const vehicleResearchId =
-    project.vehicleResearchId || project.configurationId || '';
+  const vehicleResearchId = nonEmptyId(
+    project.vehicleResearchId,
+    project.configurationId,
+  );
   const resolvedProductTypeId =
     project.productTypeId || productTypeId(project.product);
   const zoneProjects: readonly VehicleZoneProject[] = project.zoneProjects
@@ -448,8 +473,7 @@ function migrateState(
       const legacy = configuration as LegacyVehicleConfiguration;
       const migrated = {
         ...configuration,
-        projectGroupIds:
-          configuration.projectGroupIds ?? legacy.projectGroups ?? [],
+        projectGroupIds: legacy.projectGroupIds ?? legacy.projectGroups ?? [],
       };
       return !initialConfigurationIds.has(configuration.id) &&
         configuration.researchStatus === 'RESEARCHING'
@@ -463,7 +487,7 @@ function migrateState(
   const projectById = new Map(projects.map((project) => [project.id, project]));
   const visits = (stored.visits ?? fallback.visits).map((visit) => {
     const legacy = visit as LegacyVisit;
-    const projectGroupId = visit.projectGroupId || legacy.project || '';
+    const projectGroupId = nonEmptyId(visit.projectGroupId, legacy.project);
     const group = projectById.get(projectGroupId);
     const legacyZoneCodes = legacy.zones ?? [];
     return {
@@ -473,8 +497,8 @@ function migrateState(
         stored.projectDetails?.[projectGroupId]?.tasks ?? [],
       ),
       projectGroupId,
-      vehicleProjectIds: visit.vehicleProjectIds?.length
-        ? visit.vehicleProjectIds
+      vehicleProjectIds: legacy.vehicleProjectIds?.length
+        ? legacy.vehicleProjectIds
         : (group?.zoneProjects ?? [])
             .filter((project) => legacyZoneCodes.includes(project.code))
             .map((project) => project.id),
@@ -482,6 +506,9 @@ function migrateState(
   });
   const projectDetails = Object.fromEntries(
     Object.entries(stored.projectDetails ?? {}).map(([projectId, detail]) => {
+      const legacyDetail: Omit<ProjectDetailSnapshot, 'tasks'> & {
+        tasks?: ProjectDetailSnapshot['tasks'];
+      } = detail;
       const group = projectById.get(projectId);
       const zoneByCode = new Map(
         group?.zoneProjects.map((zoneProject) => [
@@ -516,7 +543,7 @@ function migrateState(
                 : {}),
             } as ZoneProject;
           }),
-          tasks: (detail.tasks ?? []).map((task) => {
+          tasks: (legacyDetail.tasks ?? []).map((task) => {
             const legacy = task as LegacyProjectTask;
             const status: ProjectTask['status'] =
               legacy.status === 'PENDING'
@@ -529,10 +556,10 @@ function migrateState(
             return {
               ...task,
               status,
-              vehicleProjectId:
-                task.vehicleProjectId ||
-                zoneByCode.get(legacy.zone ?? '')?.id ||
-                '',
+              vehicleProjectId: nonEmptyId(
+                task.vehicleProjectId,
+                zoneByCode.get(legacy.zone ?? '')?.id,
+              ),
               ...(legacy.assignedTo && !legacy.assignedAt
                 ? { assignedAt: legacy.created }
                 : {}),
@@ -546,9 +573,9 @@ function migrateState(
             const legacy = visit as LegacyProjectVisit;
             return {
               ...visit,
-              staffIds: migrateVisitStaff(visit, detail.tasks ?? []),
-              vehicleProjectIds: visit.vehicleProjectIds?.length
-                ? visit.vehicleProjectIds
+              staffIds: migrateVisitStaff(visit, legacyDetail.tasks ?? []),
+              vehicleProjectIds: legacy.vehicleProjectIds?.length
+                ? legacy.vehicleProjectIds
                 : (legacy.zones ?? [])
                     .map((code) => zoneByCode.get(code)?.id)
                     .filter((id): id is string => Boolean(id)),
@@ -556,10 +583,10 @@ function migrateState(
           }),
           designs: detail.designs.map((design) => {
             const legacy = design as LegacyProjectDesign;
-            const vehicleProjectId =
-              design.vehicleProjectId ||
-              zoneByCode.get(legacy.zone ?? '')?.id ||
-              '';
+            const vehicleProjectId = nonEmptyId(
+              design.vehicleProjectId,
+              zoneByCode.get(legacy.zone ?? '')?.id,
+            );
             const vehicleProject = zoneById.get(vehicleProjectId);
             const details =
               legacy.details ??
@@ -591,7 +618,7 @@ function migrateState(
               ? legacy.revisions
               : [
                   {
-                    id: `REV-${design.id}-${legacy.revision ?? 1}`,
+                    id: `REV-${design.id}-${String(legacy.revision ?? 1)}`,
                     revisionNumber: legacy.revision ?? 1,
                     note: legacy.note ?? 'Legacy revision',
                     createdBy: 'USR-JH',
@@ -625,7 +652,7 @@ function migrateState(
     const legacy = request as LegacySampleRequest;
     return {
       id: request.id,
-      projectGroupId: request.projectGroupId || legacy.project || '',
+      projectGroupId: nonEmptyId(request.projectGroupId, legacy.project),
       vehicle: request.vehicle,
       product: request.product,
       factory: request.factory,
@@ -642,7 +669,7 @@ function migrateState(
             }
           : {}),
       createdAt:
-        request.createdAt ?? legacy.requestedAt ?? new Date().toISOString(),
+        legacy.createdAt ?? legacy.requestedAt ?? new Date().toISOString(),
     } satisfies SampleRequest;
   });
   const sampleShipments = (
@@ -675,10 +702,10 @@ function migrateState(
     storedSampleRequests.flatMap((request) => {
       const legacy = request as LegacySampleRequest;
       return Array.from({ length: legacy.items ?? 1 }, (_, index) => ({
-        id: `SRI-${request.id}-${index + 1}`,
+        id: `SRI-${request.id}-${String(index + 1)}`,
         sampleRequestId: request.id,
-        vehicleProductDesignId: `DESIGN-${request.id}-${index + 1}`,
-        vehicleProductDesignRevisionId: `REV-${request.id}-${index + 1}-${legacy.round ?? 1}`,
+        vehicleProductDesignId: `DESIGN-${request.id}-${String(index + 1)}`,
+        vehicleProductDesignRevisionId: `REV-${request.id}-${String(index + 1)}-${String(legacy.round ?? 1)}`,
         sampleRound: legacy.round ?? 1,
         priority: 'NORMAL' as const,
         ...(legacy.status === 'ARRIVED' || legacy.status === 'APPROVED'
@@ -731,9 +758,11 @@ function migrateState(
         const legacy = vehicle as LegacyUniqueVehicle;
         return {
           ...vehicle,
-          vehicleResearchId:
-            vehicle.vehicleResearchId || legacy.configurationId || '',
-          projectGroupId: vehicle.projectGroupId || legacy.project || '',
+          vehicleResearchId: nonEmptyId(
+            vehicle.vehicleResearchId,
+            legacy.configurationId,
+          ),
+          projectGroupId: nonEmptyId(vehicle.projectGroupId, legacy.project),
         };
       },
     ),
@@ -757,29 +786,80 @@ const WorkbenchContext = createContext<WorkbenchStore | undefined>(undefined);
 
 export function WorkbenchProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<WorkbenchState>(loadState);
+  const [storageMessage, setStorageMessage] =
+    useState('R&D 브라우저 저장 준비');
+  const [storageError, setStorageError] = useState(false);
+  const [saveAttempt, setSaveAttempt] = useState(0);
+  const persisted = useRef<string | null | undefined>(undefined);
+  if (persisted.current === undefined) {
+    try {
+      persisted.current = localStorage.getItem(STORAGE_KEY);
+    } catch {
+      persisted.current = null;
+    }
+  }
+  const retryPersistence = useCallback(() => {
+    setSaveAttempt((attempt) => attempt + 1);
+  }, []);
+  const exportSnapshot = useCallback(
+    () => JSON.stringify(state, null, 2),
+    [state],
+  );
   const updateWorkbench = useCallback(
-    (transform: (state: WorkbenchState) => WorkbenchState) =>
-      setState(transform),
+    (transform: (state: WorkbenchState) => WorkbenchState) => {
+      setState(transform);
+    },
     [],
   );
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+    let cancelled = false;
+    setStorageMessage('R&D 저장 중…');
+    async function save() {
+      try {
+        if (!('locks' in navigator))
+          throw new Error('HTTPS 또는 localhost에서 R&D 저장을 사용하세요.');
+        await navigator.locks.request(STORAGE_KEY, () => {
+          if (cancelled) return;
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw !== persisted.current)
+            throw new Error(
+              '다른 창에서 R&D 데이터를 변경했습니다. 현재 내용을 백업한 후 페이지를 새로고침하세요.',
+            );
+          // Preserve unreadable storage rather than replacing it with seed data.
+          if (raw) {
+            JSON.parse(raw);
+            localStorage.setItem(STORAGE_KEY + '-previous', raw);
+          }
+          const next = JSON.stringify(state);
+          localStorage.setItem(STORAGE_KEY, next);
+          persisted.current = next;
+          setStorageError(false);
+          setStorageMessage('R&D 브라우저 저장 완료');
+        });
+      } catch (cause) {
+        if (!cancelled) {
+          setStorageError(true);
+          setStorageMessage(
+            cause instanceof Error
+              ? cause.message
+              : 'R&D 저장 실패. 현재 내용은 메모리에 유지됩니다.',
+          );
+        }
+      }
+    }
+    void save();
+    return () => {
+      cancelled = true;
+    };
+  }, [state, saveAttempt]);
 
   const entitySetter = useCallback(
     <Key extends keyof Omit<WorkbenchState, 'projectDetails'>>(key: Key) =>
       (value: SetStateAction<WorkbenchState[Key]>): void => {
         setState((current) => ({
           ...current,
-          [key]:
-            typeof value === 'function'
-              ? (
-                  value as (
-                    previous: WorkbenchState[Key],
-                  ) => WorkbenchState[Key]
-                )(current[key])
-              : value,
+          [key]: typeof value === 'function' ? value(current[key]) : value,
         }));
       },
     [],
@@ -981,7 +1061,14 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       setState((current) => {
         const detail = current.projectDetails[projectId];
         const project = current.projects.find((item) => item.id === projectId);
-        if (!detail || !project) return current;
+        if (
+          !Object.prototype.hasOwnProperty.call(
+            current.projectDetails,
+            projectId,
+          ) ||
+          !project
+        )
+          return current;
         const next = recordStageTransitions(
           detail,
           transform(detail),
@@ -1040,12 +1127,17 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
 
   const resetWorkbench = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
+    persisted.current = null;
     setState(initialState());
   }, []);
 
   const value = useMemo<WorkbenchStore>(
     () => ({
       ...state,
+      storageMessage,
+      storageError,
+      retryPersistence,
+      exportSnapshot,
       updateWorkbench,
       setConfigurations,
       setProjects,
@@ -1074,6 +1166,10 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       resetWorkbench,
     }),
     [
+      storageMessage,
+      storageError,
+      retryPersistence,
+      exportSnapshot,
       saveProjectDetail,
       updateProjectWorkflow,
       setComplaints,

@@ -1,26 +1,14 @@
-import type { SyntheticEvent } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
-import { Checkbox } from '@coverland-engineering/ui/checkbox';
-import { Input, InputWrapper } from '@coverland-engineering/ui/input';
-import { Label } from '@coverland-engineering/ui/label';
 import { RiGoogleFill } from '@remixicon/react';
-import { Lock, Mail } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ROUTES } from '@/constants/routes';
 import { toAbsoluteUrl } from '@/shared/lib/helpers';
 
-/**
- * Authentication is not implemented yet, so nothing is submitted. Without this
- * the browser would run its native form submit and reload the page.
- */
-function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
-  event.preventDefault();
-}
-
-/** Static sign-in screen. Renders outside the app shell, with no auth behavior. */
+/** Public prototype entry; never collects credentials or simulates authentication. */
 export function LoginPage() {
   return (
     <div className="mt-login bg-background flex min-h-screen w-full">
-      {/* The logo asset is a square with a baked-in white background, so it sits
-          on its own white plate to stay legible on the dark theme. */}
       <div className="mt-login-brand bg-muted hidden w-full items-center justify-center p-12 md:flex">
         <img
           src={toAbsoluteUrl('/media/app/coverland_logo.png')}
@@ -28,97 +16,55 @@ export function LoginPage() {
           alt="Coverland"
         />
       </div>
-
       <div className="flex w-full flex-col items-center justify-center p-6">
-        <form
+        <section
           className="mt-login-card flex w-full max-w-sm flex-col gap-5"
-          onSubmit={handleSubmit}
+          aria-labelledby="login-title"
         >
           <div className="flex flex-col gap-2 text-center">
-            <h1 className="text-3xl font-semibold tracking-tight">Sign in</h1>
+            <h1
+              id="login-title"
+              className="text-3xl font-semibold tracking-tight"
+            >
+              Coverland Workbench
+            </h1>
             <p className="text-muted-foreground text-sm">
-              Welcome back! Please sign in to continue.
+              팀 업무를 연결하는 내부 업무 포털 · 공개 프로토타입
             </p>
           </div>
-
           <Button
             type="button"
             variant="outline"
             size="lg"
             className="mt-3 w-full"
+            disabled
+            aria-describedby="google-status"
           >
-            <RiGoogleFill role="img" className="size-4" />
-            Continue with Google Workspace
+            <RiGoogleFill aria-hidden="true" className="size-4" />
+            Google Workspace 로그인 · 연결 전
           </Button>
-
-          <div className="flex items-center gap-4">
-            <span className="bg-border h-px flex-1" />
-            <span className="text-muted-foreground text-xs">
-              or sign in with email
-            </span>
-            <span className="bg-border h-px flex-1" />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="email">Email</Label>
-            <InputWrapper variant="lg">
-              <Mail className="text-muted-foreground size-4" />
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                placeholder="you@coverland.com"
-              />
-            </InputWrapper>
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="password">Password</Label>
-            <InputWrapper variant="lg">
-              <Lock className="text-muted-foreground size-4" />
-              <Input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                placeholder="Password"
-              />
-            </InputWrapper>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Checkbox id="remember-me" />
-              <Label htmlFor="remember-me" variant="secondary">
-                Remember me
-              </Label>
-            </div>
-            <Button
-              type="button"
-              mode="link"
-              variant="primary"
-              underlined="solid"
-              className="text-sm"
-            >
-              Forgot password?
-            </Button>
-          </div>
-
-          <Button type="submit" size="lg" className="w-full">
-            Sign in
-          </Button>
-
-          <p className="text-muted-foreground text-center text-sm">
-            Need access?{' '}
-            <Button
-              type="button"
-              mode="link"
-              variant="primary"
-              className="text-sm"
-            >
-              Contact an administrator
-            </Button>
+          <p id="google-status" className="text-muted-foreground text-sm">
+            회사 Google 계정 인증과 서버 연결은 아직 구성되지 않았습니다. 이
+            화면에서는 이메일이나 비밀번호를 수집하지 않습니다.
           </p>
-        </form>
+          <div className="bg-muted flex gap-3 rounded-lg p-4 text-sm">
+            <ShieldAlert aria-hidden="true" className="size-5 shrink-0" />
+            <p>
+              누구나 볼 수 있는 체험판입니다. 고객 개인정보·회사 기밀은 입력하지
+              마세요. 입력 내용은 현재 브라우저에만 저장되며 다른 직원과
+              공유되지 않습니다.
+            </p>
+          </div>
+          <Button asChild size="lg" className="w-full">
+            <Link to={ROUTES.dashboard}>프로토타입 둘러보기</Link>
+          </Button>
+          <Link
+            to="/work/settings?team=rd"
+            className="text-primary text-center text-sm underline"
+          >
+            저장·백업 및 연결 상태 확인
+          </Link>
+        </section>
       </div>
     </div>
   );

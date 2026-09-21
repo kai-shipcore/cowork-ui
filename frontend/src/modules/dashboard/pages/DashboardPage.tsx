@@ -6,13 +6,15 @@ import {
   CardTitle,
 } from '@coverland-engineering/ui/card';
 import { SummaryCard } from '@coverland-engineering/ui/summary-card';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { findUser } from '@/shared/domain/app-user';
 import { UserAvatar } from '@/shared/domain/user-picker';
 import { PageHeader } from '@/shared/components/page-header';
 import { StatusBadge } from '@/shared/components/status-badge';
 import type { AppUser } from '@/shared/types/workbench';
+import { isOpen } from '@/modules/operations/operations-model';
+import { useOperations } from '@/app/operations-store';
 import { useWorkbenchStore } from '@/app/workbench-store';
 import {
   SAMPLE_FITTING_WAIT_DAYS,
@@ -36,6 +38,7 @@ function todayKey(): string {
 /** R&D home: what needs attention today, derived from the live workbench state. */
 export function DashboardPage() {
   const navigate = useNavigate();
+  const { snapshot } = useOperations();
   const {
     projects,
     projectDetails,
@@ -70,6 +73,27 @@ export function DashboardPage() {
 
   return (
     <section className="dashboard">
+      <Card>
+        <CardContent className="flex items-center justify-between p-5">
+          <div>
+            <h1 className="font-semibold">R & D Team Dashboard</h1>
+            <p className="text-xs text-muted-foreground">
+              팀 간 요청{' '}
+              {
+                snapshot.requests.filter(
+                  (request) => request.targetTeam === 'rd' && isOpen(request),
+                ).length
+              }
+              건 · 현재 브라우저의 데모 업무 데이터
+            </p>
+          </div>
+          <Button asChild variant="outline">
+            <Link to="/work/requests?team=rd&target=rd&filter=open">
+              요청 처리
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
       <PageHeader
         description="지연된 작업과 도착한 수정 샘플부터 확인하세요."
         tables={

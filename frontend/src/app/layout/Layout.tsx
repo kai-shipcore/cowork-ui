@@ -1,19 +1,16 @@
 import { Helmet } from 'react-helmet-async';
 import { useLocation } from 'react-router-dom';
-import { useMenu } from '@/shared/hooks/use-menu';
 import { LayoutProvider } from './components/context';
 import { Wrapper } from './components/wrapper';
-import { MENU_SIDEBAR_ALL } from './navigation';
+import { pageTitle } from './page-identity';
 
 export function Layout() {
-  const { pathname } = useLocation();
-  const { getCurrentItem } = useMenu(pathname);
-  const item = getCurrentItem(MENU_SIDEBAR_ALL);
+  const { pathname, search } = useLocation();
 
   return (
     <>
       <Helmet>
-        <title>{item?.title}</title>
+        <title>{pageTitle(pathname, search)} · Coverland</title>
       </Helmet>
 
       <LayoutProvider

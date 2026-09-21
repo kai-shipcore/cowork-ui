@@ -1,295 +1,44 @@
-import { useEffect, useState } from 'react';
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  AvatarIndicator,
-  AvatarStatus,
-} from '@coverland-engineering/ui/avatar';
-import { Badge } from '@coverland-engineering/ui/badge';
 import { Button } from '@coverland-engineering/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from '@coverland-engineering/ui/dropdown-menu';
-import { ScrollArea } from '@coverland-engineering/ui/scroll-area';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@coverland-engineering/ui/tooltip';
-import {
-  BarChart3,
-  Bell,
-  Building2,
-  Clock,
-  Download,
-  ExternalLink,
-  Mails,
-  NotepadText,
-  ScrollText,
-  Settings,
-  Shield,
-  Target,
-  User,
-  UserCircle,
-  Users,
-  Zap,
-} from 'lucide-react';
+import { BarChart3, Bell, ClipboardList, Settings } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
-import { toAbsoluteUrl } from '@/shared/lib/helpers';
-import { cn } from '@/shared/lib/utils';
-
-const menuItems = [
-  {
-    icon: UserCircle,
-    tooltip: 'Profile',
-    path: '/profiles/default',
-    rootPath: '/profiles/default',
-  },
-  {
-    icon: BarChart3,
-    tooltip: 'Dashboard',
-    path: '/dashboard',
-    rootPath: '/dashboard',
-  },
-  {
-    icon: Settings,
-    tooltip: 'Account',
-    path: '#',
-    rootPath: '#',
-  },
-  {
-    icon: Users,
-    tooltip: 'Network',
-    path: '#',
-    rootPath: '#',
-  },
-  {
-    icon: ScrollText,
-    tooltip: 'Files',
-    path: '#',
-    rootPath: '#',
-  },
-  {
-    icon: Bell,
-    tooltip: 'Notifications',
-    path: '#',
-    rootPath: '#',
-  },
-];
-
-interface SidebarPrimaryProps {
-  dashboardPath?: string;
-}
+import { teamFromLocation } from '@/modules/operations/operations-model';
 
 export function SidebarPrimary({
   dashboardPath = '/dashboard',
-}: SidebarPrimaryProps) {
-  const { pathname } = useLocation();
-  const [selectedMenuItem, setSelectedMenuItem] = useState(menuItems[1]);
-
-  useEffect(() => {
-    menuItems.forEach((item) => {
-      if (
-        item.rootPath === pathname ||
-        (item.rootPath && pathname.includes(item.rootPath))
-      ) {
-        setSelectedMenuItem(item);
-      }
-    });
-  }, [pathname]);
-
+}: {
+  dashboardPath?: string;
+}) {
+  const { pathname, search } = useLocation();
+  const team = teamFromLocation(pathname, search);
+  const links = [
+    { label: 'Dashboard', path: dashboardPath, icon: BarChart3 },
+    {
+      label: 'My Tasks',
+      path: '/work/tasks?team=' + team,
+      icon: ClipboardList,
+    },
+    { label: '알림', path: '/work/notifications?team=' + team, icon: Bell },
+    { label: '설정', path: '/work/settings?team=' + team, icon: Settings },
+  ];
   return (
-    <div className="flex flex-col items-center justify-center shrink-0 px-2.5 py-2.5 gap-5 lg:w-(--sidebar-collapsed-width) border-e border-input bg-muted">
-      {/* Navigation */}
-      <ScrollArea className="grow w-full h-[calc(100vh-13rem)] lg:h-[calc(100vh-5.5rem)]">
-        <div className="grow gap-1 shrink-0 flex items-center flex-col">
-          {menuItems.map((item, index) => {
-            const itemPath =
-              item.rootPath === '/dashboard' ? dashboardPath : item.path;
-
-            return (
-              <Tooltip key={index}>
-                <TooltipTrigger asChild>
-                  <Button
-                    asChild
-                    variant="ghost"
-                    mode="icon"
-                    {...(item === selectedMenuItem
-                      ? { 'data-state': 'open' }
-                      : {})}
-                    className={cn(
-                      'shrink-0 rounded-md size-9',
-                      'data-[state=open]:bg-primary data-[state=open]:text-primary-foreground',
-                      'hover:text-foreground',
-                    )}
-                  >
-                    <Link to={itemPath}>
-                      <item.icon className="size-4.5!" />
-                    </Link>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="right">{item.tooltip}</TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </div>
-      </ScrollArea>
-
-      {/* Footer */}
-      <div className="flex flex-col items-center gap-2.5 shrink-0">
+    <nav
+      aria-label="Quick navigation"
+      className="flex flex-col items-center gap-3 px-2.5 py-3 w-(--sidebar-collapsed-width) shrink-0 border-e border-border bg-muted"
+    >
+      {links.map((item) => (
         <Button
-          variant="ghost"
+          key={item.label}
+          asChild
           mode="icon"
-          className="text-muted-foreground hover:text-foreground"
+          variant={pathname === item.path.split('?')[0] ? 'primary' : 'ghost'}
+          title={item.label}
+          aria-label={item.label}
         >
-          <Mails className="opacity-100" />
+          <Link to={item.path}>
+            <item.icon className="size-4" />
+          </Link>
         </Button>
-
-        <Button
-          variant="ghost"
-          mode="icon"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <NotepadText className="opacity-100" />
-        </Button>
-
-        <Button
-          variant="ghost"
-          mode="icon"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <Settings className="opacity-100" />
-        </Button>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger className="cursor-pointer mb-2.5">
-            <Avatar className="size-7">
-              <AvatarImage
-                src={toAbsoluteUrl('/media/avatars/300-2.png')}
-                alt="@reui"
-              />
-              <AvatarFallback>CH</AvatarFallback>
-              <AvatarIndicator className="-end-2 -top-2">
-                <AvatarStatus variant="online" className="size-2.5" />
-              </AvatarIndicator>
-            </Avatar>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="w-64 mb-4"
-            side="right"
-            align="start"
-            sideOffset={11}
-          >
-            {/* User Information Section */}
-            <div className="flex items-center gap-3 px-3 py-2">
-              <Avatar>
-                <AvatarImage
-                  src={toAbsoluteUrl('/media/avatars/300-2.png')}
-                  alt="@reui"
-                />
-                <AvatarFallback>CH</AvatarFallback>
-                <AvatarIndicator className="-end-1.5 -top-1.5">
-                  <AvatarStatus variant="online" className="size-2.5" />
-                </AvatarIndicator>
-              </Avatar>
-              <div className="flex flex-col items-start">
-                <span className="text-sm font-semibold text-foreground">
-                  Chris Harris
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  Senior Developer
-                </span>
-                <Badge
-                  variant="success"
-                  appearance="outline"
-                  size="sm"
-                  className="mt-1"
-                >
-                  Pro Plan
-                </Badge>
-              </div>
-            </div>
-
-            <DropdownMenuItem className="cursor-pointer py-1 rounded-md border border-border hover:bg-muted">
-              <Clock />
-              <span>Set availability</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
-            {/* Core Actions */}
-            <DropdownMenuItem>
-              <Target />
-              <span>My Projects</span>
-              <Badge
-                variant="info"
-                size="sm"
-                appearance="outline"
-                className="ms-auto"
-              >
-                3
-              </Badge>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem>
-              <Users />
-              <span>Team Management</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem>
-              <Building2 />
-              <span>Organization</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
-            {/* Settings */}
-            <DropdownMenuItem>
-              <User />
-              <span>Profile Settings</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem>
-              <Settings />
-              <span>Preferences</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem>
-              <Shield />
-              <span>Security</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
-            {/* Developer Tools */}
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <Zap />
-                <span>Developer Tools</span>
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-48">
-                <DropdownMenuItem>API Documentation</DropdownMenuItem>
-                <DropdownMenuItem>Code Repository</DropdownMenuItem>
-                <DropdownMenuItem>Testing Suite</DropdownMenuItem>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-
-            <DropdownMenuItem>
-              <Download />
-              <span>Download SDK</span>
-              <ExternalLink className="size-3 ms-auto" />
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </div>
+      ))}
+    </nav>
   );
 }

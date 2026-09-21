@@ -19,6 +19,12 @@ const TeamDashboardPage = lazy(() =>
   })),
 );
 
+const OperationsPage = lazy(() =>
+  import('@/modules/operations/operations-page').then((module) => ({
+    default: module.OperationsPage,
+  })),
+);
+
 const VehicleResearchPage = lazy(() =>
   import('@/modules/vehicle-registry/pages/vehicle-research-page').then(
     (module) => ({ default: module.VehicleResearchPage }),
@@ -118,6 +124,22 @@ export function AppRouter() {
   return (
     <Routes>
       <Route element={<Layout />}>
+        <Route
+          path="/work/:section"
+          element={
+            <Suspense fallback={<RouteFallback />}>
+              <OperationsPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/work/requests/:requestId"
+          element={
+            <Suspense fallback={<RouteFallback />}>
+              <OperationsPage />
+            </Suspense>
+          }
+        />
         <Route
           path={ROUTES.productShapes}
           element={
