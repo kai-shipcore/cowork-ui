@@ -15,60 +15,60 @@ export const TEAM_NAMES = {
 export type TeamId = (typeof TEAM_IDS)[number];
 export const PEOPLE = [
   { id: 'USR-KAI', name: 'Kai (Demo)', team: 'rd', role: 'lead' },
-  { id: 'rd-member', name: 'R&D 담당자 (Demo)', team: 'rd', role: 'member' },
+  { id: 'rd-member', name: 'R&D Member (Demo)', team: 'rd', role: 'member' },
   {
     id: 'planning-lead',
-    name: 'Planning 검토자 (Demo)',
+    name: 'Planning Reviewer (Demo)',
     team: 'demand-planning',
     role: 'lead',
   },
   {
     id: 'planning-member',
-    name: 'Planning 담당자 (Demo)',
+    name: 'Planning Member (Demo)',
     team: 'demand-planning',
     role: 'member',
   },
   {
     id: 'cs-lead',
-    name: 'CS 검토자 (Demo)',
+    name: 'CS Reviewer (Demo)',
     team: 'customer-services',
     role: 'lead',
   },
   {
     id: 'cs-member',
-    name: 'CS 담당자 (Demo)',
+    name: 'CS Member (Demo)',
     team: 'customer-services',
     role: 'member',
   },
   {
     id: 'commerce-lead',
-    name: 'eCommerce 검토자 (Demo)',
+    name: 'eCommerce Reviewer (Demo)',
     team: 'ecommerce',
     role: 'lead',
   },
   {
     id: 'commerce-member',
-    name: 'eCommerce 담당자 (Demo)',
+    name: 'eCommerce Member (Demo)',
     team: 'ecommerce',
     role: 'member',
   },
 ] as const;
 export type Person = (typeof PEOPLE)[number];
 export const STATUS_NAMES = {
-  submitted: '접수 대기',
-  active: '진행 중',
-  blocked: '응답 대기',
-  review: '승인 대기',
-  rejected: '반려',
-  done: '완료',
-  cancelled: '취소',
+  submitted: 'Submitted',
+  active: 'In progress',
+  blocked: 'Awaiting response',
+  review: 'Pending approval',
+  rejected: 'Rejected',
+  done: 'Completed',
+  cancelled: 'Cancelled',
 };
 const text = z.string().trim().min(1).max(2000);
 const personId = z
   .string()
   .refine(
     (id) => PEOPLE.some((person) => person.id === id),
-    '담당자를 선택하세요.',
+    'Select an assignee.',
   );
 const date = z
   .string()
@@ -79,13 +79,13 @@ const date = z
       !Number.isNaN(parsed.getTime()) &&
       parsed.toISOString().slice(0, 10) === value
     );
-  }, '유효한 날짜가 필요합니다.');
+  }, 'A valid date is required.');
 export const safeUrl = z.url().refine((value) => {
   const url = new URL(value);
   return (
     ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password
   );
-}, 'http 또는 https 문서 링크만 사용할 수 있습니다.');
+}, 'Only HTTP or HTTPS document links are allowed.');
 export const requestDraftSchema = z
   .object({
     title: text.max(160),
@@ -106,7 +106,7 @@ export const requestDraftSchema = z
           /^\/(vehicle-projects|products|samples|product-registrations)(\?|$)/.test(
             path,
           ),
-        '지원하지 않는 업무 링크입니다.',
+        'Unsupported work link.',
       ),
     category: z.string().trim().min(1).max(80),
   })
@@ -116,7 +116,7 @@ export const requestDraftSchema = z
     if (assignee?.team !== value.targetTeam)
       context.addIssue({
         code: 'custom',
-        message: '수신 팀의 담당자를 선택하세요.',
+        message: 'Select an assignee from the receiving team.',
         path: ['assigneeId'],
       });
     if (
@@ -126,7 +126,7 @@ export const requestDraftSchema = z
     )
       context.addIssue({
         code: 'custom',
-        message: '담당자와 다른 수신 팀 검토자를 지정하세요.',
+        message: 'Select a receiving-team reviewer other than the assignee.',
         path: ['reviewerId'],
       });
   });
@@ -183,12 +183,12 @@ export const snapshotSchema = z
       new Set(value.requests.map((request) => request.id)).size !==
       value.requests.length
     )
-      context.addIssue({ code: 'custom', message: '중복 요청 ID가 있습니다.' });
+      context.addIssue({ code: 'custom', message: 'Duplicate request ID.' });
     for (const request of value.requests)
       if (!requestDraftSchema.safeParse(request).success)
         context.addIssue({
           code: 'custom',
-          message: '담당자 또는 검토자 연결이 올바르지 않습니다.',
+          message: 'Invalid assignee or reviewer assignment.',
         });
   });
 export type OperationsSnapshot = z.infer<typeof snapshotSchema>;
@@ -258,7 +258,7 @@ export function createRequest(
   const draft = requestDraftSchema.parse(input);
   const actor = PEOPLE.find((person) => person.id === actorId);
   if (actor?.team !== draft.sourceTeam)
-    throw new Error('요청 팀은 현재 작업자의 소속 팀이어야 합니다.');
+    throw new Error("The requesting team must match the current actor's team.");
   return {
     ...draft,
     id,
@@ -274,7 +274,7 @@ export function createRequest(
         actorId,
         at,
         kind: 'created',
-        message: '요청 등록 · ' + draft.title,
+        message: 'Request created · ' + draft.title,
         mentions: [draft.assigneeId],
       },
     ],
@@ -292,18 +292,18 @@ export function applyRequestAction(
 ): WorkRequest {
   if (request.revision !== expectedRevision)
     throw new Error(
-      '다른 창에서 변경되었습니다. 최신 내용을 확인한 후 다시 시도하세요.',
+      'Changed in another window. Review the latest data and try again.',
     );
   if (!PEOPLE.some((person) => person.id === actorId))
-    throw new Error('작업자를 확인하세요.');
+    throw new Error('Check the current actor.');
   let updated = { ...request, revision: request.revision + 1, updatedAt: at };
   let event: WorkRequest['events'][number];
   if (action.kind === 'status') {
     if (!allowedTransitions(request, actorId).includes(action.status))
-      throw new Error('현재 작업자가 수행할 수 없는 상태 변경입니다.');
+      throw new Error('The current actor cannot make this status change.');
     const note = text.parse(action.note);
     if (action.status === 'review' && request.documents.length === 0)
-      throw new Error('검토할 문서 링크를 먼저 등록하세요.');
+      throw new Error('Add a review document link first.');
     updated = { ...updated, status: action.status };
     if (action.status === 'done') {
       updated.documents = request.documents.map((document) =>
@@ -342,7 +342,7 @@ export function applyRequestAction(
       ![request.assigneeId, request.requesterId].includes(actorId) ||
       !['submitted', 'active', 'blocked', 'rejected'].includes(request.status)
     )
-      throw new Error('현재 상태에서는 자료를 추가할 수 없습니다.');
+      throw new Error('Documents cannot be added in the current status.');
     const name = text.max(160).parse(action.name);
     const url = safeUrl.parse(action.url);
     const version =
@@ -361,7 +361,7 @@ export function applyRequestAction(
       actorId,
       at,
       kind: 'document',
-      message: name + ' · v' + String(version) + ' 등록',
+      message: name + ' · v' + String(version) + ' Create',
       mentions: [request.assigneeId],
     };
   }

@@ -423,14 +423,16 @@ function migrateProject(project: LegacyVehicleProject): VehicleProjectGroup {
 export function isLegacySeedActivity(item: ProjectActivityItem): boolean {
   return (
     (item.id === 'ACT-003' &&
-      item.title === 'Scan Visit 예약' &&
+      ['Scan visit scheduled', 'Scan Visit 예약'].includes(item.title) &&
       item.detail.includes('08/28 Galpin Ford')) ||
     (item.id === 'ACT-002' &&
-      item.title === 'Vehicle Hunt 완료' &&
-      item.detail.endsWith('단계 진입')) ||
+      ['Vehicle Hunt completed', 'Vehicle Hunt 완료'].includes(item.title) &&
+      (item.detail.endsWith('Stage entered') ||
+        item.detail.endsWith('단계 진입'))) ||
     (item.id === 'ACT-001' &&
-      item.title === 'Project Group 생성' &&
-      item.detail.includes('자동 생성 · F# 없음'))
+      ['Project group created', 'Project Group 생성'].includes(item.title) &&
+      (item.detail.includes('Auto-generated · No F#') ||
+        item.detail.includes('자동 생성 · F# 없음')))
   );
 }
 
@@ -787,8 +789,9 @@ const WorkbenchContext = createContext<WorkbenchStore | undefined>(undefined);
 
 export function WorkbenchProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<WorkbenchState>(loadState);
-  const [storageMessage, setStorageMessage] =
-    useState('R&D 브라우저 저장 준비');
+  const [storageMessage, setStorageMessage] = useState(
+    'Preparing R&D browser storage',
+  );
   const [storageError, setStorageError] = useState(false);
   const [saveAttempt, setSaveAttempt] = useState(0);
   const persisted = useRef<string | null | undefined>(undefined);
@@ -815,17 +818,17 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    setStorageMessage('R&D 저장 중…');
+    setStorageMessage('Saving R&D…');
     async function save() {
       try {
         if (!('locks' in navigator))
-          throw new Error('HTTPS 또는 localhost에서 R&D 저장을 사용하세요.');
+          throw new Error('Use HTTPS or localhost to save R&D data.');
         await navigator.locks.request(STORAGE_KEY, () => {
           if (cancelled) return;
           const raw = localStorage.getItem(STORAGE_KEY);
           if (raw !== persisted.current)
             throw new Error(
-              '다른 창에서 R&D 데이터를 변경했습니다. 현재 내용을 백업한 후 페이지를 새로고침하세요.',
+              'R&D data changed in another window. Back up your current work, then refresh the page.',
             );
           // Preserve unreadable storage rather than replacing it with seed data.
           if (raw) {
@@ -836,7 +839,7 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
           localStorage.setItem(STORAGE_KEY, next);
           persisted.current = next;
           setStorageError(false);
-          setStorageMessage('R&D 브라우저 저장 완료');
+          setStorageMessage('R&D saved in this browser');
         });
       } catch (cause) {
         if (!cancelled) {
@@ -844,7 +847,7 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
           setStorageMessage(
             cause instanceof Error
               ? cause.message
-              : 'R&D 저장 실패. 현재 내용은 메모리에 유지됩니다.',
+              : 'R&D save failed. Current data remains in memory.',
           );
         }
       }

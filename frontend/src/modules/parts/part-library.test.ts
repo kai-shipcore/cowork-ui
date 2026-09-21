@@ -51,7 +51,7 @@ test('library rejects duplicate names and syncs project revision history', () =>
   assert.throws(
     () =>
       saveLibraryPart({ ...part, id: 'part-2', name: part.name.toLowerCase() }),
-    /동일한/,
+    /already exists/,
   );
   const pinned = structuredClone(part.revisions[0]);
   saveLibraryPart({

@@ -14,11 +14,11 @@ await test('unset standards render blank inputs instead of silently applying exa
       onSave: () => Promise.resolve(true),
     }),
   );
-  assert.match(html, /표준 기간 미설정/);
+  assert.match(html, /Standard durations not set/);
   assert.equal((html.match(/type="number"/g) ?? []).length, 6);
-  assert.match(html, /예시 불러오기/);
+  assert.match(html, /Load example/);
   assert.match(html, /type="submit" disabled=""/);
-  assert.doesNotMatch(html, /30일/);
+  assert.doesNotMatch(html, /30 days/);
 });
 
 await test('read-only viewers cannot edit any duration or submit standards', () => {

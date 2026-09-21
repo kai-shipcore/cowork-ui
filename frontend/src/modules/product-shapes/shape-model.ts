@@ -46,9 +46,9 @@ export function hasCurrentFitmentQuality(
 }
 
 export const SHAPE_STATUSES = {
-  IN_DEVELOPMENT: '개발 중',
-  ACTIVE: '확정 Shape',
-  RETIRED: '신규 사용 중지',
+  IN_DEVELOPMENT: 'In development',
+  ACTIVE: 'Confirmed Shape',
+  RETIRED: 'Disabled for new usage',
 } as const;
 
 export interface ShapeInput {
@@ -69,10 +69,10 @@ export function shapeErrors(
     input.status === 'ACTIVE' &&
     !input.dimensions
   )
-    errors.push('확정 Car Cover에는 완성 치수가 필요합니다.');
+    errors.push('Confirmed Car Covers require finished dimensions.');
   if (input.productTypeId !== 'PT-CC' && input.dimensions)
-    errors.push('Shape 치수는 Car Cover에만 등록할 수 있습니다.');
-  if (!input.name.trim()) errors.push('Shape 이름을 입력하세요.');
+    errors.push('Shape dimensions are supported only for Car Cover.');
+  if (!input.name.trim()) errors.push('Enter a Shape name.');
   if (
     shapes.some(
       (shape) =>
@@ -83,13 +83,13 @@ export function shapeErrors(
     )
   ) {
     errors.push(
-      '같은 제품 유형에 동일한 Shape 이름이 있습니다. 기존 Shape를 연결하거나 다른 이름을 입력하세요.',
+      'A Shape with this name exists for the same product type. Link it or choose another name.',
     );
   }
   if (input.dimensions) {
     const { length, height, frontWidth, backWidth } = input.dimensions;
     if ((frontWidth === undefined) !== (backWidth === undefined))
-      errors.push('앞폭과 뒤폭은 함께 입력하거나 모두 비워 두세요.');
+      errors.push('Enter both front and rear widths, or leave both blank.');
     if (
       ![
         length,
@@ -99,7 +99,7 @@ export function shapeErrors(
       ].every((value) => Number.isFinite(value) && value > 0)
     ) {
       errors.push(
-        '치수는 0보다 큰 숫자여야 합니다. 길이와 높이를 모두 입력하세요.',
+        'Dimensions must be positive numbers. Enter both length and height.',
       );
     }
   }
@@ -166,8 +166,8 @@ export function collectShapes(
 
 export function dimensionsLabel(dimension?: ProductShapeDimension): string {
   if (!dimension || dimension.length <= 0 || dimension.height <= 0)
-    return '치수 미등록';
-  return `길이 ${dimension.length} / 앞폭 ${dimension.frontWidth ?? '—'} / 뒤폭 ${dimension.backWidth ?? '—'} / 높이 ${dimension.height} ${dimension.unit.toLowerCase()}`;
+    return 'Dimensions not registered';
+  return `Length ${dimension.length} / Front width ${dimension.frontWidth ?? '—'} / Rear width ${dimension.backWidth ?? '—'} / Height ${dimension.height} ${dimension.unit.toLowerCase()}`;
 }
 
 /** A shared shape status is never evidence of this project's fitting result. */
@@ -240,19 +240,17 @@ export function sizeReviewBlockers(
 ): readonly string[] {
   const errors: string[] = [];
   if (!['Fitting', 'Approved'].includes(zone.currentStage))
-    errors.push('최종 샘플 검수 후 Fitting 단계에서 Shape 검토를 시작하세요.');
+    errors.push('Start Shape review in Fitting after final sample inspection.');
   if (!latestFittingPassed(zone.id, visits))
     errors.push(
-      'Visits에서 해당 Zone의 최신 완료 피팅 결과를 PASS로 기록하세요.',
+      "Record PASS for this zone's latest completed fitting in Visits.",
     );
   const parts = designs.filter(
     (design) =>
       design.vehicleProjectId === zone.id && design.status === 'ACTIVE',
   );
   if (!parts.length)
-    errors.push(
-      '검토할 최종 Part / 패턴 목록이 없습니다. Part / 패턴을 먼저 연결하세요.',
-    );
+    errors.push('No final parts / pattern to review. Link them first.');
   else if (
     parts.some(
       (part) =>
@@ -262,7 +260,9 @@ export function sizeReviewBlockers(
         part.requiresRevisionAfterReview,
     )
   )
-    errors.push('최종 Part / 패턴의 수량·현재 버전과 피팅 확인을 완료하세요.');
+    errors.push(
+      'Confirm the final parts / pattern quantities, current revisions, and fitting.',
+    );
   const fitting = latestFitting(zone.id, visits);
   if (fitting?.result === 'PASS') {
     const performedAt = Date.parse(
@@ -276,7 +276,7 @@ export function sizeReviewBlockers(
       )
     )
       errors.push(
-        '마지막 피팅 이후 추가된 버전이 있습니다. 새 버전으로 다시 피팅하세요.',
+        'A revision was added after the last fitting. Repeat fitting with the new revision.',
       );
   }
   return errors;
@@ -331,15 +331,17 @@ export function handoffBlockers(
     : 0;
   const errors: string[] = [];
   if (!['Fitting', 'Approved'].includes(zone.currentStage))
-    errors.push(`${zone.code}: 샘플 작업 후 Fitting 단계까지 진행하세요.`);
+    errors.push(`${zone.code}: Finish sampling and proceed to Fitting.`);
   if (fitting?.result !== 'PASS')
-    errors.push(`${zone.code}: 최신 완료 피팅 결과가 PASS여야 합니다.`);
+    errors.push(`${zone.code}: The latest completed fitting must be PASS.`);
   if (
     zone.reworkRequestedAt &&
     performedAt <= Date.parse(zone.reworkRequestedAt)
   )
-    errors.push(`${zone.code}: 반려 후 새 샘플로 다시 피팅하세요.`);
-  if (!parts.length) errors.push(`${zone.code}: 최종 Part 목록이 없습니다.`);
+    errors.push(
+      `${zone.code}: Repeat fitting with new samples after rejection.`,
+    );
+  if (!parts.length) errors.push(`${zone.code}: No final parts list.`);
   if (
     parts.some(
       (part) =>
@@ -349,7 +351,9 @@ export function handoffBlockers(
         !part.revisions.length,
     )
   )
-    errors.push(`${zone.code}: 최종 Part 버전·수량과 피팅 확인을 완료하세요.`);
+    errors.push(
+      `${zone.code}: Confirm final part revisions, quantities, and fitting.`,
+    );
   if (
     parts.some((part) =>
       part.revisions.some(
@@ -357,7 +361,7 @@ export function handoffBlockers(
       ),
     )
   )
-    errors.push(`${zone.code}: 최신 Revision으로 다시 피팅하세요.`);
+    errors.push(`${zone.code}: Repeat fitting with the latest revision.`);
   return errors;
 }
 
@@ -458,20 +462,20 @@ export function shapeWorkflowLabel(
     visits &&
     !isSizeReviewCurrent(zone, designs, visits)
   )
-    return '자료 변경 · 인계·검토 재확인 필요';
+    return 'Materials changed · Recheck handoff and review';
   if (zone.reworkRequestedAt && zone.currentStage !== 'Approved')
-    return '패턴 재작업 · 새 샘플부터 재진행';
+    return 'Pattern rework · Restart with new samples';
   if (zone.sizeReview?.outcome === 'REJECTED')
     return zone.sizeReview.rejectionType === 'DOCUMENT'
-      ? '문서 보완 · 재검토 대기'
-      : '새 샘플·피팅 · 재검토 대기';
+      ? 'Document corrections · Awaiting review'
+      : 'New samples and fitting · Awaiting review';
   if (zone.productShapeId && zone.sizeReview?.outcome === 'APPROVED')
-    return 'Shape 검토 승인 · 확정 상태 확인';
+    return 'Shape review approved · Check confirmation status';
   if (!['Fitting', 'Approved'].includes(zone.currentStage))
-    return '개발 진행 · Shape 생성 가능';
+    return 'Development in progress · Shape creation available';
   return zone.sizeReview?.outcome === 'APPROVED'
-    ? '승인 완료 · 발급 대기'
-    : '검토 대기';
+    ? 'Approved · Awaiting issuance'
+    : 'Awaiting review';
 }
 
 export function sizeReady(

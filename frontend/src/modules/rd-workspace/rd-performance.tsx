@@ -22,7 +22,7 @@ export function RdPerformance(): ReactElement {
   const { projects } = useWorkbenchStore();
   const [month, setMonth] = useState(today().slice(0, 7));
   const [mode, setMode] = useState('quarter');
-  const [product, setProduct] = useState('전체');
+  const [product, setProduct] = useState('All');
   const { records, save, error, saving } = useRdRecords(
     'coverland-rd-targets-v1',
     targetsSchema,
@@ -32,7 +32,7 @@ export function RdPerformance(): ReactElement {
   const period = reportPeriod(month, mode);
   const report = summarizePerformance(
     projects.filter(
-      (project) => product === '전체' || project.product === product,
+      (project) => product === 'All' || project.product === product,
     ),
     period.start,
     period.end,
@@ -43,9 +43,9 @@ export function RdPerformance(): ReactElement {
     <div className="rd-workspace">
       <div className="rd-panel">
         <div className="rd-toolbar">
-          <h2>R&D 성과</h2>
+          <h2>R&D Performance</h2>
           <label>
-            기준 월
+            Reference month
             <input
               type="month"
               min="1900-01"
@@ -63,27 +63,27 @@ export function RdPerformance(): ReactElement {
             />
           </label>
           <label>
-            집계 단위
+            Period
             <select
               value={mode}
               onChange={(event) => {
                 setMode(event.target.value);
               }}
             >
-              <option value="month">월</option>
-              <option value="quarter">분기</option>
-              <option value="year">연도</option>
+              <option value="month">Month</option>
+              <option value="quarter">Quarter</option>
+              <option value="year">Year</option>
             </select>
           </label>
           <label>
-            제품
+            Product
             <select
               value={product}
               onChange={(event) => {
                 setProduct(event.target.value);
               }}
             >
-              <option>전체</option>
+              <option>All</option>
               <option>Seat Cover</option>
               <option>Floor Mat</option>
               <option>Car Cover</option>
@@ -91,51 +91,55 @@ export function RdPerformance(): ReactElement {
           </label>
         </div>
         <p>
-          {period.start} 이상 ~ {period.end} 미만 · 프로젝트 수는 Configuration
-          × Zone 기준 · 현재 브라우저 기록
+          {period.start} inclusive to {period.end} exclusive · Project count =
+          Configuration × Zone · Browser-local records
         </p>
         <div className="rd-fields">
           <div className="rd-panel">
-            <small>개발 소요기간 중앙값</small>
+            <small>Median development duration</small>
             <h1>
               {report.cycleMedian === undefined
                 ? '—'
-                : report.cycleMedian.toFixed(1) + '일'}
+                : report.cycleMedian.toFixed(1) + 'Day'}
             </h1>
             <p>
-              단계 시작 이력 → 생산 인계 완료 · 유효 기록 {report.cycleSamples}
-              건{targets && ` / 목표 ${String(targets.cycle)}일`}
+              Stage start history → Production handoff complete · Valid records{' '}
+              {report.cycleSamples}
+              items{targets && ` / Target ${String(targets.cycle)} days`}
             </p>
             {targets && report.cycleMedian !== undefined && (
               <p>
-                목표 대비 {(report.cycleMedian - targets.cycle).toFixed(1)}일{' '}
-                {report.cycleMedian <= targets.cycle ? '· 목표 이내' : '· 초과'}
+                Against target {(report.cycleMedian - targets.cycle).toFixed(1)}{' '}
+                days{' '}
+                {report.cycleMedian <= targets.cycle
+                  ? '· Within target'
+                  : '· Over target'}
               </p>
             )}
           </div>
           <div className="rd-panel">
-            <small>생산 인계 완료</small>
-            <h1>{report.completed}건</h1>
+            <small>Production handoffs completed</small>
+            <h1>{report.completed} items</h1>
             <p>
               {targets
-                ? `목표 ${String(targets.completions)}건 · 달성률 ${String(Math.round((report.completed / targets.completions) * 100))}%`
-                : '비교 목표를 설정하세요.'}
+                ? `Target ${String(targets.completions)} items · Achievement rate ${String(Math.round((report.completed / targets.completions) * 100))}%`
+                : 'Set a comparison target.'}
             </p>
           </div>
           <div className="rd-panel">
-            <small>판매 대비 컴플레인율</small>
-            <h2>CS · 판매 데이터 미연결</h2>
-            <p>모수 없이 비율을 추정하지 않습니다.</p>
+            <small>Complaints as a share of sales</small>
+            <h2>CS / Sales data not connected</h2>
+            <p>Rates are not estimated without a denominator.</p>
           </div>
           <div className="rd-panel">
-            <small>출시 후 90일 판매량</small>
-            <h2>판매 채널 미연결</h2>
-            <p>출시일과 주문 데이터 연결 후 집계합니다.</p>
+            <small>Sales in first 90 days after launch</small>
+            <h2>Sales channels not connected</h2>
+            <p>Calculated after launch dates and order data are connected.</p>
           </div>
         </div>
         <details>
           <summary className="cursor-pointer text-sm">
-            이 기간·제품의 비교 목표 설정
+            Comparison targets for this period / product
           </summary>
           <form
             key={key + JSON.stringify(targets)}
@@ -149,12 +153,12 @@ export function RdPerformance(): ReactElement {
                 ...current,
                 [key]: { cycle, completions },
               })).then((ok) => {
-                if (ok) setMessage('비교 목표를 저장했습니다.');
+                if (ok) setMessage('Comparison targets saved.');
               });
             }}
           >
             <label>
-              소요기간 목표 (일)
+              Duration target (days)
               <input
                 type="number"
                 name="cycle"
@@ -165,7 +169,7 @@ export function RdPerformance(): ReactElement {
               />
             </label>
             <label>
-              완료 목표 (건)
+              Completion target (count)
               <input
                 type="number"
                 name="completions"
@@ -176,11 +180,12 @@ export function RdPerformance(): ReactElement {
               />
             </label>
             <Button type="submit" disabled={saving}>
-              목표 저장
+              Save targets
             </Button>
           </form>
           <p>
-            로컬 비교용 목표이며 전사 정책이나 개인 권한을 변경하지 않습니다.
+            Local comparison targets only. Company policies and individual
+            permissions are unchanged.
           </p>
         </details>
         {error && (
@@ -191,18 +196,18 @@ export function RdPerformance(): ReactElement {
         <p role="status">{message}</p>
       </div>
       <div className="rd-panel">
-        <h2>단계별 소요기간 · 완료된 단계 기준</h2>
+        <h2>Duration by stage · Completed stages only</h2>
         <p>
-          각 단계의 실제 완료일이 선택 기간에 포함된 기록만 사용합니다. 진행 중
-          단계와 누락된 이력은 제외합니다.
+          Includes only stages actually completed in the selected period.
+          In-progress stages and missing history are excluded.
         </p>
         <div className="rd-table">
           <table>
             <thead>
               <tr>
-                <th>단계</th>
-                <th>중앙값 (일)</th>
-                <th>완료 기록</th>
+                <th>Stage</th>
+                <th>Median (days)</th>
+                <th>Completed records</th>
               </tr>
             </thead>
             <tbody>
@@ -210,18 +215,18 @@ export function RdPerformance(): ReactElement {
                 <tr key={stage.stage}>
                   <td>{stage.stage}</td>
                   <td>{stage.days?.toFixed(1)}</td>
-                  <td>{stage.count}건</td>
+                  <td>{stage.count} items</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         {!report.stages.length && (
-          <p className="rd-empty">이 기간에 완료된 단계 이력이 없습니다.</p>
+          <p className="rd-empty">No stages completed in this period.</p>
         )}
       </div>
       <div className="rd-panel">
-        <h2>집계에 포함된 생산 인계</h2>
+        <h2>Production handoffs included</h2>
         {report.completedProjects.map(({ project, zone }) => (
           <div className="rd-toolbar" key={zone.id}>
             <Link
@@ -236,8 +241,8 @@ export function RdPerformance(): ReactElement {
         ))}
         {!report.completed && (
           <p>
-            완료 기록이 없습니다. 기존 데이터에 날짜가 없으면 임의로 채우지
-            않습니다.
+            No completed records. Missing dates in legacy data are not
+            fabricated.
           </p>
         )}
       </div>

@@ -14,7 +14,7 @@ export function reportPeriod(
     year < 1900 ||
     year > 9998
   )
-    throw new Error('유효한 기준 월이 필요합니다.');
+    throw new Error('A valid reference month is required.');
   const startMonth =
     mode === 'year'
       ? 0

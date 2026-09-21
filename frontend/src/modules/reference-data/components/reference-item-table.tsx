@@ -24,7 +24,7 @@ function productName(productTypeId: string): string {
 
 interface ReferenceItemTableProps {
   items: readonly ProductReferenceItem[];
-  /** "색상" or "재질" — used in the empty state and action labels. */
+  /** "Color" or "Material" — used in the empty state and action labels. */
   entityLabel: string;
   /** Resets to the first page when the surrounding filters change. */
   filterKey: string;
@@ -54,8 +54,8 @@ export function ReferenceItemTable({
     },
     {
       id: 'name',
-      header: <>{entityLabel} 이름</>,
-      label: `${entityLabel} 이름`,
+      header: <>{entityLabel} Name</>,
+      label: `${entityLabel} Name`,
       width: 180,
       sortValue: (item) => item.name,
       cell: (item) => (
@@ -74,7 +74,7 @@ export function ReferenceItemTable({
     },
     {
       id: 'updated',
-      header: '최근 수정',
+      header: 'Last updated',
       width: 180,
       sortValue: (item) => item.updatedAt,
       cell: (item) => (
@@ -85,7 +85,7 @@ export function ReferenceItemTable({
     },
     {
       id: 'actions',
-      header: '작업',
+      header: 'Actions',
       width: 180,
       hideable: false,
       cell: (item) => (
@@ -94,7 +94,7 @@ export function ReferenceItemTable({
             size="sm"
             variant="outline"
             mode="icon"
-            aria-label={`${item.name} 수정`}
+            aria-label={`${item.name} Edit`}
             onClick={() => {
               onEdit(item);
             }}
@@ -105,7 +105,7 @@ export function ReferenceItemTable({
             size="sm"
             variant="outline"
             mode="icon"
-            aria-label={`${item.name} 삭제`}
+            aria-label={`${item.name} Delete`}
             onClick={() => {
               onDelete(item);
             }}
@@ -139,8 +139,8 @@ export function ReferenceItemTable({
     return (
       <div className="empty-state">
         <div className="empty-icon">🔍</div>
-        <strong>조건에 맞는 {entityLabel}이 없습니다.</strong>
-        <p>검색어나 Product Type 필터를 바꿔 보세요.</p>
+        <strong>No matching {entityLabel} items found.</strong>
+        <p>Try changing the search term or product type filter.</p>
       </div>
     );
   }
@@ -149,7 +149,7 @@ export function ReferenceItemTable({
     <>
       <FlatDataGrid
         embedded
-        label="기준정보"
+        label="Reference Data"
         columns={columns}
         rows={pageItems}
         getRowId={(item) => item.id}

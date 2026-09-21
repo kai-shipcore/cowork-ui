@@ -17,7 +17,7 @@ await test('reference grid retains accessible edit/delete actions and column con
           updatedAt: '2026-09-18T12:00:00Z',
         },
       ],
-      entityLabel: '색상',
+      entityLabel: 'Color',
       filterKey: '',
       onEdit: () => {
         /* Static rendering must not invoke user actions. */
@@ -30,15 +30,15 @@ await test('reference grid retains accessible edit/delete actions and column con
   assert.match(html, /Columns/);
   assert.match(html, /BLK/);
   assert.match(html, /2026-09-18/);
-  assert.match(html, /aria-label="Black 수정"/);
-  assert.match(html, /aria-label="Black 삭제"/);
+  assert.match(html, /aria-label="Black Edit"/);
+  assert.match(html, /aria-label="Black Delete"/);
 });
 
 await test('empty reference results preserve the filter guidance', () => {
   const html = renderToStaticMarkup(
     createElement(ReferenceItemTable, {
       items: [],
-      entityLabel: '재질',
+      entityLabel: 'Material',
       filterKey: '',
       onEdit: () => {
         /* Static rendering must not invoke user actions. */
@@ -48,6 +48,6 @@ await test('empty reference results preserve the filter guidance', () => {
       },
     }),
   );
-  assert.match(html, /조건에 맞는 재질이 없습니다/);
-  assert.match(html, /Product Type/);
+  assert.match(html, /No matching Material items found/);
+  assert.match(html, /product type filter/);
 });

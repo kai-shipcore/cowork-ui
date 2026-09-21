@@ -43,7 +43,7 @@ export function FitmentQualityPanel({
     );
   const save = () => {
     if (!note.trim()) {
-      setMessage('관찰 근거를 입력하세요.');
+      setMessage('Enter observation evidence.');
       return;
     }
     if (
@@ -51,7 +51,7 @@ export function FitmentQualityPanel({
       (!latestFittingPassed(zone.id, visits) || (!target && !allPartsPassed))
     ) {
       setMessage(
-        '최신 피팅 PASS와 각 부품의 최신 품질 PASS를 먼저 기록하세요.',
+        "Record the latest fitting PASS and each part's latest quality PASS first.",
       );
       return;
     }
@@ -74,33 +74,36 @@ export function FitmentQualityPanel({
       ],
     }));
     setNote('');
-    setMessage('새 관찰 이력을 저장했습니다. 이전 기록은 보존됩니다.');
+    setMessage('New observation saved. Previous records are preserved.');
   };
   return (
     <section className="shape-section">
-      <h3>피팅 품질 관찰 · 부품 / 전체 제품</h3>
-      <p>방문 PASS와 별도로 부품을 확인한 후 전체 제품의 품질을 확정합니다.</p>
+      <h3>Fitting quality observations · Parts / Overall product</h3>
+      <p>
+        Inspect individual parts separately from the visit PASS before
+        confirming overall product quality.
+      </p>
       <label>
-        관찰 대상{' '}
+        Observation target{' '}
         <select
           value={target}
           onChange={(e) => {
             setTarget(e.target.value);
           }}
         >
-          <option value="">전체 제품</option>
+          <option value="">Overall product</option>
           {parts.map((part) => (
             <option key={part.id} value={part.id}>
               {part.name} ·{' '}
               {latest(part.id)?.evidenceKey === evidenceKey
                 ? latest(part.id)?.quality
-                : '확인 필요'}
+                : 'Needs verification'}
             </option>
           ))}
         </select>
       </label>
       <label>
-        품질{' '}
+        Quality{' '}
         <select
           value={quality}
           onChange={(e) => {
@@ -112,7 +115,7 @@ export function FitmentQualityPanel({
         </select>
       </label>
       <label>
-        관찰 근거{' '}
+        Observation evidence{' '}
         <input
           value={note}
           onChange={(e) => {
@@ -120,19 +123,20 @@ export function FitmentQualityPanel({
           }}
         />
       </label>
-      <Button onClick={save}>관찰 기록</Button>
+      <Button onClick={save}>Record observation</Button>
       <p>
-        전체 제품:{' '}
+        Overall product:{' '}
         {latest()?.evidenceKey === evidenceKey
           ? latest()?.quality
-          : '확인 필요'}
+          : 'Needs verification'}
       </p>
       <details>
-        <summary>품질 이력 {records.length}건</summary>
+        <summary>Quality history {records.length} items</summary>
         {records.map((item) => (
           <p key={item.id}>
-            {item.createdAt} · {item.vehicleProductDesignId ?? '전체 제품'} ·{' '}
-            {item.quality} · {item.note}
+            {item.createdAt} ·{' '}
+            {item.vehicleProductDesignId ?? 'Overall product'} · {item.quality}{' '}
+            · {item.note}
           </p>
         ))}
       </details>

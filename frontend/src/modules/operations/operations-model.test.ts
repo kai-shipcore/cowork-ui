@@ -14,14 +14,14 @@ import { createOperationsSeed } from './operations-seed';
 const at = '2026-09-19T00:00:00.000Z';
 const draft: RequestDraft = {
   title: '핏 불만 조사',
-  description: '반복 불만 조사 후 결과 회신',
+  description: '반복 불만 조사 후 결과 times신',
   sourceTeam: 'customer-services',
   targetTeam: 'rd',
   assigneeId: 'rd-member',
   reviewerId: 'USR-KAI',
   priority: 'high',
   dueDate: '2026-09-21',
-  category: '품질 조사',
+  category: 'Quality investigation',
   reference: 'CS-001',
   referencePath: '',
 };
@@ -50,7 +50,7 @@ await test('only assignee can accept; callers cannot skip to completion', () => 
   assert.throws(() =>
     applyRequestAction(
       original,
-      { kind: 'status', status: 'active', note: '접수' },
+      { kind: 'status', status: 'active', note: 'Submit' },
       'cs-member',
       0,
       at,
@@ -60,7 +60,7 @@ await test('only assignee can accept; callers cannot skip to completion', () => 
   assert.throws(() =>
     applyRequestAction(
       original,
-      { kind: 'status', status: 'done', note: '완료' },
+      { kind: 'status', status: 'done', note: 'Completed' },
       'USR-KAI',
       0,
       at,
@@ -69,7 +69,7 @@ await test('only assignee can accept; callers cannot skip to completion', () => 
   );
   const updated = applyRequestAction(
     original,
-    { kind: 'status', status: 'active', note: '접수' },
+    { kind: 'status', status: 'active', note: 'Submit' },
     'rd-member',
     0,
     at,
@@ -83,7 +83,7 @@ await test('only assignee can accept; callers cannot skip to completion', () => 
 await test('review requires evidence and completion is restricted to nominated reviewer', () => {
   let current = applyRequestAction(
     request(),
-    { kind: 'status', status: 'active', note: '조사 시작' },
+    { kind: 'status', status: 'active', note: '조사 Start' },
     'rd-member',
     0,
     at,
@@ -92,7 +92,7 @@ await test('review requires evidence and completion is restricted to nominated r
   assert.throws(() =>
     applyRequestAction(
       current,
-      { kind: 'status', status: 'review', note: '검토 요청' },
+      { kind: 'status', status: 'review', note: 'Review Requests' },
       'rd-member',
       1,
       at,
@@ -109,7 +109,7 @@ await test('review requires evidence and completion is restricted to nominated r
   );
   current = applyRequestAction(
     current,
-    { kind: 'status', status: 'review', note: '증빙 확인 요청' },
+    { kind: 'status', status: 'review', note: '증빙 Confirm Requests' },
     'rd-member',
     2,
     at,
@@ -118,7 +118,7 @@ await test('review requires evidence and completion is restricted to nominated r
   assert.throws(() =>
     applyRequestAction(
       current,
-      { kind: 'status', status: 'done', note: '내가 승인' },
+      { kind: 'status', status: 'done', note: '내가 Approve' },
       'rd-member',
       3,
       at,
@@ -137,7 +137,7 @@ await test('review requires evidence and completion is restricted to nominated r
   );
   const done = applyRequestAction(
     current,
-    { kind: 'status', status: 'done', note: '개선 결과 확인' },
+    { kind: 'status', status: 'done', note: 'items선 결과 Confirm' },
     'USR-KAI',
     3,
     at,
@@ -162,7 +162,7 @@ await test('rejecting requires a reason, preserves evidence, and allows resubmis
   );
   const rejected = applyRequestAction(
     current,
-    { kind: 'status', status: 'rejected', note: '차량 정보 보완 필요' },
+    { kind: 'status', status: 'rejected', note: 'Round량 정보 보완 필요' },
     'USR-KAI',
     0,
     at,
@@ -172,7 +172,7 @@ await test('rejecting requires a reason, preserves evidence, and allows resubmis
   assert.throws(() =>
     applyRequestAction(
       rejected,
-      { kind: 'status', status: 'review', note: '즉시 요청' },
+      { kind: 'status', status: 'review', note: '즉시 Requests' },
       'rd-member',
       1,
       at,
@@ -182,7 +182,7 @@ await test('rejecting requires a reason, preserves evidence, and allows resubmis
   assert.equal(
     applyRequestAction(
       rejected,
-      { kind: 'status', status: 'active', note: '보완 시작' },
+      { kind: 'status', status: 'active', note: '보완 Start' },
       'rd-member',
       1,
       at,
@@ -242,7 +242,7 @@ await test('unsafe document URLs, unknown mentions and corrupt backups are rejec
   assert.throws(() =>
     applyRequestAction(
       request(),
-      { kind: 'comment', note: '확인 요청', mentions: ['unknown-user'] },
+      { kind: 'comment', note: 'Confirm Requests', mentions: ['unknown-user'] },
       'cs-member',
       0,
       at,

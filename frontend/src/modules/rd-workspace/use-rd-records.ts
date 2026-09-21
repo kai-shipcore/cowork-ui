@@ -30,7 +30,7 @@ export function useRdRecords<T>(
         setError('');
       } catch {
         setError(
-          '저장된 데이터를 읽지 못했습니다. 기존 기록을 덮어쓰지 않았습니다.',
+          'Unable to read saved data. Existing records have not been overwritten.',
         );
       }
     }
@@ -46,7 +46,9 @@ export function useRdRecords<T>(
     setSaving(true);
     try {
       if (!('locks' in navigator))
-        throw new Error('동시 저장 보호를 지원하는 브라우저가 필요합니다.');
+        throw new Error(
+          'A browser supporting concurrent-write protection is required.',
+        );
       await navigator.locks.request(key, () => {
         writeRdRecords(window.localStorage, { key, schema, defaults, update });
         window.dispatchEvent(new Event(key));
@@ -55,7 +57,7 @@ export function useRdRecords<T>(
       return true;
     } catch {
       setError(
-        '저장하지 못했습니다. 입력값 또는 브라우저 저장 공간을 확인하세요. 기존 기록은 유지됩니다.',
+        'Save failed. Check your input or browser storage. Existing records are preserved.',
       );
       return false;
     } finally {

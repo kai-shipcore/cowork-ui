@@ -6,13 +6,13 @@ import { StatusBadge } from '@/shared/components/status-badge';
 import type { SampleRequestItem, StatusTone } from '@/shared/types/workbench';
 
 const labels: Record<SampleStatus, [string, StatusTone]> = {
-  REQUESTED: ['입고 전', 'neutral'],
-  IN_PRODUCTION: ['생산 중', 'progress'],
-  SHIPPED: ['입고 전 · 배송 중', 'progress'],
-  RECEIVED: ['검수 대기', 'warning'],
-  PASSED: ['검수 통과', 'success'],
-  FACTORY_ISSUE: ['공장 문제', 'danger'],
-  DESIGN_ISSUE: ['수정 반영 문제', 'danger'],
+  REQUESTED: ['Not received', 'neutral'],
+  IN_PRODUCTION: ['In production', 'progress'],
+  SHIPPED: ['Not received · In transit', 'progress'],
+  RECEIVED: ['Awaiting inspection', 'warning'],
+  PASSED: ['Inspection passed', 'success'],
+  FACTORY_ISSUE: ['Factory issue', 'danger'],
+  DESIGN_ISSUE: ['Change implementation issue', 'danger'],
 };
 
 export function InspectionResult({
@@ -28,7 +28,7 @@ export function InspectionResult({
       <StatusBadge label={label} tone={tone} />
       {!compact && item.inspectedAt && (
         <div className="text-xs text-muted-foreground">
-          {new Date(item.inspectedAt).toLocaleString('ko-KR')}
+          {new Date(item.inspectedAt).toLocaleString('en-US')}
         </div>
       )}
       {!compact && item.inspectionNote && (
@@ -59,10 +59,10 @@ export function InspectionSummary({
   const waiting = statuses.filter((status) => status === 'RECEIVED').length;
   const unreceived = items.length - passed - issues - waiting;
   const counts = [
-    passed > 0 && `통과 ${passed}`,
-    issues > 0 && `문제 ${issues}`,
-    waiting > 0 && `검수 대기 ${waiting}`,
-    unreceived > 0 && `입고 전 ${unreceived}`,
+    passed > 0 && `Passed ${passed}`,
+    issues > 0 && `Issue ${issues}`,
+    waiting > 0 && `Awaiting inspection ${waiting}`,
+    unreceived > 0 && `Not received ${unreceived}`,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -71,13 +71,13 @@ export function InspectionSummary({
       type="button"
       onClick={onOpen}
       className="space-y-1 whitespace-nowrap text-left underline-offset-4 hover:underline"
-      aria-label={`검수 상세 열기: ${counts || '요청 항목 없음'}`}
+      aria-label={`Open inspection details: ${counts || 'No request items'}`}
     >
       <StatusBadge
         label={
           items.length
-            ? `검수 ${passed + issues}/${items.length} · ${issues ? '문제 있음' : passed === items.length ? '전체 통과' : '진행 중'}`
-            : '요청 항목 없음'
+            ? `Inspection ${passed + issues}/${items.length} · ${issues ? 'Issues found' : passed === items.length ? 'All passed' : 'In progress'}`
+            : 'No request items'
         }
         tone={
           issues

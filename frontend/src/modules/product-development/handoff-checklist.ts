@@ -1,12 +1,12 @@
 import type { HandoffChecklist } from '@/shared/types/workbench';
 
 export const HANDOFF_DOCUMENTS = [
-  ['parts', '최종 부품 목록'],
-  ['blueprint', 'Blueprint · 치수·Self 표시 제거'],
-  ['fitting', '피팅 사진·영상'],
-  ['product', '제품 사진'],
-  ['manual', '매뉴얼'],
-  ['design', '디자인 자료'],
+  ['parts', 'Final parts list'],
+  ['blueprint', 'Blueprint · Dimensions and Self marks removed'],
+  ['fitting', 'Fitting photos/videos'],
+  ['product', 'Product photos'],
+  ['manual', 'Manual'],
+  ['design', 'Design files'],
 ] as const;
 
 export function emptyHandoffChecklist(): HandoffChecklist {
@@ -23,12 +23,13 @@ export function handoffChecklistErrors(value: HandoffChecklist): string[] {
   const errors = HANDOFF_DOCUMENTS.filter(
     ([id]) =>
       !value.documents[id]?.confirmed || !value.documents[id]?.reference.trim(),
-  ).map(([, label]) => `${label}: 자료 위치 입력과 확인이 필요합니다.`);
-  if (!value.vehicleConfirmed) errors.push('적용 차량·옵션·Zone을 확인하세요.');
+  ).map(([, label]) => `${label}: Enter and verify the document location.`);
+  if (!value.vehicleConfirmed)
+    errors.push('Confirm the vehicle, options, and zone.');
   if (!value.projectNumberConfirmed)
-    errors.push('인계 대상 프로젝트 번호를 확인하세요.');
+    errors.push('Confirm the handoff project number.');
   if (!value.approvalConfirmed || !value.approvedBy.trim())
-    errors.push('Handoff 승인 담당자와 승인 여부를 확인하세요.');
+    errors.push('Confirm the handoff approver and approval.');
   return errors;
 }
 

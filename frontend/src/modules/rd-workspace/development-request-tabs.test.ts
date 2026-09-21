@@ -13,24 +13,24 @@ const REQUEST: DevelopmentIntake = {
   vehicle: '2026 Toyota Camry',
   configurationId: '',
   product: 'Seat Cover',
-  source: '컴플레인',
+  source: 'Complaint',
   sourceReference: 'C-1',
   notifyCount: 0,
   complaintCount: 1,
   b2bUnits: 0,
   releaseDate: '',
-  evidence: '피팅 수정 필요',
+  evidence: 'Fitting changes needed',
   priority: 'NORMAL',
-  status: '검토 대기',
+  status: 'Awaiting review',
   reviews: [],
   createdAt: '',
 };
 
 for (const [query, label] of [
-  ['', '개발 요청 등록'],
-  ['?view=requests&q=Camry&status=전체', '개발 요청 등록'],
-  ['?view=complaints', '컴플레인 가져오기'],
-  ['?view=unknown', '개발 요청 등록'],
+  ['', 'Development Requests'],
+  ['?view=requests&q=Camry&status=All', 'Development Requests'],
+  ['?view=complaints', 'Import Complaints'],
+  ['?view=unknown', 'Development Requests'],
 ] as const) {
   await test(`request tabs select ${label} for ${query} and retain draft panels`, () => {
     const html = renderToStaticMarkup(
@@ -39,10 +39,10 @@ for (const [query, label] of [
         { initialEntries: ['/development-requests' + query] },
         createElement(DevelopmentRequestTabs, {
           requests: createElement('input', {
-            'aria-label': '등록 초안',
+            'aria-label': 'Registration draft',
             defaultValue: 'Camry',
           }),
-          complaints: createElement('div', null, '컴플레인 그리드'),
+          complaints: createElement('div', null, 'Complaint grid'),
         }),
       ),
     );
@@ -51,12 +51,15 @@ for (const [query, label] of [
         html,
       )?.[0];
     assert.ok(activeTab?.includes(label));
-    assert.match(html, /role="tablist"[^>]*aria-label="개발 요청 보기"/);
+    assert.match(
+      html,
+      /role="tablist"[^>]*aria-label="Development request view"/,
+    );
     assert.equal((html.match(/role="tab"/g) ?? []).length, 2);
     assert.equal((html.match(/role="tabpanel"/g) ?? []).length, 2);
     assert.equal((html.match(/data-slot="card"/g) ?? []).length, 1);
-    assert.match(html, /aria-label="등록 초안" value="Camry"/);
-    assert.match(html, /컴플레인 그리드/);
+    assert.match(html, /aria-label="Registration draft" value="Camry"/);
+    assert.match(html, /Complaint grid/);
     assert.match(
       html,
       /data-state="inactive"[^>]*data-\[state=inactive\]:hidden/,
@@ -77,10 +80,10 @@ await test('complaint grid previews pending and imported rows without triggering
     }),
   );
   assert.equal(calls, 0);
-  assert.match(html, /미등록 1건 가져오기/);
-  assert.match(html, /가져오기 완료/);
-  assert.match(html, /가져오기 대기/);
-  assert.match(html, /피팅 수정 필요/);
+  assert.match(html, /Import 1 new item/);
+  assert.match(html, /Imported/);
+  assert.match(html, /Pending import/);
+  assert.match(html, /Fitting changes needed/);
 });
 
 for (const [rows, records, saving] of [
@@ -101,10 +104,10 @@ for (const [rows, records, saving] of [
     );
     assert.match(
       html,
-      /<button[^>]*disabled=""[^>]*>[\s\S]*?(?:가져오기|가져오는 중)/,
+      /<button[^>]*disabled=""[^>]*>[\s\S]*?(?:Import|Importing)/,
     );
     if (!rows.length)
-      assert.match(html, /가져올 수 있는 미종결 컴플레인이 없습니다/);
+      assert.match(html, /No eligible open complaints to import/);
   });
 }
 
@@ -114,11 +117,11 @@ await test('request grid retains demand evidence, review, filters and empty stat
     projects: [],
     configurations: [],
     query: 'Camry',
-    status: '전체',
+    status: 'All',
     onFilter: () => {
       assert.fail('render must not change filters');
     },
-    actions: createElement('button', null, '새 개발 요청'),
+    actions: createElement('button', null, 'New development request'),
   };
   const html = renderToStaticMarkup(
     createElement(
@@ -128,10 +131,10 @@ await test('request grid retains demand evidence, review, filters and empty stat
     ),
   );
   assert.match(html, /2026 Toyota Camry/);
-  assert.match(html, /Notify 0 \/ 불만 1 \/ B2B 0/);
-  assert.match(html, /근거 · 검토/);
-  assert.match(html, /aria-label="개발 요청 검색"/);
-  assert.match(html, /새 개발 요청/);
+  assert.match(html, /Notify 0 \/ Complaints 1 \/ B2B 0/);
+  assert.match(html, /Evidence \/ Review/);
+  assert.match(html, /aria-label="Search development requests"/);
+  assert.match(html, /New development request/);
   const empty = renderToStaticMarkup(
     createElement(
       MemoryRouter,
@@ -139,5 +142,5 @@ await test('request grid retains demand evidence, review, filters and empty stat
       createElement(DevelopmentRequestGrid, { ...props, rows: [] }),
     ),
   );
-  assert.match(empty, /조건에 맞는 요청이 없습니다/);
+  assert.match(empty, /No matching requests/);
 });

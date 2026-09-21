@@ -64,7 +64,7 @@ export function ComplaintDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>컴플레인 접수</DialogTitle>
+          <DialogTitle>Log complaint</DialogTitle>
         </DialogHeader>
         <DialogBody className="dialog-form-grid">
           <div className="dialog-vehicle-summary full-width">
@@ -74,18 +74,18 @@ export function ComplaintDialog({
             <strong>{vehicle.vehicle}</strong>
           </div>
           <label className="full-width">
-            문제 내용
+            Issue details
             <Textarea
               value={issue}
-              placeholder="고객이 보고한 증상과 확인된 부위를 적어 주세요."
+              placeholder="Describe the customer-reported symptoms and affected areas."
               onChange={(event) => setIssue(event.target.value)}
             />
           </label>
           <label>
-            대상 Design
+            Target design
             {designOptions.length ? (
               <Select value={design} onValueChange={setDesign}>
-                <SelectTrigger aria-label="대상 Design">
+                <SelectTrigger aria-label="Target design">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -108,7 +108,7 @@ export function ComplaintDialog({
             />
           </label>
           <label>
-            담당자
+            Assignee
             <Input
               value={owner}
               onChange={(event) => setOwner(event.target.value)}
@@ -117,7 +117,7 @@ export function ComplaintDialog({
         </DialogBody>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            취소
+            Cancelled
           </Button>
           <Button
             variant="primary"
@@ -131,7 +131,7 @@ export function ComplaintDialog({
               })
             }
           >
-            접수
+            Submit
           </Button>
         </DialogFooter>
       </DialogContent>

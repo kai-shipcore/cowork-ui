@@ -29,12 +29,14 @@ export function periodErrors(
   now = Date.now(),
 ): string[] {
   const instant = businessDateInstant(date);
-  if (!instant) return ['유효한 적용 시작일을 입력하세요.'];
+  if (!instant) return ['Enter a valid effective start date.'];
   if (Date.parse(instant) > now)
-    return ['미래 예약은 지원하지 않습니다. 오늘 또는 이전 날짜를 선택하세요.'];
+    return [
+      'Future effective dates are not supported. Choose today or an earlier date.',
+    ];
   if (currentStart && Date.parse(instant) < Date.parse(currentStart))
     return [
-      '새 적용일은 현재 버전의 시작 시각보다 빠를 수 없습니다. 같은 날 변경은 다음 날짜에 기록하세요.',
+      'The new effective date cannot precede the current version. Record same-day changes on the next date.',
     ];
   return [];
 }
@@ -46,11 +48,11 @@ export function skuVersionErrors(
   currentStart?: string,
 ): string[] {
   return [
-    ...(!sku.trim() ? ['SKU를 입력하세요.'] : []),
+    ...(!sku.trim() ? ['Enter a SKU.'] : []),
     ...(history.some(
       (row) => row.sku.trim().toLowerCase() === sku.trim().toLowerCase(),
     )
-      ? ['현재 또는 과거 이력에 사용된 SKU입니다. 재사용할 수 없습니다.']
+      ? ['This SKU is in use or appears in history. It cannot be reused.']
       : []),
     ...periodErrors(date, currentStart),
   ];
@@ -68,7 +70,7 @@ export function packagingVersionErrors(
     ...(!Object.values(values).every(
       (value) => Number.isFinite(value) && value > 0,
     )
-      ? ['길이·폭·높이·무게는 0보다 큰 숫자여야 합니다.']
+      ? ['Length, width, height, and weight must be positive numbers.']
       : []),
     ...periodErrors(date, currentStart),
   ];

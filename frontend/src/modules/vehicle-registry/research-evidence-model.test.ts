@@ -22,7 +22,7 @@ const evidence: ResearchEvidenceRecord = {
   sources: ['https://example.com/listing'],
   photo: '',
   photoName: '',
-  decision: '별도 구성 유지',
+  decision: 'Keep separate configuration',
   mergeTargetId: '',
   reason: 'Separate belt geometry',
   actor: 'Demo',
@@ -63,7 +63,7 @@ await test('merge suggestions require a different configuration of the same vehi
   ];
   const proposal = {
     ...evidence,
-    decision: '병합 제안' as const,
+    decision: 'Propose merge' as const,
     mergeTargetId: 'c2',
   };
   assert.equal(
@@ -75,4 +75,26 @@ await test('merge suggestions require a different configuration of the same vehi
       validateResearchEvidence({ ...proposal, mergeTargetId }, configurations),
     );
   assert.equal(configurations[0].researchStatus, 'COMPLETE');
+});
+
+await test('legacy research decisions normalize while original evidence stays unchanged', () => {
+  const reason = '조사자가 작성한 원문';
+  for (const [legacy, current] of [
+    ['검토 중', 'Under review'],
+    ['별도 구성 유지', 'Keep separate configuration'],
+    ['병합 제안', 'Propose merge'],
+  ]) {
+    const parsed = researchEvidenceSchema.parse({
+      ...evidence,
+      decision: legacy,
+      reason,
+      photoName: '조사사진.png',
+    });
+    assert.equal(parsed.decision, current);
+    assert.equal(parsed.reason, reason);
+    assert.equal(parsed.photoName, '조사사진.png');
+    assert.deepEqual(parsed.sources, evidence.sources);
+    if (parsed.decision === 'Propose merge')
+      assert.throws(() => validateResearchEvidence(parsed, [config]));
+  }
 });

@@ -67,7 +67,7 @@ export function ReworkComplaintsPage() {
   return (
     <section>
       <PageHeader
-        description="원칙: 새 행들의 연쇄 — 어떤 행의 수정도 아님 · 검증 피팅 → design 특정 → Revision N+1 → 재샘플 → 재피팅 → 종결"
+        description="Principle: Append new records, never overwrite history · Verification fitting → Identify design → Revision N+1 → Resample → Refit → Resolve"
         tables={
           import.meta.env.DEV
             ? [
@@ -80,15 +80,15 @@ export function ReworkComplaintsPage() {
         }
         actions={
           <>
-            <Button variant="outline">레거시 접합 — 소급 생성</Button>
+            <Button variant="outline">Legacy link — Backfilled</Button>
             <Button variant="primary" onClick={() => setDialogOpen(true)}>
-              <Plus /> 컴플레인 접수
+              <Plus /> Log complaint
             </Button>
           </>
         }
       />
       <div className="section-heading">
-        <h2>진행중</h2>
+        <h2>In progress</h2>
         <span>{openComplaints.length}</span>
       </div>
       <div className="complaint-list">
@@ -109,7 +109,7 @@ export function ReworkComplaintsPage() {
         ))}
       </div>
       <div className="section-heading secondary">
-        <h2>종결</h2>
+        <h2>Resolved</h2>
         <span>{resolvedComplaints.length}</span>
       </div>
       <div className="complaint-list">
@@ -121,25 +121,25 @@ export function ReworkComplaintsPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>컴플레인 접수</DialogTitle>
+            <DialogTitle>Log complaint</DialogTitle>
           </DialogHeader>
           <DialogBody className="dialog-form-grid">
             <label>
-              대상 F#
+              Target F#
               <Input
                 value={complaintFNumber}
                 onChange={(event) => setComplaintFNumber(event.target.value)}
               />
             </label>
             <label>
-              담당자
+              Assignee
               <Input
                 value={complaintOwner}
                 onChange={(event) => setComplaintOwner(event.target.value)}
               />
             </label>
             <label className="full-width">
-              문제 내용
+              Issue details
               <Textarea
                 value={complaintIssue}
                 onChange={(event) => setComplaintIssue(event.target.value)}
@@ -148,7 +148,7 @@ export function ReworkComplaintsPage() {
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              취소
+              Cancelled
             </Button>
             <Button
               variant="primary"
@@ -159,7 +159,7 @@ export function ReworkComplaintsPage() {
               }
               onClick={addMockComplaint}
             >
-              접수
+              Submit
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -182,17 +182,17 @@ function ComplaintCard({ complaint, onResolve }: ComplaintCardProps) {
             {complaint.id} · {complaint.vehicle}
           </CardTitle>
           <p className="vehicle-meta">
-            {complaint.fNumber} · {complaint.product} · 접수{' '}
+            {complaint.fNumber} · {complaint.product} · Reported{' '}
             {complaint.reported}
           </p>
         </div>
         <StatusBadge
           label={
             complaint.status === 'REWORK'
-              ? 'Rework 진행'
+              ? 'Rework in progress'
               : complaint.status === 'OPEN'
-                ? '접수됨'
-                : '해결 — 종결'
+                ? 'Received'
+                : 'Resolve and close'
           }
           tone={
             complaint.status === 'REWORK'
@@ -206,14 +206,14 @@ function ComplaintCard({ complaint, onResolve }: ComplaintCardProps) {
       <CardContent>
         <p className="complaint-issue">“{complaint.issue}”</p>
         <div className="rework-flow">
-          <span>1 검증 피팅</span>
-          <span>2 Design 특정</span>
+          <span>1 Verification fitting</span>
+          <span>2 Identify design</span>
           <span className={complaint.status === 'REWORK' ? 'active' : ''}>
             3 {complaint.revision}
           </span>
-          <span>4 재샘플</span>
-          <span>5 재피팅</span>
-          <span>6 종결</span>
+          <span>4 Resample</span>
+          <span>5 Refit</span>
+          <span>6 Resolve</span>
         </div>
         <div className="complaint-meta">
           <div>
@@ -231,7 +231,7 @@ function ComplaintCard({ complaint, onResolve }: ComplaintCardProps) {
           <div className="push-right">
             {onResolve && (
               <Button size="sm" variant="primary" onClick={onResolve}>
-                Resolve — 종결
+                Resolve and close
               </Button>
             )}
           </div>

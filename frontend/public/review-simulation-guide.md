@@ -1,130 +1,130 @@
-# Coverland Workbench 팀 리뷰용 업무 시뮬레이션
+# Coverland Workbench Team Workflow Simulation
 
-작성 기준: 2026-09-09 현재 리뷰 화면. 실제 업무 규칙과 화면 구현을 함께 확인하기 위한 진행 문서입니다.
+Reference: the review interface as of September 9, 2026. Use this guide to review business rules alongside the prototype. Some archived UI limitations may have changed; verify the current screen instead of assuming a sample state is valid.
 
-## 1. 리뷰 준비
+## 1. Prepare the review
 
-- 사이트: https://coverland-workbench.coverland-9381.chatgpt.site
-- 진행자 1명이 화면을 공유하고 조작합니다. 다른 참석자는 결과와 개선점을 기록합니다.
-- 현재 데이터는 브라우저의 로컬 저장소에 저장됩니다. 같은 URL을 열어도 다른 사람·다른 브라우저·localhost와 게시 사이트 사이에 변경이 자동 공유되지 않습니다.
-- 기존 업무 기록 대신 시험용 차량·프로젝트를 사용하세요. 시험 기록에는 `REVIEW-날짜-담당자`를 넣습니다. 전체 데이터 초기화는 하지 않습니다.
-- 먼저 프로젝트 ID, Zone, 제품 종류, 현재 단계, 현재 Revision을 기록하세요. 예시 ID PG-00118/124/125는 각 브라우저에서 상태가 다를 수 있으므로 고정 출발점으로 가정하지 않습니다.
-- 자료 링크는 리뷰용 접근 가능한 자료를 준비합니다. 인계 체크 확인은 실제 파일 내용 검증이나 공장 전송을 대신하지 않습니다.
-- 역할: 진행자(Coordinator), 패턴 검토자(Pattern Designer), 현장 검토자(Scan/Fitting), 승인 검토자(PM/Director), 결과 기록자. 한 사람이 여러 역할을 맡아도 됩니다.
+- Site: https://coverland-workbench.coverland-9381.chatgpt.site
+- One facilitator shares and operates the screen. Other participants record outcomes and improvements.
+- Data is stored in this browser. Changes do not automatically sync between people, browsers, localhost, or the published site.
+- Use test vehicles and projects, not existing business records. Label test records `REVIEW-date-owner`. Do not reset all data.
+- Record the project ID, zone, product, stage, and revision first. Example IDs PG-00118/124/125 may be in different states in different browsers.
+- Prepare accessible review-only documents. Checking a handoff item does not inspect file contents or send files to a factory.
+- Roles: Coordinator, Pattern Designer, Scan/Fitting reviewer, PM/Director approver, and note-taker. One participant may cover multiple roles.
 
-## 2. 먼저 맞출 용어와 완료 기준
+## 2. Align terminology and completion criteria
 
-| 용어 | 쉬운 설명 |
-| --- | --- |
-| Project / Zone | 개발 대상 차량·제품과 작업 구역. 같은 그룹의 앞좌석과 뒷좌석은 구분해서 확인합니다. |
-| Part | 제품을 구성하는 부품 또는 패턴 항목 |
-| Revision | 같은 부품 설계를 수정한 버전 |
-| Sample Request / Shipment | 샘플 제작 요청 / 실제 배송 기록 |
-| Visit | 실제 차량을 대상으로 하는 스캔 또는 피팅 방문 |
-| Shape | 최종 공식 Size Number와 같은 개념. 화면 용어는 Shape로 통일합니다. |
-| F# | 적용 차량 구성 식별 정보. Shape와 다릅니다. |
-| Blueprint | 전체 패턴 구성을 확인하는 도면 |
+| Term                      | Meaning                                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------------------- |
+| Project / Zone            | Vehicle/product development and its working area. Check front and rear zones separately. |
+| Part                      | A product component or pattern item.                                                     |
+| Revision                  | A revised version of the same design.                                                    |
+| Sample Request / Shipment | A manufacturing request / An actual shipment record.                                     |
+| Visit                     | An actual vehicle scan or fitting visit.                                                 |
+| Shape                     | The official Size Number; the interface uses Shape consistently.                         |
+| F#                        | A vehicle configuration identifier, separate from Shape.                                 |
+| Blueprint                 | A drawing showing the complete pattern composition.                                      |
 
-개발 흐름: 차량 조사 → 차량 확보 → 스캔 → 부품·패턴 → 샘플 → 피팅 → Handoff → **개발 완료**.
+Development flow: Research → Vehicle sourcing → Scan → Parts/pattern → Sample → Fitting → Handoff → Development complete.
 
-후속 흐름: 인계 완료 프로젝트 선택 → 검토·승인 → Shape 발급·연결 → Part 구성·Blueprint 등록.
+Follow-up flow: Select the project → Review and approve → Issue/link Shape → Register parts composition and blueprint.
 
-탭도 단계 완료 버튼이 아닙니다. Visits는 스캔과 피팅에서 두 번 사용하며, Revision Control은 수정이 필요할 때 반복해서 사용합니다.
+Tabs are not stage-completion actions. Visits is used for both scanning and fitting; Revision Control is revisited whenever changes are required. Confirm current gate requirements if guidance and validation disagree.
 
-## 3. 시나리오 A — 신규 개발 정상 진행
+## 3. Scenario A — Normal new development
 
-예상 30~45분. 목표는 Shape 없이도 Handoff로 개발을 완료할 수 있는지 확인하는 것입니다.
+Allow 30–45 minutes. Review whether the intended development-to-handoff flow is supported, including whether Shape issuance is a prerequisite in the current implementation.
 
-| 순서 | 화면 / 조작 | 확인할 결과 |
-| --- | --- | --- |
-| 1 | Vehicle Research에서 대상 차량·연식·옵션을 찾고 개발할 제품과 Zone을 확인합니다. | 같은 차종의 다른 옵션을 혼동하지 않습니다. |
-| 2 | Vehicle Projects에서 연결된 프로젝트를 엽니다. Overview의 현재 단계와 다음 작업을 확인합니다. | 프로젝트 ID와 Zone이 의도한 대상입니다. |
-| 3 | 차량 확보가 필요한 경우 Hunt Board에서 확보 정보를 확인합니다. | 확보와 스캔 완료가 구분됩니다. |
-| 4 | Visits → Schedule Visit에서 SCAN, 대상 프로젝트·차량, 장소, 일시, 담당자를 지정합니다. | UPCOMING에 SCAN 방문이 표시됩니다. |
-| 5 | 해당 방문의 실제 수행 정보를 기록하고 완료합니다. Overview에서 단계 진행 안내를 따릅니다. | 완료 방문이 PAST VISITS에 남고 스캔 이후 작업으로 이어집니다. |
-| 6 | Parts에서 대상 부품·패턴과 현재 Revision을 준비합니다. 필요하면 Part Management의 기존 부품을 먼저 확인합니다. | 비어 있는 부품 구성으로 다음 품질 게이트가 통과하지 않습니다. |
-| 7 | 프로젝트 Samples에서 Sample Request를 만들고 대상 부품·Revision·공장을 확인합니다. | 요청이 올바른 버전을 가리킵니다. |
-| 8 | 별도 Samples 메뉴에서 요청을 찾아 Send Request → Create Shipment → Mark Arrived를 순서대로 진행합니다. | 요청, 배송, 수령 상태가 각각 바뀝니다. |
-| 9 | 프로젝트로 돌아와 수령한 현재 Revision의 검증·승인 상태를 확인하고 필요한 승인 작업을 합니다. | 도착 처리만으로 품질 승인이 자동 완료되었다고 판단하지 않습니다. |
-| 10 | 현재 버전의 필수 조건을 만족한 뒤 Sample 단계 완료를 진행합니다. | 누락 조건이 있으면 안내가 나오고 통과하지 않습니다. |
-| 11 | Visits에서 FITTING을 예약하고 실제 결과를 기록합니다. 정상 시 PASS로 완료합니다. | 피팅 대상 차량·Zone과 결과가 기록됩니다. |
-| 12 | Handoff 완료 기록을 엽니다. 아래 체크리스트의 모든 자료와 확인 항목을 채웁니다. | 자료 누락 시 완료 버튼이 막히고 이유를 알 수 있습니다. |
-| 13 | 인계를 완료하고 보고서를 내려받습니다. | 개발 완료가 표시되고 보고서의 프로젝트·자료·확인 내용이 화면과 맞습니다. Shape 미발급이 완료를 막지 않습니다. |
+| Step | Action                                                                         | Expected result                                                                                               |
+| ---- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| 1    | Find the vehicle, model years, options, product, and zone in Vehicle Research. | Different configurations are not confused.                                                                    |
+| 2    | Open its project in Vehicle Projects and inspect Overview and Next Action.     | Correct project ID and zone.                                                                                  |
+| 3    | Check sourcing in Hunt Board when needed.                                      | Vehicle availability and completed scanning are distinct.                                                     |
+| 4    | Schedule a SCAN visit with vehicle, zones, location, date/time, and staff.     | A SCAN visit appears under upcoming visits.                                                                   |
+| 5    | Record actual work and complete the visit; follow stage guidance.              | The completed visit remains in history and enables subsequent work.                                           |
+| 6    | Prepare parts/patterns and revisions. Check the shared Part Library first.     | An empty composition does not pass quality gates.                                                             |
+| 7    | Create a sample request and check factory, parts, and revisions.               | The request references the intended revisions.                                                                |
+| 8    | Send Request → Create Shipment → Mark Arrived as each actually occurs.         | Request, shipment, and receipt statuses remain distinct.                                                      |
+| 9    | Verify and approve the received current revision as required.                  | Arrival alone does not count as quality approval.                                                             |
+| 10   | Complete Sample after meeting every current-revision condition.                | Missing requirements block progression with guidance.                                                         |
+| 11   | Schedule FITTING and record actual results; use PASS only if justified.        | Vehicle, zone, and result are recorded.                                                                       |
+| 12   | Open the handoff checklist and enter all materials and confirmations.          | Missing requirements block completion and explain why.                                                        |
+| 13   | Complete handoff and export the report.                                        | Completion and report details match the project record. Record any conflict with the intended Shape sequence. |
 
-인계 준비 자료: 최종 부품 목록, 치수·Self 표시를 제거한 Blueprint, 피팅 사진·영상, 제품 사진, 매뉴얼, 디자인 자료. 각 자료의 링크 또는 전달 기록과 확인 표시를 입력합니다. 적용 차량·옵션·Zone, 프로젝트 번호, 승인자와 인계 승인도 확인합니다. 여기서 Shape 번호를 미리 만들지 않습니다.
+Required handoff materials: final parts list; blueprint with dimensions/Self marks removed; fitting photos/videos; product photos; manual; design files. Record locations and actual verification. Confirm vehicle, options, zone, project number, approver, delivery, and approval. Never invent a Shape number to bypass a gate.
 
-## 4. 시나리오 B — 샘플이 맞지 않아 재작업
+## 4. Scenario B — Rework after a sample does not fit
 
-출발 조건: 샘플을 받은 프로젝트. 예상 15~20분.
+Start with a project that has received samples. Allow 15–20 minutes.
 
-1. 프로젝트 ID·Zone·기존 Revision과 수령 샘플을 기록합니다.
-2. 검증 또는 피팅에서 발견한 문제 부위와 수정 내용을 정리합니다.
-3. Revision Control에서 해당 부품의 수정 이력을 등록합니다. 이전 버전과 새로운 버전이 구분되는지 봅니다.
-4. 새 Revision을 대상으로 새 Sample Request를 만듭니다. 이전 요청을 새 버전의 증거로 사용하지 않습니다.
-5. Samples에서 새 요청 발송 → 배송 → 수령을 진행합니다.
-6. 새 버전을 검증·승인하고 피팅을 다시 진행합니다.
-7. 최종 자료를 새 버전에 맞춰 갱신한 뒤 Handoff를 완료합니다.
+1. Record project ID, zone, existing revision, and received sample.
+2. Identify affected areas and changes from inspection or fitting.
+3. Add the part change request in Revision Control. Verify old and new revisions remain distinct.
+4. Create a new sample request for the new revision. Do not reuse old requests as evidence.
+5. Record dispatch, shipment, and actual receipt.
+6. Verify and approve the new revision, then repeat fitting.
+7. Update final materials and complete handoff again when eligible.
 
-기대 결과: 이전 버전의 승인만으로 새 버전의 Sample 게이트가 통과하지 않습니다. 이전 요청·수정·피팅 이력이 남습니다. 변경된 자료에 대한 인계 확인을 다시 요구하는지도 확인합니다.
+Expected: Approval of the previous revision does not satisfy the new Sample gate. Earlier requests, changes, and fitting history remain. Check whether changed materials invalidate previous handoff verification.
 
-## 5. 시나리오 C — Shape 검토·발급·구성 완료
+## 5. Scenario C — Shape review, issuance, and composition
 
-출발 조건: Handoff 기록이 있는 개발 완료 프로젝트. 예상 15~20분.
+Start with a development project that has the required fitting, quality, and handoff evidence. Allow 15–20 minutes.
 
-| 순서 | 화면 / 조작 | 확인할 결과 |
-| --- | --- | --- |
-| 1 | Shape → 검토 대기에서 인계 완료 프로젝트와 Zone을 선택합니다. | 원래 프로젝트의 자료와 연결됩니다. |
-| 2 | 검토 회의 날짜와 참석자를 입력합니다. PM/Director, Pattern Designer, Scan Team, Coordinator, Manual Design 담당을 확인합니다. | 인계 후 회의인지 확인할 수 있습니다. |
-| 3 | Fitting Results, Blueprint, Final Parts List를 대조합니다. | 현재 부품 버전의 자료인지 확인할 수 있습니다. |
-| 4 | PM/Director의 구두 승인 결과를 화면에 기록합니다. | 승인 이력이 남습니다. 시스템 권한 강제 여부는 별도 구현 검토 항목입니다. |
-| 5 | 승인 후 Shape를 발급하고 프로젝트에 연결합니다. 기존 Shape 재사용은 같은 제품과 적합한 구성을 확인한 경우에만 시험합니다. | 승인 전에 신규 발급되지 않으며 프로젝트와 연결됩니다. |
-| 6 | 발급된 Shape에서 구성 편집을 엽니다. 승인된 Part 이름·Revision·수량을 가져오거나 확인하고 전체 Blueprint 링크를 등록합니다. | 공식 번호와 실제 구성 정보가 연결됩니다. |
-| 7 | 구성 완료를 처리합니다. | 발급만 된 상태와 구성까지 완료된 상태가 구분됩니다. |
+| Step | Action                                                                                                            | Expected result                                                                     |
+| ---- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| 1    | Select the project and zone in the Shape review queue.                                                            | Original project evidence is linked.                                                |
+| 2    | Enter the meeting date and attendees: PM/Director, Pattern Designer, Scan Team, Coordinator, and Manual Designer. | Meeting chronology and participants are verifiable.                                 |
+| 3    | Compare fitting results, blueprint, and final parts list.                                                         | Documents correspond to current revisions.                                          |
+| 4    | Record the lead's actual verbal approval.                                                                         | An approval record is retained. Real permission enforcement is reviewed separately. |
+| 5    | Issue/link the Shape after approval. Reuse only when product and composition are compatible.                      | Issuance eligibility is enforced and the project is linked.                         |
+| 6    | Open composition, import approved part names/revisions/quantities, and add the complete blueprint link.           | Official identifier and actual composition connect.                                 |
+| 7    | Complete composition.                                                                                             | Issuance and composition completion are distinguishable.                            |
 
-## 6. 시나리오 D — Shape 검토에서 반려
+## 6. Scenario D — Rejection during Shape review
 
-두 경우를 서로 다른 시험 프로젝트로 진행하면 비교하기 쉽습니다.
+Use separate test projects for comparison.
 
-**문서 보완:** 검토에서 문서 보완 사유를 기록 → 자료 수정 → 재확인 → 승인. 개발 완료 상태와 원래 프로젝트 연결이 유지되어야 합니다. 패턴 변경이 없는데 새 샘플을 강제하는지 확인합니다.
+**Document corrections:** Record the reason → Update documents → Recheck → Approve. Development completion and original project links should be preserved. Check that unchanged patterns do not unnecessarily require new samples.
 
-**패턴 재작업:** 문제 부품과 사유를 기록하여 재작업 처리 → 원래 프로젝트의 Sample 단계 재개 → 새 Revision → 새 샘플 요청 → 배송·수령·검증 → 피팅 → 재인계 → Shape 재검토. 원래 프로젝트 ID·자료·반려 이력이 유지되어야 합니다. 이전 승인으로 새 작업이 건너뛰어지면 결함으로 기록합니다.
+**Pattern rework:** Select affected parts and explain rejection → Resume work in the original project → New revision → New sample request → Ship/receive/verify → Refit → Repeat handoff → Review Shape again. Preserve project ID, evidence, and rejection history. Treat any bypass caused by old approvals as a defect.
 
-## 7. 시나리오 E — 누락과 잘못된 순서 검사
+## 7. Scenario E — Missing information and invalid sequences
 
-각 항목은 시험 데이터로 한 번씩 시도하고 안내 문구를 그대로 기록합니다.
+Try each case once with test data and record the exact message.
 
-- 미수령 또는 미승인 샘플로 Sample 단계 완료 시도: 누락 항목을 알 수 있는가?
-- 부품이 없는 상태에서 샘플 게이트 확인: 빈 목록을 전부 승인된 것으로 오인하지 않는가?
-- 인계 자료 하나의 확인을 해제: 인계 완료가 막히는가? 자료를 수정하면 기존 확인이 취소되는가?
-- Shape 검토 승인 전 발급 시도: 발급할 수 없는 이유가 보이는가?
-- Shape 발급 후 Part 또는 Blueprint 누락: 구성 완료가 막히는가?
-- 다른 Zone으로 이동: 방문·부품·승인이 잘못 섞이지 않는가? 묶음 게이트가 있다면 대상 Zone 모두의 조건을 확인하는가?
-- 뒤로 가기와 새로고침: 같은 브라우저에서 저장한 기록이 유지되는가?
-- Home 복귀: 처리한 경고·대기 항목이 현재 상태와 일치하는가?
+- Attempt Sample completion before receipt or approval. Are missing requirements clear?
+- Check a sample gate with no parts. An empty list must not count as fully approved.
+- Clear one handoff confirmation. Does it block completion? Do changed materials invalidate old confirmations?
+- Attempt Shape issuance before review approval. Is the reason for blocking clear?
+- Omit parts or blueprint after issuance. Is composition completion blocked?
+- Switch zones. Are visits, parts, and approvals kept separate? Do bundle gates check every required zone?
+- Navigate back and refresh. Do saved records persist in the same browser?
+- Return Home. Do resolved alerts and pending items reflect the current state?
 
-## 8. 시나리오 F — 후속 등록과 기준정보 화면 리뷰
+## 8. Scenario F — Product registration and reference data
 
-1. Unique Vehicles / F#에서 적용 차량 구성을 확인합니다. Shape 번호와 구분되는지 봅니다.
-2. Product Registrations의 시험 요청을 열어 제품·SKU·차량 구성을 확인하고 승인 흐름을 리뷰합니다.
-3. Product Catalog에서 승인한 제품의 정보와 상태를 확인합니다. Shape 승인과 제품 등록 승인은 다른 절차입니다.
-4. Vehicle Options와 Reference Data에서 기존 값을 검색하고 시험용 기준값을 등록할 수 있는지 확인합니다. Part Management 등 사용하는 화면에서 같은 값이 표시되는지 봅니다.
-5. 각 화면의 ‘화면 도움말’을 읽고 실제 버튼·결과와 설명이 일치하는지 확인합니다.
+1. Check the fitment configuration and F# in Unique Vehicles. Distinguish F# from Shape.
+2. Open a test registration in Product Registrations and review products, SKUs, fitment, and approval flow.
+3. Check the approved product in Catalog. Shape approval and product registration approval are separate.
+4. Search existing Vehicle Options and Reference Data before adding test values. Verify consistency in consumers such as Part Management.
+5. Read each page's help and compare it with actual buttons and outcomes.
 
-외부 서비스 전송, 실제 파일 내용 검증, 실사용자 권한 통제, 동시 편집·서버 저장은 이 브라우저 시뮬레이션만으로 검증 완료 처리하지 않습니다. My Tasks 등 `#` 메뉴는 실제 업무 기능으로 간주하지 말고 미구현 항목으로 기록합니다.
+This browser simulation does not prove external delivery, file-content verification, real-user permissions, concurrent server editing, or shared storage. Record placeholder links as unimplemented, not as working features.
 
-## 9. 리뷰 결과 기록 양식
+## 9. Review record
 
-| 항목 | 기록 |
-| --- | --- |
-| 날짜 / 담당자 / 사용 브라우저 | |
-| 시나리오 / 순서 번호 | |
-| 화면 URL / Project ID / Zone / Revision | |
-| 실행한 작업과 입력 | |
-| 기대 결과 | |
-| 실제 결과 / 안내 문구 | |
-| 판정 | 통과 / 개선 필요 / 진행 불가 |
-| 스크린샷 또는 자료 링크 | |
-| 구분 | 업무 규칙 / 화면 사용성 / 데이터 연결 / 오류 |
-| 수정 담당자 / 재확인 결과 | |
+| Field                                     | Notes                                                |
+| ----------------------------------------- | ---------------------------------------------------- |
+| Date / Reviewer / Browser                 |                                                      |
+| Scenario / Step                           |                                                      |
+| Screen URL / Project ID / Zone / Revision |                                                      |
+| Action and input                          |                                                      |
+| Expected result                           |                                                      |
+| Actual result / Message                   |                                                      |
+| Outcome                                   | Pass / Needs improvement / Blocked                   |
+| Screenshot or evidence link               |                                                      |
+| Category                                  | Business rule / Usability / Data integration / Error |
+| Fix owner / Retest result                 |                                                      |
 
-리뷰 종료 시 정상 개발·재작업·Shape 문서 보완·Shape 패턴 반려를 각각 확인했는지 표시하고, ‘안내가 부족한 것’과 ‘조건 계산이 틀린 것’을 구분하여 수정 순서를 정합니다.
+At the end, confirm coverage of normal development, rework, Shape document corrections, and pattern rejection. Separate unclear guidance from incorrect gate calculations when prioritizing fixes.

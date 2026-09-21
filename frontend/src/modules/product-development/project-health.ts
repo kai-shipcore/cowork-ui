@@ -9,9 +9,9 @@ export const PROJECT_HEALTH = [
   { value: 'watch', label: 'Watch' },
   { value: 'at-risk', label: 'At risk' },
   { value: 'late', label: 'Late' },
-  { value: 'unknown', label: '정보 부족' },
-  { value: 'complete', label: '완료' },
-  { value: 'inactive', label: '취소·병합' },
+  { value: 'unknown', label: 'Insufficient data' },
+  { value: 'complete', label: 'Completed' },
+  { value: 'inactive', label: 'Cancelled / Merged' },
 ] as const;
 export type ProjectHealth = (typeof PROJECT_HEALTH)[number]['value'];
 export type ProjectHealthFilter = 'all' | ProjectHealth;
@@ -50,40 +50,57 @@ export function projectHealth(
       value: 'inactive',
       reason:
         zone.status === 'CANCELLED'
-          ? '취소된 프로젝트'
-          : '다른 프로젝트로 병합됨',
+          ? 'Cancelled project'
+          : 'Merged into another project',
     };
   }
   if (zone.currentStage === 'Approved')
-    return { value: 'complete', reason: '개발 완료 · 일정 위험도 집계 제외' };
+    return {
+      value: 'complete',
+      reason: 'Development complete · Excluded from schedule risk',
+    };
   const current = calendarDay(currentDate);
   const target = calendarDay(
     currentStageTiming(zone)?.targetDueAt ?? zone.targetAt,
   );
   const activity = calendarDay(zone.lastActivityAt);
   if (current === undefined)
-    return { value: 'unknown', reason: '기준일 확인 필요' };
+    return { value: 'unknown', reason: 'Reference date needs verification' };
   const remaining = target === undefined ? undefined : target - current;
   if (remaining !== undefined && remaining < 0)
-    return { value: 'late', reason: `목표일 ${String(-remaining)}일 초과` };
-  if (zone.status === 'ON_HOLD')
-    return { value: 'at-risk', reason: '진행 보류 중' };
+    return {
+      value: 'late',
+      reason: `Target date ${String(-remaining)} days overdue`,
+    };
+  if (zone.status === 'ON_HOLD') return { value: 'at-risk', reason: 'On hold' };
   if (remaining !== undefined && remaining <= 2)
-    return { value: 'at-risk', reason: `목표일까지 ${String(remaining)}일` };
+    return {
+      value: 'at-risk',
+      reason: `Days until target: ${String(remaining)} days`,
+    };
   const idle = activity === undefined ? undefined : current - activity;
   if (idle !== undefined && idle >= 14)
-    return { value: 'at-risk', reason: `최근 활동 후 ${String(idle)}일 경과` };
+    return {
+      value: 'at-risk',
+      reason: `Days since last activity: ${String(idle)} days elapsed`,
+    };
   if (remaining === undefined)
-    return { value: 'unknown', reason: '목표일 미지정 또는 날짜 확인 필요' };
+    return { value: 'unknown', reason: 'Target date missing or invalid' };
   if (remaining <= 7)
-    return { value: 'watch', reason: `목표일까지 ${String(remaining)}일` };
+    return {
+      value: 'watch',
+      reason: `Days until target: ${String(remaining)} days`,
+    };
   if (idle === undefined || idle < 0)
-    return { value: 'unknown', reason: '최근 활동 기록 확인 필요' };
+    return { value: 'unknown', reason: 'Recent activity needs verification' };
   if (idle >= 7)
-    return { value: 'watch', reason: `최근 활동 후 ${String(idle)}일 경과` };
+    return {
+      value: 'watch',
+      reason: `Days since last activity: ${String(idle)} days elapsed`,
+    };
   return {
     value: 'on-track',
-    reason: `목표일까지 ${String(remaining)}일 · 최근 활동 ${String(idle)}일 전`,
+    reason: `Days until target: ${String(remaining)} days · Last activity ${String(idle)} days ago`,
   };
 }
 

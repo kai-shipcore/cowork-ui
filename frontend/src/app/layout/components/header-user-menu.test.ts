@@ -15,12 +15,12 @@ await test('every team keeps the original accessible user avatar and existing wo
         createElement(HeaderToolbar),
       ),
     );
-    assert.match(html, /aria-label="Kai Chung 사용자 메뉴"/);
+    assert.match(html, /aria-label="Kai Chung user menu"/);
     assert.match(html, /aria-haspopup="menu"/);
     assert.match(html, /aria-expanded="false"/);
     assert.match(html, />KC<\/span>/);
     assert.ok(html.includes('href="/work/reports?team=' + team + '"'));
     assert.ok(html.includes('href="/work/notifications?team=' + team + '"'));
-    assert.doesNotMatch(html, /aria-label="테마 변경"/);
+    assert.doesNotMatch(html, /aria-label="Change theme"/);
   }
 });

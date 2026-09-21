@@ -18,7 +18,7 @@ const notificationSchema = z.object({
 export const personalSettingsSchema = z
   .object({
     version: z.literal(1),
-    displayName: z.string().trim().min(1, '표시 이름을 입력하세요.').max(40),
+    displayName: z.string().trim().min(1, 'Enter a display name.').max(40),
     jobTitle: z.string().trim().max(60),
     introduction: z.string().trim().max(240),
     startTeam: z.enum(TEAM_IDS),
@@ -37,7 +37,7 @@ export const personalSettingsSchema = z
       context.addIssue({
         code: 'custom',
         path: ['assigneeId'],
-        message: '수신 팀의 처리 담당자를 선택하세요.',
+        message: 'Select an assignee from the receiving team.',
       });
     }
     if (
@@ -48,7 +48,7 @@ export const personalSettingsSchema = z
       context.addIssue({
         code: 'custom',
         path: ['reviewerId'],
-        message: '처리 담당자와 다른 수신 팀의 결재자를 선택하세요.',
+        message: 'Select a receiving-team approver other than the assignee.',
       });
     }
   });
@@ -62,23 +62,24 @@ export const NOTIFICATION_OPTIONS: {
 }[] = [
   {
     kind: 'created',
-    title: '새 업무 요청',
-    description: '나에게 배정되거나 전달된 새 요청',
+    title: 'New work requests',
+    description: 'New requests assigned or addressed to me',
   },
   {
     kind: 'status',
-    title: '결재 및 진행 상태',
-    description: '승인 요청, 반려, 완료 등 나에게 전달된 상태 변경',
+    title: 'Approvals & progress',
+    description:
+      'Approval requests, rejections, completions, and other status updates addressed to me',
   },
   {
     kind: 'comment',
-    title: '댓글 · 멘션',
-    description: '댓글에서 나를 직접 언급한 활동',
+    title: 'Comments & mentions',
+    description: 'Activity that mentions me directly in a comment',
   },
   {
     kind: 'document',
-    title: '문서 변경',
-    description: '나에게 전달된 문서 등록 및 버전 변경',
+    title: 'Document changes',
+    description: 'Document additions and version changes addressed to me',
   },
 ];
 
@@ -146,7 +147,7 @@ export function loadPersonalSettings(actor: Person): {
     return {
       settings: defaultPersonalSettings(actor),
       error:
-        '개인 설정을 읽지 못했습니다. 기본값으로 표시하며 저장본은 덮어쓰지 않았습니다. 브라우저 저장 공간을 확인하고 다시 열어 주세요.',
+        'Unable to read personal settings. Defaults are shown and the saved copy has not been overwritten. Check browser storage and reopen this page.',
     };
   }
 }

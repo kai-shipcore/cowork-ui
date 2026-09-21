@@ -78,24 +78,24 @@ export function DashboardPage() {
           <div>
             <h1 className="font-semibold">R & D Team Dashboard</h1>
             <p className="text-xs text-muted-foreground">
-              팀 간 요청{' '}
+              Team Requests{' '}
               {
                 snapshot.requests.filter(
                   (request) => request.targetTeam === 'rd' && isOpen(request),
                 ).length
               }
-              건 · 현재 브라우저의 데모 업무 데이터
+              items · Demo work data in this browser
             </p>
           </div>
           <Button asChild variant="outline">
             <Link to="/work/requests?team=rd&target=rd&filter=open">
-              요청 처리
+              Process request
             </Link>
           </Button>
         </CardContent>
       </Card>
       <PageHeader
-        description="지연된 작업과 도착한 수정 샘플부터 확인하세요."
+        description="Start with overdue work and received revision samples."
         tables={
           import.meta.env.DEV
             ? [
@@ -112,7 +112,7 @@ export function DashboardPage() {
 
       {summary.warnings.length > 0 && (
         <section className="dashboard-alerts" role="alert">
-          <h2>경고 {summary.warnings.length}건</h2>
+          <h2>Alerts {summary.warnings.length} items</h2>
           <ul>
             {summary.warnings.map((warning) => (
               <li key={warning.id}>
@@ -120,10 +120,10 @@ export function DashboardPage() {
                   tone="danger"
                   label={
                     warning.kind === 'ORPHAN_VISIT'
-                      ? '차량 없음'
+                      ? 'Vehicle missing'
                       : warning.kind === 'UNASSIGNED_VISIT'
-                        ? '담당자 없음'
-                        : '피팅 미예약'
+                        ? 'Unassigned'
+                        : 'Fitting not scheduled'
                   }
                 />
                 <span>{warning.message}</span>
@@ -135,7 +135,7 @@ export function DashboardPage() {
                     void navigate(warning.to);
                   }}
                 >
-                  확인
+                  Confirm
                 </Button>
               </li>
             ))}
@@ -145,9 +145,9 @@ export function DashboardPage() {
 
       <div className="dashboard-stats">
         <SummaryCard
-          label="처리할 작업"
+          label="Action items"
           value={summary.actions.length}
-          description={`지연 ${String(overdueActions)}건 포함`}
+          description={`Late ${String(overdueActions)} items included`}
           className={
             overdueActions
               ? '[&_.text-xs]:text-amber-700 dark:[&_.text-xs]:text-amber-400'
@@ -155,9 +155,9 @@ export function DashboardPage() {
           }
         />
         <SummaryCard
-          label="피팅 대기 Sample"
+          label="Samples awaiting fitting"
           value={summary.samplesWaitingFitting.length}
-          description={`${String(SAMPLE_FITTING_WAIT_DAYS)}일 초과 ${String(longWaits)}건`}
+          description={`${String(SAMPLE_FITTING_WAIT_DAYS)} days overdue ${String(longWaits)} items`}
           className={
             longWaits
               ? '[&_.text-xs]:text-amber-700 dark:[&_.text-xs]:text-amber-400'
@@ -165,9 +165,9 @@ export function DashboardPage() {
           }
         />
         <SummaryCard
-          label="승인 대기"
+          label="Pending approval"
           value={approvalsPending}
-          description={`인계 승인 ${String(summary.handoffPending.length)} · SKU 등록 ${String(summary.pendingRegistrations)}`}
+          description={`Handoff approval ${String(summary.handoffPending.length)} · SKU registration ${String(summary.pendingRegistrations)}`}
         />
       </div>
 
@@ -199,17 +199,20 @@ export function DashboardPage() {
           value={summary.highPriority.length}
         />
         <SummaryCard
-          label="3차 이상 Sample"
+          label="Samples: round 3+"
           value={summary.repeatSampleCount}
         />
-        <SummaryCard label="도착 예정 · 도착" value={summary.arrivals.length} />
+        <SummaryCard
+          label="Expected / arrived"
+          value={summary.arrivals.length}
+        />
       </div>
 
       <Card className="dashboard-panel">
         <CardHeader>
           <CardTitle>
-            단계별 Active Project
-            <small>{summary.activeZones.length}개 Zone Project</small>
+            Active projects by stage
+            <small>{summary.activeZones.length} zone projects</small>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -234,7 +237,7 @@ export function DashboardPage() {
         <Card className="dashboard-panel">
           <CardHeader>
             <CardTitle>
-              먼저 처리할 일<small>{summary.actions.length}건</small>
+              Next actions<small>{summary.actions.length} items</small>
             </CardTitle>
             <Button
               size="sm"
@@ -244,7 +247,7 @@ export function DashboardPage() {
                 void navigate(ROUTES.vehicleProjects);
               }}
             >
-              전체 보기
+              View all
             </Button>
           </CardHeader>
           <CardContent>
@@ -262,8 +265,8 @@ export function DashboardPage() {
               ))
             ) : (
               <p className="dashboard-empty">
-                처리할 작업이 없습니다. 지연·정체·승인 대기 항목이 생기면 여기에
-                표시됩니다.
+                No actions pending. Overdue, stalled, and approval items will
+                appear here.
               </p>
             )}
           </CardContent>
@@ -271,7 +274,7 @@ export function DashboardPage() {
 
         <Card className="dashboard-panel">
           <CardHeader>
-            <CardTitle>이번 주 도착</CardTitle>
+            <CardTitle>Arriving this week</CardTitle>
             <Button
               size="sm"
               variant="ghost"
@@ -280,7 +283,7 @@ export function DashboardPage() {
                 void navigate(ROUTES.samples);
               }}
             >
-              배송 보기
+              View shipment
             </Button>
           </CardHeader>
           <CardContent>
@@ -296,14 +299,14 @@ export function DashboardPage() {
                   <div className="dashboard-arrival-badges">
                     <StatusBadge label={arrival.status} tone={arrival.tone} />
                     {arrival.isRepeatSample && (
-                      <StatusBadge label="반복 샘플" tone="warning" />
+                      <StatusBadge label="Repeat samples" tone="warning" />
                     )}
                   </div>
                 </div>
               ))
             ) : (
               <p className="dashboard-empty">
-                이번 주에 도착했거나 도착 예정인 샘플이 없습니다.
+                No samples arrived or are expected this week.
               </p>
             )}
           </CardContent>
@@ -333,7 +336,7 @@ function ActionRow({ action, owner, onOpen }: ActionRowProps) {
           <span>{owner.name}</span>
         </div>
       ) : (
-        <div className="dashboard-owner unassigned">담당자 미지정</div>
+        <div className="dashboard-owner unassigned">Unassigned</div>
       )}
       <Button size="sm" variant="outline" onClick={onOpen}>
         {action.actionLabel}

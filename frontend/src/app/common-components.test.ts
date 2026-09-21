@@ -30,7 +30,7 @@ await test('configuration options use shared metadata with accessible label/valu
     }),
   );
   assert.match(html, /data-slot="metadata-chips"/);
-  assert.match(html, /aria-label="차량 옵션"/);
+  assert.match(html, /aria-label="Vehicle options"/);
   assert.match(html, /<dt[^>]*>Powertrain<\/dt>/);
   assert.match(html, /<dd[^>]*>Hybrid<\/dd>/);
   assert.match(html, /<dd[^>]*>7<\/dd>/);
@@ -52,10 +52,10 @@ await test('all Workbench status tones delegate to the shared status badge', () 
     'cyan',
   ] as const) {
     const html = renderToStaticMarkup(
-      createElement(StatusBadge, { label: '검토 대기', tone }),
+      createElement(StatusBadge, { label: 'Awaiting review', tone }),
     );
     assert.match(html, /data-slot="status-badge"/);
-    assert.match(html, /검토 대기/);
+    assert.match(html, /Awaiting review/);
   }
 });
 
@@ -65,7 +65,7 @@ await test('assignee adapter retains candidates, current value, selection and cl
   const element = UserPicker({
     value: user,
     users,
-    label: '프로젝트 담당자',
+    label: 'Project assignee',
     onChange: (id) => {
       selectedIds.push(id);
     },
@@ -74,13 +74,13 @@ await test('assignee adapter retains candidates, current value, selection and cl
   assert.equal(element.type, SharedUserPicker);
   assert.equal(element.props.users, users);
   assert.equal(element.props.value, user);
-  assert.equal(element.props.searchPlaceholder, '이름 또는 이메일 검색...');
-  assert.equal(element.props.clearLabel, '담당자 해제');
+  assert.equal(element.props.searchPlaceholder, 'Search name or email…');
+  assert.equal(element.props.clearLabel, 'Assignee cleared');
   element.props.onChange(user.id);
   element.props.onChange(undefined);
   assert.deepEqual(selectedIds, [user.id, undefined]);
   const html = renderToStaticMarkup(element);
-  assert.match(html, /aria-label="프로젝트 담당자"/);
+  assert.match(html, /aria-label="Project assignee"/);
   assert.match(html, /Jane Cooper/);
 });
 
@@ -88,19 +88,19 @@ await test('unassigned picker retains its Workbench placeholder', () => {
   const html = renderToStaticMarkup(
     createElement(UserPicker, {
       users: [],
-      label: '승인자',
+      label: 'Approver',
       onChange: () => {
         assert.fail('render must not change the assignee');
       },
     }),
   );
-  assert.match(html, /담당자 지정/);
-  assert.match(html, /aria-label="승인자"/);
+  assert.match(html, /Assign owner/);
+  assert.match(html, /aria-label="Approver"/);
 });
 
 await test('summary cards preserve filter pressed state and read-only metrics remain non-interactive', () => {
   const readOnly = renderToStaticMarkup(
-    createElement(SummaryCard, { label: '승인 대기', value: 0 }),
+    createElement(SummaryCard, { label: 'Pending approval', value: 0 }),
   );
   assert.match(readOnly, /data-slot="summary-card"/);
   assert.match(readOnly, />0<\/strong>/);
@@ -125,8 +125,8 @@ await test('a closed detail sheet does not expose hidden form actions', () => {
   const html = renderToStaticMarkup(
     createElement(DetailSheet, {
       open: false,
-      title: '새 Part 생성',
-      description: '공용 Part 생성',
+      title: 'Create new part',
+      description: 'Create shared part',
       onOpenChange: () => {
         assert.fail('render must not change sheet visibility');
       },
@@ -134,7 +134,7 @@ await test('a closed detail sheet does not expose hidden form actions', () => {
       footer: createElement(
         'button',
         { type: 'submit', form: 'part-create-form' },
-        'Part 생성',
+        'Create part',
       ),
     }),
   );

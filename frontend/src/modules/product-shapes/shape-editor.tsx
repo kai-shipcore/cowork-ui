@@ -121,26 +121,26 @@ export function ShapeEditor({
         <DialogHeader>
           <DialogTitle>
             {shape
-              ? 'Shape 수정'
+              ? 'Edit Shape'
               : issuanceApproved
-                ? '최종 Shape 발급 · 프로젝트 연결'
-                : '개발 Shape 생성'}
+                ? 'Issue final Shape / Link project'
+                : 'Create development Shape'}
           </DialogTitle>
         </DialogHeader>
         <DialogBody className="project-dialog-stack">
           <p className="muted-text">
-            Shape는 개발 원천 프로젝트 하나에 연결됩니다. 여러 판매 차량에 대한
-            적용은 F# 화면에서 관리합니다.
+            A Shape links to one source development project. Manage fitment
+            across sales vehicles in F#.
           </p>
           <div className="dialog-form-grid">
             <label>
-              제품 유형
+              Product type
               <Select
                 value={product}
                 disabled={Boolean(shape || productTypeId)}
                 onValueChange={setProduct}
               >
-                <SelectTrigger aria-label="Shape 제품 유형">
+                <SelectTrigger aria-label="Shape product type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -153,7 +153,7 @@ export function ShapeEditor({
               </Select>
             </label>
             <label>
-              관리 상태
+              Management status
               <Select
                 value={status}
                 disabled={issuanceApproved}
@@ -161,7 +161,7 @@ export function ShapeEditor({
                   setStatus(value as VehicleProductShape['status'])
                 }
               >
-                <SelectTrigger aria-label="Shape 관리 상태">
+                <SelectTrigger aria-label="Shape management status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -182,19 +182,19 @@ export function ShapeEditor({
               </Select>
             </label>
             <label className="full-width">
-              Shape 이름 (관리 번호)
+              Shape name (reference number)
               <Input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="팀에서 확정한 Shape 번호 입력"
+                placeholder="Enter the Shape number confirmed by the team"
                 maxLength={160}
               />
             </label>
           </div>
           <p className="muted-text">
-            Seat Cover 번호 예: F-xxx (앞좌석), B-xxx (2열), E-xxx (3열). 번호는
-            자동 발급하지 않습니다. ‘신규 사용 중지’로 바꿔도 기존 연결은
-            유지됩니다.
+            Seat Cover examples: F-xxx (front), B-xxx (2nd row), E-xxx (3rd
+            row). Numbers are not auto-issued. Disabling new usage preserves
+            existing links.
           </p>
           {needsConfirmation && (
             <label className="shape-check">
@@ -204,8 +204,8 @@ export function ShapeEditor({
                   setConfirmedExisting(value === true)
                 }
               />
-              PM / Director 검토를 마치고 이미 확정된 Shape임을 확인했습니다.
-              신규 개발 Shape는 프로젝트에서 검토 후 발급하세요.
+              I confirm this Shape was already finalized after PM / Director
+              review. For new development, review and issue it from the project.
             </label>
           )}
           {product === 'PT-CC' && (
@@ -217,14 +217,15 @@ export function ShapeEditor({
                   setIncludeDimensions(value === true)
                 }
               />
-              치수 입력 (확정 Car Cover 필수 · 앞폭과 뒤폭은 함께 입력)
+              Dimensions (required for confirmed Car Covers · Enter front and
+              rear widths together)
             </label>
           )}
           {product === 'PT-CC' &&
             (includeDimensions || status === 'ACTIVE') && (
               <div className="dialog-form-grid">
                 <label>
-                  길이 *
+                  Length *
                   <Input
                     type="number"
                     min="0"
@@ -234,7 +235,7 @@ export function ShapeEditor({
                   />
                 </label>
                 <label>
-                  높이 *
+                  Height *
                   <Input
                     type="number"
                     min="0"
@@ -244,7 +245,7 @@ export function ShapeEditor({
                   />
                 </label>
                 <label>
-                  앞폭
+                  Front width
                   <Input
                     type="number"
                     min="0"
@@ -254,7 +255,7 @@ export function ShapeEditor({
                   />
                 </label>
                 <label>
-                  뒤폭
+                  Rear width
                   <Input
                     type="number"
                     min="0"
@@ -264,12 +265,12 @@ export function ShapeEditor({
                   />
                 </label>
                 <label>
-                  단위
+                  Unit
                   <Select
                     value={unit}
                     onValueChange={(value) => setUnit(value as 'CM' | 'IN')}
                   >
-                    <SelectTrigger aria-label="치수 단위">
+                    <SelectTrigger aria-label="Dimension unit">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -282,17 +283,17 @@ export function ShapeEditor({
             )}
           {usageCount > 0 && (
             <div className="shape-impact">
-              <strong>{usageCount}개 프로젝트에 함께 반영됩니다.</strong>
+              <strong>{usageCount} linked projects will be updated.</strong>
               <p>
-                형상 자체가 다른 경우 기존 Shape를 덮어쓰지 말고 새 Shape를
-                등록해 필요한 프로젝트에 연결하세요.
+                If the shape itself differs, create a new Shape and link the
+                relevant projects instead of overwriting the existing one.
               </p>
               <label className="shape-check">
                 <Checkbox
                   checked={acknowledged}
                   onCheckedChange={(value) => setAcknowledged(value === true)}
                 />
-                연결된 프로젝트 전체에 적용되는 수정임을 확인했습니다.
+                I confirm this change applies to all linked projects.
               </label>
             </div>
           )}
@@ -306,7 +307,7 @@ export function ShapeEditor({
         </DialogBody>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            취소
+            Cancelled
           </Button>
           <Button
             variant="primary"
@@ -317,10 +318,10 @@ export function ShapeEditor({
             onClick={save}
           >
             {shape
-              ? '변경 저장'
+              ? 'Save changes'
               : issuanceApproved
-                ? 'Shape 발급 · 연결'
-                : '개발 Shape 생성'}
+                ? 'Issue / Link Shape'
+                : 'Create development Shape'}
           </Button>
         </DialogFooter>
       </DialogContent>

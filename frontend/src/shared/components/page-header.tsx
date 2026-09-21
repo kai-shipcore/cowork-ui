@@ -28,7 +28,7 @@ export function PageTables({ tables }: { tables: readonly TableRef[] }) {
   return (
     <details className="page-tables">
       <summary>
-        설계 대응 Tables{' '}
+        Related data tables{' '}
         <span className="page-tables-count">{tables.length}</span>
       </summary>
       <div className="page-tables-list">
@@ -38,12 +38,12 @@ export function PageTables({ tables }: { tables: readonly TableRef[] }) {
             key={table.name}
             title={
               table.proposed
-                ? '스키마에 없는 테이블입니다 (제안 또는 UI 전용)'
+                ? 'This table is not in the schema (proposed or UI-only)'
                 : undefined
             }
           >
             {table.name}
-            {table.proposed && <em>미존재</em>}
+            {table.proposed && <em>Not in schema</em>}
           </span>
         ))}
       </div>

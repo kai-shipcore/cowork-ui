@@ -71,9 +71,9 @@ type DealerTypeFilter = 'ALL' | Dealer['type'];
 const ALL_FILTER = 'ALL';
 /** Calendar legend entries; each doubles as a click-to-filter toggle. */
 const CALENDAR_LEGEND = [
-  { value: 'SCAN', label: '스캔', dot: 'scan' },
-  { value: 'FITTING', label: '피팅', dot: 'fitting' },
-  { value: 'COMPLETED', label: '완료', dot: 'completed' },
+  { value: 'SCAN', label: 'Scan', dot: 'scan' },
+  { value: 'FITTING', label: 'Fitting', dot: 'fitting' },
+  { value: 'COMPLETED', label: 'Completed', dot: 'completed' },
 ] as const;
 type CalendarLegend = (typeof CALENDAR_LEGEND)[number]['value'];
 
@@ -87,7 +87,7 @@ const DEALER_TYPE_FILTERS: readonly {
   value: DealerTypeFilter;
   label: string;
 }[] = [
-  { value: 'ALL', label: '전체' },
+  { value: 'ALL', label: 'All' },
   { value: 'Dealer', label: 'Dealer' },
   { value: 'Rental', label: 'Rental' },
   { value: 'Partner', label: 'Partner' },
@@ -313,7 +313,7 @@ export function HuntBoardPage() {
   return (
     <section>
       <PageHeader
-        description="스캔·피팅 일정과 딜러 방문을 한눈에 — 예약 → 현장 방문 → 완료 처리 · 배치 방문(1 Visit ↔ N Zone Projects) 지원"
+        description="Scans, fittings, and dealer visits at a glance — Schedule → Visit → Complete · Batch visits supported (one visit ↔ multiple zone projects)"
         tables={
           import.meta.env.DEV
             ? [
@@ -331,7 +331,7 @@ export function HuntBoardPage() {
               openVisitDialog();
             }}
           >
-            <CalendarPlus /> 방문 예약
+            <CalendarPlus /> Schedule visit
           </Button>
         }
       />
@@ -340,24 +340,24 @@ export function HuntBoardPage() {
         <TabsList variant="line" className="grid-tabs-list">
           <TabsTrigger value="scan">
             <ScanLine aria-hidden="true" />
-            스캔
+            Scan
             <span className="stage-tab-count">
               {scanWaitingProjects.length}
             </span>
           </TabsTrigger>
           <TabsTrigger value="fitting">
             <Ruler aria-hidden="true" />
-            피팅
+            Fitting
             <span className="stage-tab-count">{fittingProjects.length}</span>
           </TabsTrigger>
           <TabsTrigger value="calendar">
             <CalendarDays aria-hidden="true" />
-            통합 일정
+            Calendar
             <span className="stage-tab-count">{visibleVisits.length}</span>
           </TabsTrigger>
           <TabsTrigger value="dealers">
             <Store aria-hidden="true" />
-            딜러 디렉토리
+            Dealer Directory
             <span className="stage-tab-count">{visibleDealers.length}</span>
           </TabsTrigger>
         </TabsList>
@@ -405,8 +405,8 @@ export function HuntBoardPage() {
               <div className="search-field">
                 <Search aria-hidden="true" />
                 <Input
-                  aria-label="Visit 검색"
-                  placeholder="차량명 · 프로젝트 ID 검색"
+                  aria-label="Search visits"
+                  placeholder="Search vehicle / Project ID"
                   value={filterQuery}
                   onChange={(event) => {
                     setFilterQuery(event.target.value);
@@ -419,11 +419,14 @@ export function HuntBoardPage() {
                   setCalendarDealer(value === ALL_FILTER ? '' : value);
                 }}
               >
-                <SelectTrigger aria-label="딜러" className="filter-select wide">
+                <SelectTrigger
+                  aria-label="Dealer"
+                  className="filter-select wide"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ALL_FILTER}>전체 딜러</SelectItem>
+                  <SelectItem value={ALL_FILTER}>All dealers</SelectItem>
                   {dealers.map((dealer) => (
                     <SelectItem key={dealer.id} value={dealer.name}>
                       {dealer.name}
@@ -434,11 +437,11 @@ export function HuntBoardPage() {
               <UserPicker
                 value={appUsers.find((user) => user.id === calendarAssignee)}
                 users={appUsers}
-                label="담당자"
-                placeholder="전체 담당자"
-                searchPlaceholder="이름 또는 이메일 검색..."
-                emptyMessage="일치하는 사용자가 없습니다."
-                clearLabel="전체 담당자"
+                label="Assignee"
+                placeholder="All assignees"
+                searchPlaceholder="Search name or email…"
+                emptyMessage="No matching users."
+                clearLabel="All assignees"
                 onChange={(userId) => {
                   setCalendarAssignee(userId ?? '');
                 }}
@@ -457,7 +460,7 @@ export function HuntBoardPage() {
                     setCalendarLegend(undefined);
                   }}
                 >
-                  <X /> 초기화
+                  <X /> Reset
                 </Button>
               )}
             </div>
@@ -467,7 +470,7 @@ export function HuntBoardPage() {
             <div
               className="flex gap-2 mb-4"
               role="group"
-              aria-label="일정 보기"
+              aria-label="View schedule"
             >
               {(['month', 'week', 'day'] as const).map((mode) => (
                 <Button
@@ -478,10 +481,10 @@ export function HuntBoardPage() {
                   }}
                 >
                   {mode === 'month'
-                    ? '월간'
+                    ? 'Month'
                     : mode === 'week'
-                      ? '주간'
-                      : '일간'}
+                      ? 'Week'
+                      : 'Day'}
                 </Button>
               ))}
             </div>
@@ -519,10 +522,13 @@ export function HuntBoardPage() {
                       );
                     }}
                   >
-                    ← 이전 달
+                    ← Previous month
                   </Button>
                   <h2>
-                    {calendarYear}년 {calendarMonthNumber}월
+                    {calendarMonth.toLocaleDateString('en-US', {
+                      month: 'long',
+                      year: 'numeric',
+                    })}
                   </h2>
                   <Button
                     size="sm"
@@ -539,11 +545,11 @@ export function HuntBoardPage() {
                       );
                     }}
                   >
-                    다음 달 →
+                    Next month →
                   </Button>
                   <Input
                     className="calendar-month-picker"
-                    aria-label="표시할 월 선택"
+                    aria-label="Select month to display"
                     type="month"
                     value={calendarMonthKey}
                     onChange={(event) => {
@@ -569,12 +575,12 @@ export function HuntBoardPage() {
                       );
                     }}
                   >
-                    오늘
+                    Today
                   </Button>
                   <div
                     className="calendar-legend"
                     role="group"
-                    aria-label="일정 유형 필터"
+                    aria-label="Visit type filter"
                   >
                     {CALENDAR_LEGEND.map((legend) => (
                       <button
@@ -595,11 +601,13 @@ export function HuntBoardPage() {
                   </div>
                 </div>
                 <div className="month-grid">
-                  {['일', '월', '화', '수', '목', '금', '토'].map((day) => (
-                    <div className="weekday" key={day}>
-                      {day}
-                    </div>
-                  ))}
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(
+                    (day) => (
+                      <div className="weekday" key={day}>
+                        {day}
+                      </div>
+                    ),
+                  )}
                   {calendarBlanks.map((blank) => (
                     <div key={blank} />
                   ))}
@@ -616,7 +624,7 @@ export function HuntBoardPage() {
                       <>
                         <span className="day-number">
                           {day}
-                          {isToday ? ' · 오늘' : ''}
+                          {isToday ? ' · Today' : ''}
                         </span>
                         {dayVisits.map((visit) => (
                           <span
@@ -627,7 +635,7 @@ export function HuntBoardPage() {
                           >
                             <small className="calendar-event-kind">
                               {visit.time} ·{' '}
-                              {visit.kind === 'SCAN' ? '스캔' : '피팅'}
+                              {visit.kind === 'SCAN' ? 'Scan' : 'Fitting'}
                             </small>
                             <strong>{visit.dealer}</strong>
                             <small>
@@ -651,7 +659,7 @@ export function HuntBoardPage() {
                         type="button"
                         className={`${dayClass} has-visits`}
                         key={day}
-                        aria-label={`${String(calendarMonthNumber)}월 ${String(day)}일 일정 ${String(dayVisits.length)}건 상세 보기`}
+                        aria-label={`${calendarMonthKey}-${String(day).padStart(2, '0')}: ${String(dayVisits.length)} visits · View details`}
                         onClick={() => {
                           setSelectedDay(day);
                         }}
@@ -672,15 +680,15 @@ export function HuntBoardPage() {
               <div className="search-field">
                 <Search aria-hidden="true" />
                 <Input
-                  aria-label="확보처 이름, 브랜드, 주소, 연락처 검색"
-                  placeholder="이름 / 브랜드 / 주소 / 연락처"
+                  aria-label="Search source name, brand, address, or contact"
+                  placeholder="Name / Brand / Address / Contact"
                   value={dealerQuery}
                   onChange={(event) => {
                     setDealerQuery(event.target.value);
                   }}
                 />
               </div>
-              <div className="stage-tabs" role="group" aria-label="확보처 유형">
+              <div className="stage-tabs" role="group" aria-label="Source type">
                 {DEALER_TYPE_FILTERS.map((filter) => (
                   <button
                     type="button"
@@ -707,7 +715,7 @@ export function HuntBoardPage() {
             </div>
             <div className="grid-toolbar-actions">
               <Button variant="primary" onClick={openDealerDialog}>
-                <Plus /> 확보처 등록
+                <Plus /> Add vehicle source
               </Button>
             </div>
           </div>
@@ -761,7 +769,7 @@ export function HuntBoardPage() {
                         <em>※ {dealer.note}</em>
                       </div>
                       <div className="dealer-footer">
-                        <span>최근 방문 {dealer.lastVisit}</span>
+                        <span>Last visit {dealer.lastVisit}</span>
                         <Button
                           size="sm"
                           variant="outline"
@@ -771,7 +779,7 @@ export function HuntBoardPage() {
                             openVisitDialog();
                           }}
                         >
-                          방문 잡기
+                          Schedule visit
                         </Button>
                       </div>
                     </CardContent>
@@ -781,8 +789,8 @@ export function HuntBoardPage() {
             ) : (
               <div className="empty-state">
                 <div className="empty-icon">🔍</div>
-                <strong>조건에 맞는 확보처가 없습니다.</strong>
-                <p>검색어나 유형 필터를 바꿔 보세요.</p>
+                <strong>No matching vehicle sources.</strong>
+                <p>Try changing the search term or type filter.</p>
               </div>
             )}
           </div>
@@ -792,7 +800,7 @@ export function HuntBoardPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>방문 예약</DialogTitle>
+            <DialogTitle>Schedule visit</DialogTitle>
           </DialogHeader>
           <DialogBody className="dialog-form-grid">
             <label>
@@ -805,7 +813,7 @@ export function HuntBoardPage() {
                 }}
               >
                 <SelectTrigger aria-label="Project Group">
-                  <SelectValue placeholder="프로젝트 선택" />
+                  <SelectValue placeholder="Select project" />
                 </SelectTrigger>
                 <SelectContent>
                   {projects.map((project) => (
@@ -817,7 +825,7 @@ export function HuntBoardPage() {
               </Select>
             </label>
             <label>
-              확보처
+              Vehicle source
               <Select value={visitDealer} onValueChange={setVisitDealer}>
                 <SelectTrigger aria-label="Dealer">
                   <SelectValue />
@@ -832,7 +840,7 @@ export function HuntBoardPage() {
               </Select>
             </label>
             <label>
-              방문 유형
+              Visit type
               <Select
                 value={visitKind}
                 onValueChange={(value) => {
@@ -850,7 +858,7 @@ export function HuntBoardPage() {
               </Select>
             </label>
             <label>
-              날짜
+              Date
               <Input
                 type="date"
                 value={visitDate}
@@ -860,7 +868,7 @@ export function HuntBoardPage() {
               />
             </label>
             <label>
-              시간
+              Time
               <Input
                 type="time"
                 value={visitTime}
@@ -918,7 +926,7 @@ export function HuntBoardPage() {
                 setDialogOpen(false);
               }}
             >
-              취소
+              Cancelled
             </Button>
             <Button
               variant="primary"
@@ -931,7 +939,7 @@ export function HuntBoardPage() {
               }
               onClick={saveVisit}
             >
-              예약 저장
+              Save booking
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -950,7 +958,7 @@ export function HuntBoardPage() {
           <DialogHeader>
             <DialogTitle>
               {calendarMonthKey}-{String(selectedDay ?? 0).padStart(2, '0')}{' '}
-              일정 {selectedDayVisits.length}건
+              Schedule {selectedDayVisits.length} items
             </DialogTitle>
           </DialogHeader>
           <DialogBody className="detail-card-list">
@@ -962,7 +970,7 @@ export function HuntBoardPage() {
                     tone={visit.kind === 'SCAN' ? 'progress' : 'cyan'}
                     size="lg"
                   />
-                  <span>담당 {visitAssigneeNames(visit)}</span>
+                  <span>Owner {visitAssigneeNames(visit)}</span>
                 </div>
                 <strong>
                   {visit.dealer} · {visit.date} {visit.time}
@@ -1016,11 +1024,13 @@ export function HuntBoardPage() {
                     </dd>
                   </div>
                   <div>
-                    <dt>상태</dt>
+                    <dt>Status</dt>
                     <dd>
                       <StatusBadge
                         label={
-                          visit.status === 'COMPLETED' ? '방문 완료' : '예약됨'
+                          visit.status === 'COMPLETED'
+                            ? 'Visit complete'
+                            : 'Scheduled'
                         }
                         tone={
                           visit.status === 'COMPLETED' ? 'success' : 'progress'
@@ -1046,13 +1056,13 @@ export function HuntBoardPage() {
                       );
                     }}
                   >
-                    방문 완료 처리
+                    Complete visit
                   </Button>
                 )}
                 {visit.kind === 'FITTING' && (
                   <p className="muted-text">
-                    피팅 완료는 프로젝트의 설계 적합 확인과 Shape 확정을
-                    기준으로 구분합니다.
+                    Fitting completion depends on project design fitment
+                    verification and Shape confirmation.
                   </p>
                 )}
               </div>
@@ -1066,7 +1076,7 @@ export function HuntBoardPage() {
                 setSelectedVisitId(undefined);
               }}
             >
-              닫기
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1075,13 +1085,13 @@ export function HuntBoardPage() {
       <Dialog open={dealerDialogOpen} onOpenChange={setDealerDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>확보처 등록</DialogTitle>
+            <DialogTitle>Add vehicle source</DialogTitle>
           </DialogHeader>
           <DialogBody className="dialog-form-grid">
             <label>
-              확보처 이름
+              Source name
               <Input
-                placeholder="예: Galpin Ford"
+                placeholder="Example: Galpin Ford"
                 value={dealerName}
                 onChange={(event) => {
                   setDealerName(event.target.value);
@@ -1089,9 +1099,9 @@ export function HuntBoardPage() {
               />
             </label>
             <label>
-              취급 브랜드
+              Brands served
               <Input
-                placeholder="예: Ford / Lincoln"
+                placeholder="Example: Ford / Lincoln"
                 value={dealerBrand}
                 onChange={(event) => {
                   setDealerBrand(event.target.value);
@@ -1099,14 +1109,14 @@ export function HuntBoardPage() {
               />
             </label>
             <label>
-              유형
+              Type
               <Select
                 value={dealerNewType}
                 onValueChange={(value) => {
                   setDealerNewType(value as Dealer['type']);
                 }}
               >
-                <SelectTrigger aria-label="확보처 유형">
+                <SelectTrigger aria-label="Source type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1117,9 +1127,9 @@ export function HuntBoardPage() {
               </Select>
             </label>
             <label>
-              지역 / 주소
+              Area / Address
               <Input
-                placeholder="예: North Hills, CA"
+                placeholder="Example: North Hills, CA"
                 value={dealerAddress}
                 onChange={(event) => {
                   setDealerAddress(event.target.value);
@@ -1127,9 +1137,9 @@ export function HuntBoardPage() {
               />
             </label>
             <label className="full-width">
-              연락처
+              Contact
               <Input
-                placeholder="예: J. Alvarez · (818) 555-0134"
+                placeholder="Example: J. Alvarez · (818) 555-0134"
                 value={dealerContact}
                 onChange={(event) => {
                   setDealerContact(event.target.value);
@@ -1137,9 +1147,9 @@ export function HuntBoardPage() {
               />
             </label>
             <label className="full-width">
-              방문 참고사항
+              Visit notes
               <Input
-                placeholder="예: 금요일 오전 방문 선호"
+                placeholder="Example: Friday morning visits preferred"
                 value={dealerNote}
                 onChange={(event) => {
                   setDealerNote(event.target.value);
@@ -1147,8 +1157,8 @@ export function HuntBoardPage() {
               />
             </label>
             <div className="dialog-note">
-              확보처는 스캔·피팅 방문에 공용으로 쓰입니다. 최근 방문일은 방문
-              완료 처리 시 채워집니다.
+              Vehicle sources are shared across scan and fitting visits. The
+              latest visit date updates when a visit is completed.
             </div>
           </DialogBody>
           <DialogFooter>
@@ -1158,14 +1168,14 @@ export function HuntBoardPage() {
                 setDealerDialogOpen(false);
               }}
             >
-              취소
+              Cancelled
             </Button>
             <Button
               variant="primary"
               disabled={!dealerName.trim() || !dealerAddress.trim()}
               onClick={saveDealer}
             >
-              확보처 등록
+              Add vehicle source
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1179,7 +1189,7 @@ export function HuntBoardPage() {
       >
         <DialogContent className="detail-dialog">
           <DialogHeader>
-            <DialogTitle>확보처 상세</DialogTitle>
+            <DialogTitle>Vehicle source details</DialogTitle>
           </DialogHeader>
           {selectedDealer && (
             <DialogBody className="detail-card-list">
@@ -1190,30 +1200,30 @@ export function HuntBoardPage() {
                 <strong>{selectedDealer.name}</strong>
                 <dl className="detail-rows">
                   <div>
-                    <dt>주소</dt>
+                    <dt>Address</dt>
                     <dd>{selectedDealer.address}</dd>
                   </div>
                   <div>
-                    <dt>연락처</dt>
+                    <dt>Contact</dt>
                     <dd>{selectedDealer.contact}</dd>
                   </div>
                   <div>
-                    <dt>참고사항</dt>
+                    <dt>Notes</dt>
                     <dd>{selectedDealer.note || '—'}</dd>
                   </div>
                   <div>
-                    <dt>최근 방문</dt>
+                    <dt>Last visit</dt>
                     <dd>{selectedDealer.lastVisit}</dd>
                   </div>
                   <div>
-                    <dt>누적 방문</dt>
-                    <dd>{selectedDealerVisits.length}건</dd>
+                    <dt>Total visits</dt>
+                    <dd>{selectedDealerVisits.length} items</dd>
                   </div>
                 </dl>
               </div>
 
               <div className="detail-card">
-                <span className="detail-card-label">방문 이력</span>
+                <span className="detail-card-label">Visit history</span>
                 {selectedDealerVisits.length ? (
                   <dl className="detail-rows">
                     {selectedDealerVisits.map((visit) => (
@@ -1224,14 +1234,14 @@ export function HuntBoardPage() {
                         <dd className="dealer-visit-row">
                           <span className="visit-reference">{visit.id}</span>
                           <span>
-                            {visit.kind === 'SCAN' ? '스캔' : '피팅'} ·{' '}
+                            {visit.kind === 'SCAN' ? 'Scan' : 'Fitting'} ·{' '}
                             {visitAssigneeNames(visit)}
                           </span>
                           <StatusBadge
                             label={
                               visit.status === 'COMPLETED'
-                                ? '방문 완료'
-                                : '예약됨'
+                                ? 'Visit complete'
+                                : 'Scheduled'
                             }
                             tone={
                               visit.status === 'COMPLETED'
@@ -1245,7 +1255,7 @@ export function HuntBoardPage() {
                   </dl>
                 ) : (
                   <span className="muted-text">
-                    아직 이 확보처 방문 기록이 없습니다.
+                    No visit history for this vehicle source yet.
                   </span>
                 )}
               </div>
@@ -1258,7 +1268,7 @@ export function HuntBoardPage() {
                 setSelectedDealerId(undefined);
               }}
             >
-              닫기
+              Close
             </Button>
             <Button
               variant="primary"
@@ -1269,7 +1279,7 @@ export function HuntBoardPage() {
                 openVisitDialog();
               }}
             >
-              <CalendarPlus /> 방문 잡기
+              <CalendarPlus /> Schedule visit
             </Button>
           </DialogFooter>
         </DialogContent>

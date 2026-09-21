@@ -28,13 +28,13 @@ await test('settings shows personal sections, labeled controls, local-only scope
     assert.ok(html.includes('id="' + id + '"'));
     assert.ok(html.includes('href="#' + id + '"'));
   }
-  assert.match(html, /개인 환경 설정/);
-  assert.match(html, /Google Workspace 연결 대기/);
-  assert.match(html, /1단계 승인/);
-  assert.match(html, /이 브라우저에 저장/);
+  assert.match(html, /Personal Settings/);
+  assert.match(html, /Google Workspace not connected/);
+  assert.match(html, /Single-step approval/);
+  assert.match(html, /Saved in this browser/);
   assert.match(html, /<details class="prefs-backup">/);
   assert.match(html, /Backup tools/);
   assert.match(html, /for="approval-autofill"/);
   assert.match(html, /id="notification-comment"/);
-  assert.equal(pageTitle('/work/settings', '?team=rd'), '개인 환경 설정');
+  assert.equal(pageTitle('/work/settings', '?team=rd'), 'Personal Settings');
 });

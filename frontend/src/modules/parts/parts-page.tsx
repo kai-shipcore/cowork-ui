@@ -41,9 +41,9 @@ const SEAT_POSITIONS: readonly SeatPosition[] = [
   'DRIVER',
 ];
 const SEAT_POSITION_LABELS: Record<SeatPosition, string> = {
-  PASSENGER: '조수석',
-  CENTER: '중앙',
-  DRIVER: '운전석',
+  PASSENGER: 'Passenger',
+  CENTER: 'Center',
+  DRIVER: 'Driver',
 };
 const SEAT_POSITION_LETTERS: Partial<Record<SeatPosition, string>> = {
   PASSENGER: 'P',
@@ -61,11 +61,11 @@ interface SeatPiece {
 }
 
 const SEAT_PIECES: readonly SeatPiece[] = [
-  { category: 'HEADREST', label: '헤드' },
-  { category: 'TOP', label: '등받이', centerLabel: '등받이/콘솔' },
-  { category: 'ARM', label: '팔걸이', sideOnly: true },
-  { category: 'BOTTOM', label: '방석' },
-  { category: 'LEG', label: '다리 지지대', sideOnly: true },
+  { category: 'HEADREST', label: 'Headrest' },
+  { category: 'TOP', label: 'Backrest', centerLabel: 'Backrest / Console' },
+  { category: 'ARM', label: 'Armrest', sideOnly: true },
+  { category: 'BOTTOM', label: 'Seat cushion' },
+  { category: 'LEG', label: 'Leg support', sideOnly: true },
 ];
 
 export function PartsPage() {
@@ -260,7 +260,7 @@ export function PartsPage() {
       }
       setSelected(id);
       setCreateOpen(false);
-      setMessage('Part를 생성했습니다.');
+      setMessage('Part created.');
       setNote('');
       setDxfFileName('');
       setDxfFingerprint('');
@@ -271,7 +271,7 @@ export function PartsPage() {
   return (
     <section className="parts-workspace">
       <PageHeader
-        description="부품 라이브러리 · Name Generator · Version History"
+        description="Part Library · Name Generator · Version History"
         tables={
           import.meta.env.DEV
             ? [
@@ -293,8 +293,8 @@ export function PartsPage() {
       <DetailSheet
         open={createOpen}
         onOpenChange={setCreateOpen}
-        title="새 Part 생성"
-        description="부위와 사양을 선택해 공용 Part와 첫 버전을 등록합니다."
+        title="Create new part"
+        description="Choose the location and specifications to create a shared part and its first revision."
         icon={<Plus />}
         size="lg"
         className="parts-create-sheet w-[min(1120px,96vw)] sm:max-w-none"
@@ -315,7 +315,9 @@ export function PartsPage() {
               form="part-create-form"
               disabled={!valid || duplicate}
             >
-              {safeReturn ? '생성 후 프로젝트에서 연결' : 'Part 생성'}
+              {safeReturn
+                ? 'Link from the project after creation'
+                : 'Create part'}
             </Button>
           </>
         }
@@ -325,15 +327,15 @@ export function PartsPage() {
             <div className="parts-section-heading">
               <span>01</span>
               <div>
-                <h2>시트 부위 선택</h2>
-                <p>열과 부위를 선택하면 등록 가능한 Part가 필터링됩니다.</p>
+                <h2>Select seat area</h2>
+                <p>Select a row and area to filter available part types.</p>
               </div>
             </div>
             <div className="parts-tabs">
               {[
-                ['F', '1열 (Front)'],
-                ['B', '2열 (Rear)'],
-                ['E', '3열 (Third Row)'],
+                ['F', '1st row (Front)'],
+                ['B', '2nd row (Rear)'],
+                ['E', '3rd row'],
               ].map(([value, label]) => (
                 <button
                   key={value}
@@ -393,8 +395,8 @@ export function PartsPage() {
             </div>
             <div className="parts-selection-guide">
               <div>
-                <strong>원하는 부위를 선택하세요</strong>
-                <p>선택한 조건에 맞는 Part Type만 오른쪽에 표시됩니다.</p>
+                <strong>Select an area</strong>
+                <p>Only matching part types appear on the right.</p>
               </div>
               <button
                 type="button"
@@ -406,7 +408,7 @@ export function PartsPage() {
                 }}
               >
                 <RotateCcw aria-hidden="true" />
-                부위 필터 해제
+                Clear area filter
               </button>
             </div>
             <div className="parts-workflow-note">
@@ -414,8 +416,8 @@ export function PartsPage() {
                 <Link2 />
               </span>
               <p>
-                생성한 공용 Part는 각 프로젝트에서 필요한{' '}
-                <strong>버전과 수량</strong>을 선택해 연결할 수 있습니다.
+                Link shared parts in each project by selecting the required{' '}
+                <strong>revision and quantity</strong>for that project.
               </p>
             </div>
           </div>
@@ -430,8 +432,8 @@ export function PartsPage() {
             <div className="parts-section-heading">
               <span>02</span>
               <div>
-                <h2>Part 정보</h2>
-                <p>식별 정보와 초기 버전 파일을 입력하세요.</p>
+                <h2>Part information</h2>
+                <p>Enter identifying details and the initial revision file.</p>
               </div>
             </div>
             <div className="parts-tabs">
@@ -443,7 +445,7 @@ export function PartsPage() {
                   setPartType('');
                 }}
               >
-                커스텀
+                Custom
               </button>
               <button
                 type="button"
@@ -453,7 +455,7 @@ export function PartsPage() {
                   setPartType('');
                 }}
               >
-                유니버설
+                Universal
               </button>
             </div>
             <>
@@ -466,7 +468,7 @@ export function PartsPage() {
                     setPartType(e.target.value);
                   }}
                 >
-                  <option value="">Part 선택</option>
+                  <option value="">Select part</option>
                   {types.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name} · {p.category}
@@ -476,8 +478,8 @@ export function PartsPage() {
               </label>
               {types.length === 0 && (
                 <p>
-                  조건에 맞는 Part Type이 없습니다. 부위 필터를 해제하거나
-                  Reference Data에서 등록하세요.
+                  No matching part types. Clear the area filter or add one in
+                  Reference Data.
                 </p>
               )}
             </>
@@ -528,7 +530,7 @@ export function PartsPage() {
                     setCode(e.target.value);
                   }}
                 >
-                  <option value="">Code 선택</option>
+                  <option value="">Select code</option>
                   {seatCoverCodes
                     .filter((c) => c.status === 'ACTIVE')
                     .map((c) => (
@@ -560,7 +562,7 @@ export function PartsPage() {
               />
             </label>
             <label>
-              초기 DXF 파일
+              Initial DXF file
               <input
                 required
                 type="file"
@@ -578,17 +580,17 @@ export function PartsPage() {
               />
             </label>
             <label>
-              Part Name 미리보기
+              Part name preview
               <output className="part-name-preview">
-                {name || '필수 항목을 선택하세요'}
+                {name || 'Select the required fields'}
               </output>
             </label>
             <p role="status">
               {duplicate
-                ? '동일한 Part Name이 있습니다. 기존 Part를 사용하세요.'
+                ? 'This part name already exists. Use the existing part.'
                 : valid
-                  ? '중복 없음 · 생성 가능'
-                  : '필수 항목을 입력하세요.'}
+                  ? 'No duplicates · Ready to create'
+                  : 'Complete the required fields.'}
             </p>
           </form>
         </div>
@@ -601,8 +603,8 @@ export function PartsPage() {
           getRowId={(part) => part.id}
           sorting={{ value: sort, onChange: setSort, mode: 'manual' }}
           search={{
-            label: 'Part 이름 또는 Part Type 검색',
-            placeholder: 'Part 이름 / Part Type',
+            label: 'Search part name or type',
+            placeholder: 'Part name / Type',
             value: search,
             onChange: setSearch,
           }}
@@ -621,7 +623,7 @@ export function PartsPage() {
                     void navigate(safeReturn);
                   }}
                 >
-                  프로젝트로 돌아가기
+                  Back to project
                 </Button>
               )}
               <Button
@@ -631,7 +633,7 @@ export function PartsPage() {
                   setCreateOpen(true);
                 }}
               >
-                <Plus /> Part 생성
+                <Plus /> Create part
               </Button>
             </>
           }
@@ -639,14 +641,12 @@ export function PartsPage() {
             <div className="empty-state">
               <div className="empty-icon">🧩</div>
               <strong>
-                {parts.length
-                  ? '조건에 맞는 Part가 없습니다.'
-                  : '등록된 Part가 없습니다.'}
+                {parts.length ? 'No matching parts.' : 'No parts registered.'}
               </strong>
               <p>
                 {parts.length
-                  ? '검색어나 제품군 필터를 바꿔 보세요.'
-                  : 'Part 생성 버튼으로 첫 Part를 추가하세요.'}
+                  ? 'Try changing the search term or product filter.'
+                  : 'Use Create part to add your first part.'}
               </p>
             </div>
           }
@@ -670,14 +670,15 @@ export function PartsPage() {
               if (!open) setSelected('');
             }}
             title={`${active.name} Version History`}
-            description={`${String(active.revisions.length)}개의 버전 이력을 확인합니다.`}
+            description={`${String(active.revisions.length)} revisions in history.`}
             icon={<FileClock />}
             size="md"
             className="w-[min(620px,96vw)] sm:max-w-none"
             footer={
               <p className="text-sm text-muted-foreground">
-                새 Revision과 수정 요청은 프로젝트 상세의 Revision Control에서
-                생성합니다. 검증 결과는 이 이력에 자동으로 연결됩니다.
+                Create new revisions and change requests in the project's
+                Revision Control tab. Verification results are linked to this
+                history automatically.
               </p>
             }
           >
@@ -692,7 +693,7 @@ export function PartsPage() {
                       <span>
                         <CalendarClock aria-hidden="true" />
                         <time dateTime={r.createdAt}>
-                          {new Date(r.createdAt).toLocaleString()}
+                          {new Date(r.createdAt).toLocaleString('en-US')}
                         </time>
                       </span>
                       <span>
@@ -702,37 +703,37 @@ export function PartsPage() {
                     </div>
                   </div>
                   <div className="part-version-note">
-                    <span>버전 메모</span>
-                    <p>{r.note || '변경 메모 없음'}</p>
+                    <span>Revision notes</span>
+                    <p>{r.note || 'No change notes'}</p>
                   </div>
                   {r.changeRequest && (
                     <section className="part-revision-section">
-                      <h3>변경 요청</h3>
+                      <h3>Change request</h3>
                       <dl className="part-revision-change">
                         <div>
-                          <dt>문제 출처</dt>
+                          <dt>Issue source</dt>
                           <dd>{r.changeRequest.issueSource || '—'}</dd>
                         </div>
                         <div>
-                          <dt>문제 부위</dt>
+                          <dt>Affected area</dt>
                           <dd>{r.changeRequest.issueArea || '—'}</dd>
                         </div>
                         <div className="part-revision-wide">
-                          <dt>수정 지시</dt>
+                          <dt>Change instructions</dt>
                           <dd>{r.changeRequest.instruction || '—'}</dd>
                         </div>
                       </dl>
                       <div className="part-revision-files">
                         <div>
                           <FileImage aria-hidden="true" />
-                          <span>참고 이미지</span>
+                          <span>Reference image</span>
                           <strong>
-                            {r.changeRequest.referenceImageName || '없음'}
+                            {r.changeRequest.referenceImageName || 'None'}
                           </strong>
                         </div>
                         <div>
                           <FileClock aria-hidden="true" />
-                          <span>DXF 변경</span>
+                          <span>DXF change</span>
                           <strong>
                             {r.changeRequest.previousDxfFileName} →{' '}
                             {r.changeRequest.newDxfFileName}
@@ -743,7 +744,7 @@ export function PartsPage() {
                   )}
                   {Boolean(r.executionVerifications?.length) && (
                     <section className="part-revision-section">
-                      <h3>반영 검증</h3>
+                      <h3>Implementation verification</h3>
                       <div className="part-revision-verifications">
                         {r.executionVerifications?.map((verification) => (
                           <div
@@ -755,16 +756,18 @@ export function PartsPage() {
                             <div>
                               <strong>
                                 {verification.verdict === 'CORRECT'
-                                  ? '정확히 반영'
+                                  ? 'Fully implemented'
                                   : verification.verdict === 'PARTIAL'
-                                    ? '일부 반영'
-                                    : '전혀 미반영'}
+                                    ? 'Partially implemented'
+                                    : 'Not implemented'}
                               </strong>
-                              <p>{verification.note || '검증 메모 없음'}</p>
+                              <p>
+                                {verification.note || 'No verification notes'}
+                              </p>
                               <small>
                                 {new Date(
                                   verification.verifiedAt,
-                                ).toLocaleString()}{' '}
+                                ).toLocaleString('en-US')}{' '}
                                 · {verification.verifiedBy}
                               </small>
                             </div>

@@ -115,8 +115,12 @@ test('daysBetween counts whole days and accepts ISO datetimes', () => {
 test('a received sample with no fitting booked past the limit is a warning', () => {
   const summary = summarizeDashboard(input());
   assert.equal(summary.samplesWaitingFitting.length, 1);
-  assert.ok(summary.samplesWaitingFitting[0]!.waitingDays > SAMPLE_FITTING_WAIT_DAYS);
-  assert.ok(summary.warnings.some((warning) => warning.kind === 'SAMPLE_WAITING'));
+  assert.ok(
+    summary.samplesWaitingFitting[0]!.waitingDays > SAMPLE_FITTING_WAIT_DAYS,
+  );
+  assert.ok(
+    summary.warnings.some((warning) => warning.kind === 'SAMPLE_WAITING'),
+  );
   assert.equal(summary.repeatSampleCount, 1);
 });
 
@@ -125,7 +129,9 @@ test('a scheduled fitting clears the sample wait', () => {
     input({ visits: [visit({ staffIds: ['USR-KAI'] })] }),
   );
   assert.equal(summary.samplesWaitingFitting.length, 0);
-  assert.ok(!summary.warnings.some((warning) => warning.kind === 'SAMPLE_WAITING'));
+  assert.ok(
+    !summary.warnings.some((warning) => warning.kind === 'SAMPLE_WAITING'),
+  );
 });
 
 test('a scheduled visit without staff is flagged as unassigned', () => {
@@ -167,5 +173,7 @@ test('a passed fitting on a Fitting-stage zone is a pending handoff approval', (
     }),
   );
   assert.equal(summary.handoffPending.length, 1);
-  assert.ok(summary.actions.some((action) => action.badge === '승인 대기'));
+  assert.ok(
+    summary.actions.some((action) => action.badge === 'Pending approval'),
+  );
 });

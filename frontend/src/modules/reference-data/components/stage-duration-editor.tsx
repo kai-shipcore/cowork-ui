@@ -65,10 +65,10 @@ export function StageDurationEditor({
           if (success) {
             setBaseId(draft.id);
             setNote('');
-            setMessage('저장했습니다. 앞으로 시작하는 단계부터 적용됩니다.');
+            setMessage('Saved. Applies to stages started from now on.');
           } else
             setMessage(
-              '저장하지 못했습니다. 권한·입력값·다른 창의 변경 여부를 확인하세요.',
+              'Save failed. Check permissions, values, and changes in other windows.',
             );
         });
       }}
@@ -76,8 +76,8 @@ export function StageDurationEditor({
       <div className="stage-duration-actions">
         <span>
           {latest
-            ? `최근 저장: ${new Date(latest.updatedAt).toLocaleString()}`
-            : '표준 기간 미설정 · 자동 목표일을 만들지 않습니다.'}
+            ? `Last saved: ${new Date(latest.updatedAt).toLocaleString('en-US')}`
+            : 'Standard durations not set · Due dates are not generated automatically.'}
         </span>
         <Button
           type="button"
@@ -86,20 +86,20 @@ export function StageDurationEditor({
           onClick={() => {
             setValues(product.example.map(String));
             setMessage(
-              '예시 기간을 불러왔습니다. 검토 후 저장해야 적용됩니다.',
+              'Example durations loaded. Review and save to apply them.',
             );
           }}
         >
-          예시 불러오기
+          Load example
         </Button>
       </div>
       <div className="stage-duration-table">
         <table>
           <thead>
             <tr>
-              <th>개발 단계</th>
-              <th>표준 기간</th>
-              <th>기준</th>
+              <th>Development stage</th>
+              <th>Standard duration</th>
+              <th>Basis</th>
             </tr>
           </thead>
           <tbody>
@@ -110,7 +110,7 @@ export function StageDurationEditor({
                 </td>
                 <td>
                   <Input
-                    aria-label={`${stage} 표준 기간`}
+                    aria-label={`${stage} Standard duration`}
                     type="number"
                     min={1}
                     max={365}
@@ -128,39 +128,39 @@ export function StageDurationEditor({
                       setMessage('');
                     }}
                   />{' '}
-                  일
+                  days
                 </td>
                 <td>
                   {stage === 'Sample'
-                    ? '제작·운송·검수 포함'
-                    : '단계 시작일부터 계산'}
+                    ? 'Includes production, shipping, and inspection'
+                    : 'Counted from the stage start date'}
                 </td>
               </tr>
             ))}
             <tr>
-              <td>개발 완료</td>
+              <td>Development complete</td>
               <td>—</td>
-              <td>완료 상태 · 기간 없음</td>
+              <td>Completed status · No duration</td>
             </tr>
           </tbody>
         </table>
       </div>
       <div className="stage-duration-total">
-        <span>순차 진행 합계 · 재작업 제외</span>
+        <span>Sequential total · Excludes rework</span>
         <strong>
           {valid
-            ? `${String(values.reduce((sum, value) => sum + Number(value), 0))}일`
-            : '각 단계에 1~365일을 입력하세요'}
+            ? `${String(values.reduce((sum, value) => sum + Number(value), 0))} days`
+            : 'Enter 1–365 days for each stage'}
         </strong>
       </div>
       <label className="stage-duration-reason">
-        변경 사유
+        Reason for change
         <Input
           value={note}
           maxLength={500}
           required
           disabled={!canEdit || saving}
-          placeholder="예: 공급업체 샘플 리드타임 반영"
+          placeholder="Example: Updated supplier sample lead time"
           onChange={(event) => {
             setNote(event.target.value);
           }}
@@ -168,9 +168,10 @@ export function StageDurationEditor({
       </label>
       <div className="stage-duration-actions">
         <p>
-          앞으로 시작하는 단계에만 적용합니다.
+          Applies only to stages started from now on.
           <br />
-          진행 중·완료 단계의 목표일과 전체 프로젝트 납기는 유지됩니다.
+          Due dates for active and completed stages and the overall project
+          target remain unchanged.
         </p>
         <div>
           <Button
@@ -181,22 +182,22 @@ export function StageDurationEditor({
               setValues(fromRevision());
               setBaseId(latest?.id);
               setNote('');
-              setMessage('최신 저장값을 불러왔습니다.');
+              setMessage('Loaded the latest saved values.');
             }}
           >
-            저장값 불러오기
+            Reload saved values
           </Button>{' '}
           <Button
             type="submit"
             disabled={!canEdit || saving || stale || !valid || !note.trim()}
           >
-            {saving ? '저장 중…' : '변경 저장'}
+            {saving ? 'Saving…' : 'Save changes'}
           </Button>
         </div>
       </div>
       {stale && (
         <p role="alert">
-          기준이 다른 창에서 변경되었습니다. 저장값을 다시 불러오세요.
+          Standards changed in another window. Reload the saved values.
         </p>
       )}
       <p role="status">{message}</p>

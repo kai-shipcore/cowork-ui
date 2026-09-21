@@ -55,24 +55,24 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
       return {
         snapshot: createOperationsSeed(),
         error:
-          '저장 데이터를 읽을 수 없습니다. 기존 데이터를 덮어쓰지 않았습니다. 백업을 확인해 주세요.',
+          'Unable to read saved data. Existing data has not been overwritten. Please check your backup.',
       };
     }
   });
   const [snapshot, setSnapshot] = useState(initial.snapshot);
   const [actor, setActor] = useState<Person>(PEOPLE[0]);
   const [error, setError] = useState(initial.error);
-  const [message, setMessage] = useState('데모 데이터 · 이 브라우저에 저장');
+  const [message, setMessage] = useState('Demo data · Saved in this browser');
   const [saving, setSaving] = useState(false);
 
   function reload() {
     try {
       setSnapshot(loadSnapshot());
       setError('');
-      setMessage('최신 브라우저 저장 데이터를 불러왔습니다.');
+      setMessage('Loaded the latest data from this browser.');
     } catch {
       setError(
-        '저장 데이터를 읽을 수 없습니다. 현재 자료를 덮어쓰지 않았습니다.',
+        'Unable to read saved data. Current records have not been overwritten.',
       );
     }
   }
@@ -100,13 +100,14 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       setSnapshot(next);
       setMessage(
-        '브라우저 저장 완료 · ' + new Date(next.updatedAt).toLocaleTimeString(),
+        'Saved in this browser · ' +
+          new Date(next.updatedAt).toLocaleTimeString('en-US'),
       );
     }
     try {
       if (!('locks' in navigator))
         throw new Error(
-          '동시 저장 보호를 지원하는 HTTPS 또는 localhost 브라우저에서 사용하세요.',
+          'Use HTTPS or localhost in a browser that supports concurrent-write protection.',
         );
       await navigator.locks.request(STORAGE_KEY, write);
       return true;
@@ -116,7 +117,7 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
           ? cause.issues.map((issue) => issue.message).join(' / ')
           : cause instanceof Error
             ? cause.message
-            : '저장에 실패했습니다. 입력 내용은 유지됩니다.',
+            : 'Save failed. Your input has been preserved.',
       );
       return false;
     } finally {
@@ -141,7 +142,7 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
   async function act(id: string, revision: number, action: RequestAction) {
     return commit((current) => {
       const request = current.requests.find((item) => item.id === id);
-      if (!request) throw new Error('요청을 찾을 수 없습니다.');
+      if (!request) throw new Error('Request not found.');
       const at = new Date().toISOString();
       const updated = applyRequestAction(
         request,
@@ -170,7 +171,7 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
       );
       if (!additions.length)
         throw new Error(
-          '새로 복원할 요청이 없습니다. 기존 ID의 요청은 덮어쓰지 않습니다.',
+          'No new requests to restore. Requests with existing IDs are not overwritten.',
         );
       return {
         ...current,

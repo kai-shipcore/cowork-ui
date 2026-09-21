@@ -58,7 +58,7 @@ export function ShapeCompositionEditor({
     },
     {
       id: 'quantity',
-      header: '수량',
+      header: 'Quantity',
       width: 180,
       sortValue: (part) => part.quantity,
       cell: (part) => <>{part.quantity}</>,
@@ -119,22 +119,21 @@ export function ShapeCompositionEditor({
           : item,
       ),
     );
-    setMessage(
-      complete ? '구성 등록이 완료되었습니다.' : '작성 중으로 저장했습니다.',
-    );
+    setMessage(complete ? 'Composition completed.' : 'Draft saved.');
   };
   return (
     <section className="shape-section shape-composition-editor">
-      <h3>{shape.name} 구성 등록</h3>
+      <h3>{shape.name} Composition</h3>
       <p>
-        담당: Pattern Designer. 승인된 모든 Part 이름·버전·수량을 등록하고, 전체
-        패턴 조각을 한 장에 배치한 Blueprint를 연결합니다.
+        Owner: Pattern Designer. Register all approved part names, revisions,
+        and quantities, then link a blueprint containing all pattern pieces on
+        one sheet.
       </p>
       <div className="shape-composition-source">
         <label className="shape-composition-field">
-          승인된 원본 프로젝트
+          Approved source project
           <select
-            aria-label="구성 원본 프로젝트"
+            aria-label="Composition source project"
             value={sourceId}
             onChange={(event) => {
               setSourceId(event.target.value);
@@ -142,7 +141,7 @@ export function ShapeCompositionEditor({
               setConfirmed(false);
             }}
           >
-            <option value="">프로젝트 선택</option>
+            <option value="">Select project</option>
             {sources.map(({ project, zone }) => (
               <option key={zone.id} value={zone.id}>
                 {project.vehicle} · {zone.code}
@@ -159,36 +158,37 @@ export function ShapeCompositionEditor({
               setConfirmed(false);
             }}
           >
-            승인된 전체 Part 목록 가져오기
+            Import all approved parts
           </Button>
         </div>
       </div>
       {!sources.length && (
         <p className="shape-errors">
-          유효한 검토 승인을 마치고 이 Shape에 연결된 프로젝트가 필요합니다.
+          A linked project with a valid review approval is required.
         </p>
       )}
       <div className="shape-composition-table-heading">
-        <h4>Part 구성</h4>
+        <h4>Parts composition</h4>
         <span>{parts.length} Parts</span>
       </div>
       <div className="shape-table-scroll">
         <FlatDataGrid
-          label="Part 구성"
+          label="Parts composition"
           columns={columns}
           rows={parts}
           getRowId={(part) => part.designId}
-          emptyMessage="원본 프로젝트를 선택하고 승인된 Part 목록을 가져오세요."
+          emptyMessage="Select the source project and import its approved parts."
         />
       </div>
       {!matches && (
         <p className="shape-errors">
-          최신 승인 구성의 모든 Part를 가져와야 완료할 수 있습니다.
+          Import every part from the latest approved composition before
+          completing.
         </p>
       )}
       <div className="shape-composition-blueprint">
         <label className="shape-composition-field">
-          전체 Blueprint 이미지 / 문서 링크
+          Complete blueprint image / Document link
           <Input
             value={blueprint}
             onChange={(event) => {
@@ -200,10 +200,10 @@ export function ShapeCompositionEditor({
         </label>
         {validUrl ? (
           <a href={blueprint.trim()} target="_blank" rel="noreferrer">
-            Blueprint 열어 확인 ↗
+            Open and review blueprint ↗
           </a>
         ) : (
-          <p>열 수 있는 http 또는 https 링크를 입력하세요.</p>
+          <p>Enter a working HTTP or HTTPS link.</p>
         )}
       </div>
       <label className="shape-check">
@@ -213,12 +213,13 @@ export function ShapeCompositionEditor({
             setConfirmed(value === true);
           }}
         />
-        전체 Part 목록과 Blueprint가 일치하며 링크가 열리는지 확인했습니다.
-        저장하면 이 Shape를 사용하는 프로젝트가 같은 구성을 참조합니다.
+        I verified that the full parts list matches the blueprint and the link
+        opens. Once saved, projects using this Shape reference the same
+        composition.
       </label>
       <div className="shape-actions shape-composition-footer">
         <Button variant="ghost" onClick={onClose}>
-          닫기
+          Close
         </Button>
         <Button
           variant="outline"
@@ -227,7 +228,7 @@ export function ShapeCompositionEditor({
             save(false);
           }}
         >
-          임시 저장
+          Save draft
         </Button>
         <Button
           variant="primary"
@@ -236,7 +237,7 @@ export function ShapeCompositionEditor({
             save(true);
           }}
         >
-          구성 등록 완료
+          Composition complete
         </Button>
       </div>
       {message && <p role="status">{message}</p>}

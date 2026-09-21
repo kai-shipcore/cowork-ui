@@ -10,14 +10,14 @@ export function pageTitle(pathname: string, search: string): string {
   if (pathname.startsWith('/dashboard')) return TEAM_NAMES[team] + ' Dashboard';
   const pages: Record<string, string> = {
     tasks: 'My Tasks',
-    requests: '팀 간 요청',
-    search: '통합 검색',
-    reports: '업무 리포트',
-    notifications: '알림 · 활동',
-    settings: '개인 환경 설정',
+    requests: 'Team Requests',
+    search: 'Global Search',
+    reports: 'Work Reports',
+    notifications: 'Notifications & Activity',
+    settings: 'Personal Settings',
   };
   if (pathname.startsWith('/work/'))
-    return pages[pathname.split('/')[2]] ?? '업무';
+    return pages[pathname.split('/')[2]] ?? 'Work';
   function find(items: MenuItem[]): string | undefined {
     for (const item of items) {
       if (item.path === pathname) return item.title;

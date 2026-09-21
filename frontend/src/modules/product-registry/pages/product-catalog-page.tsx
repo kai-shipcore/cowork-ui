@@ -128,7 +128,7 @@ export function ProductCatalogPage() {
     },
     {
       id: 'material',
-      header: '재질',
+      header: 'Material',
       width: 180,
       sortValue: (product) => materialOf(product)?.code,
       cell: (product) => (
@@ -168,7 +168,7 @@ export function ProductCatalogPage() {
                 {packaging.weightUnit}
               </span>
             ) : (
-              <StatusBadge label="미등록" tone="warning" />
+              <StatusBadge label="Not registered" tone="warning" />
             )}
           </>
         );
@@ -176,7 +176,7 @@ export function ProductCatalogPage() {
     },
     {
       id: 'registration',
-      header: '출처 등록',
+      header: 'Source registration',
       width: 180,
       sortValue: (product) => itemOf(product)?.registrationId,
       cell: (product) => (
@@ -189,7 +189,7 @@ export function ProductCatalogPage() {
     },
     {
       id: 'status',
-      header: '상태',
+      header: 'Status',
       width: 180,
       sortValue: (product) => product.status,
       cell: (product) => (
@@ -283,7 +283,7 @@ export function ProductCatalogPage() {
     );
     if (errors.length) return errors;
     const validFrom = businessDateInstant(version.validFrom);
-    if (!validFrom) return ['유효한 적용 시작일을 입력하세요.'];
+    if (!validFrom) return ['Enter a valid effective start date.'];
     const row: MasterProductSku = {
       id: `MPS-${version.sku}-${String(masterProductSkus.length + 1)}`,
       masterProductId: product.id,
@@ -330,7 +330,7 @@ export function ProductCatalogPage() {
     );
     if (errors.length) return errors;
     const validFrom = businessDateInstant(version.validFrom);
-    if (!validFrom) return ['유효한 적용 시작일을 입력하세요.'];
+    if (!validFrom) return ['Enter a valid effective start date.'];
     const row: MasterProductPackaging = {
       id: `MPP-${product.id}-${String(masterProductPackagings.length + 1)}`,
       masterProductId: product.id,
@@ -360,7 +360,7 @@ export function ProductCatalogPage() {
   return (
     <section>
       <PageHeader
-        description="등록이 승인된 Product 목록 — SKU와 Packaging은 시점별 버전으로 관리됩니다"
+        description="Approved products — SKUs and packaging are managed as effective-dated versions"
         tables={
           import.meta.env.DEV
             ? [
@@ -373,7 +373,7 @@ export function ProductCatalogPage() {
         }
       />
 
-      <div className="summary-grid" role="group" aria-label="상태별 필터">
+      <div className="summary-grid" role="group" aria-label="Filter by status">
         {STATUS_CARDS.map((card) => (
           <SummaryCard
             key={card.status}
@@ -399,8 +399,8 @@ export function ProductCatalogPage() {
             <div className="search-field">
               <Search aria-hidden="true" />
               <Input
-                aria-label="SKU 또는 F# 검색"
-                placeholder="SKU / F# 검색"
+                aria-label="Search SKU or F#"
+                placeholder="Search SKU / F#"
                 value={query}
                 onChange={(event) => {
                   setQuery(event.target.value);
@@ -409,7 +409,7 @@ export function ProductCatalogPage() {
             </div>
             <Select value={productType} onValueChange={setProductType}>
               <SelectTrigger
-                aria-label="Product Type 필터"
+                aria-label="Product type filter"
                 className="filter-select wide"
               >
                 <SelectValue />
@@ -433,7 +433,7 @@ export function ProductCatalogPage() {
                   setStatus('ALL');
                 }}
               >
-                <X /> 필터 초기화
+                <X /> Clear filters
               </Button>
             )}
           </div>
@@ -449,7 +449,7 @@ export function ProductCatalogPage() {
               onRowClick={(product) => {
                 openProduct(product.id);
               }}
-              rowActionLabel={(product) => `${product.sku} 상세 열기`}
+              rowActionLabel={(product) => `${product.sku} Open details`}
               pagination={{
                 page: pagination.pageIndex + 1,
                 pageSize: pagination.pageSize,
@@ -486,10 +486,10 @@ export function ProductCatalogPage() {
         ) : (
           <div className="empty-state">
             <div className="empty-icon">📦</div>
-            <strong>Product가 없습니다.</strong>
+            <strong>No products.</strong>
             <p>
-              Unique Vehicles / F#에서 등록을 요청하고 Product Registrations에서
-              승인하면 여기에 나타납니다.
+              Request registration in Unique Vehicles / F#, then approve it in
+              Product Registrations to see it here.
             </p>
           </div>
         )}
@@ -500,11 +500,11 @@ export function ProductCatalogPage() {
         onOpenChange={(open) => {
           if (!open) closeProduct();
         }}
-        title={selected?.sku ?? 'Product 상세'}
+        title={selected?.sku ?? 'Product details'}
         description={
           selected
-            ? `${selected.fNumber} · SKU와 Packaging은 시점별 버전으로 관리됩니다.`
-            : '선택한 Product의 SKU와 Packaging 버전 이력'
+            ? `${selected.fNumber} · SKUs and packaging are managed as effective-dated versions.`
+            : 'SKU and packaging version history for the selected product'
         }
         size="lg"
         className="w-[min(1120px,96vw)] sm:max-w-none"

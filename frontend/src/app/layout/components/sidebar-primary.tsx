@@ -56,7 +56,7 @@ export function SidebarPrimary({
               <div
                 role="separator"
                 aria-orientation="horizontal"
-                aria-label={group.title + ' 메뉴 구분'}
+                aria-label={group.title + ' Menu separator'}
                 className="my-1 flex h-6 w-9 shrink-0 items-center justify-center text-zinc-400 dark:text-zinc-500"
               >
                 <Ellipsis

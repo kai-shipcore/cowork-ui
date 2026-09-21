@@ -52,17 +52,17 @@ export function registrationSnapshot(
 function validateProducts(state: WorkbenchState, ids: readonly string[]) {
   requireCondition(
     ids.length > 0 && new Set(ids).size === ids.length,
-    '승인할 제품이 없거나 중복됩니다.',
+    'No products to approve, or duplicate products.',
   );
   const skus = new Set<string>();
   for (const id of ids) {
     const product = state.masterProducts.find((row) => row.id === id);
     requireCondition(
       product?.status === 'DRAFT',
-      '모든 대상 제품은 DRAFT 상태여야 합니다.',
+      'All target products must be in DRAFT status.',
     );
     const sku = product.sku.trim().toLowerCase();
-    requireCondition(sku && !skus.has(sku), 'SKU가 비어 있거나 중복됩니다.');
+    requireCondition(sku && !skus.has(sku), 'SKUs are empty or duplicated.');
     skus.add(sku);
     requireCondition(
       !state.masterProductSkus.some(
@@ -71,7 +71,7 @@ function validateProducts(state: WorkbenchState, ids: readonly string[]) {
         !state.masterProducts.some(
           (row) => row.id !== id && row.sku.trim().toLowerCase() === sku,
         ),
-      '이미 사용된 SKU는 다시 발급할 수 없습니다.',
+      'Previously used SKUs cannot be issued again.',
     );
     requireCondition(
       state.productMaterials.some(
@@ -84,7 +84,7 @@ function validateProducts(state: WorkbenchState, ids: readonly string[]) {
             row.id === product.productColorId &&
             row.productTypeId === product.productTypeId,
         ),
-      '제품 유형에 맞는 소재·색상이 필요합니다.',
+      'Material and color must match the product type.',
     );
     const shapes = [
       product.exteriorShapeId,
@@ -94,11 +94,11 @@ function validateProducts(state: WorkbenchState, ids: readonly string[]) {
     ].filter((id): id is string => Boolean(id));
     requireCondition(
       shapes.length > 0 || product.vehicleProductDesignId,
-      '제품 Shape 또는 부품 참조가 필요합니다.',
+      'A product Shape or part reference is required.',
     );
     requireCondition(
       !(shapes.length && product.vehicleProductDesignId),
-      'Shape 제품과 부품 제품은 동시에 지정할 수 없습니다.',
+      'A Shape product and part product cannot both be specified.',
     );
     requireCondition(
       shapes.every((id) =>
@@ -109,7 +109,7 @@ function validateProducts(state: WorkbenchState, ids: readonly string[]) {
             row.status === 'ACTIVE',
         ),
       ),
-      '확정된 동일 제품 유형의 Shape가 필요합니다.',
+      'A confirmed Shape of the same product type is required.',
     );
   }
 }
@@ -124,7 +124,7 @@ export function submitProductApproval(
   );
   requireCondition(
     registration && !registration.approvedAt && activeUser(state, actor),
-    '유효한 미승인 등록과 활성 요청자가 필요합니다.',
+    'A valid unapproved registration and active requester are required.',
   );
   requireCondition(
     !state.approvalRequests.some(
@@ -132,13 +132,13 @@ export function submitProductApproval(
         row.entityId === registrationId &&
         (row.status === 'PENDING' || row.status === 'APPROVED'),
     ),
-    '진행 중이거나 승인된 요청이 있습니다.',
+    'An active or approved request already exists.',
   );
   requireCondition(
     route.length > 0 &&
       route[route.length - 1].type === 'FINAL' &&
       route.filter((step) => step.type === 'FINAL').length === 1,
-    '마지막에 하나의 FINAL 단계가 필요합니다.',
+    'Exactly one FINAL step is required at the end.',
   );
   requireCondition(
     route.every(
@@ -147,7 +147,7 @@ export function submitProductApproval(
         new Set(step.users).size === step.users.length &&
         step.users.every((user) => authorized(state, user, step.type)),
     ),
-    '각 단계에 해당 권한을 가진 활성 승인자를 지정하세요.',
+    'Assign active approvers with the required permissions for each step.',
   );
   const items = state.registrationItems.filter(
     (row) => row.registrationId === registrationId,
@@ -161,7 +161,7 @@ export function submitProductApproval(
     sourceShapeIds.every((id) =>
       state.vehicleProductShapes.some((shape) => shape.id === id),
     ),
-    '등록 근거 Shape를 찾을 수 없습니다.',
+    'Registration reference Shape not found.',
   );
   const now = new Date().toISOString();
   const request: ApprovalRequest = {
@@ -226,21 +226,21 @@ export function decideProductApproval(
       assignment.status === 'PENDING' &&
       step.status === 'PENDING' &&
       request.status === 'PENDING',
-    '현재 진행 중인 승인 단계가 아닙니다.',
+    'This is not the current approval step.',
   );
   requireCondition(
     assignment.assignedTo === actor && authorized(state, actor, step.type),
-    '배정받은 승인자와 유효한 단계별 권한이 필요합니다.',
+    'An assigned approver with valid step permissions is required.',
   );
   requireCondition(
     decision !== 'REJECTED' || comment.trim(),
-    '반려 사유를 입력하세요.',
+    'Enter a rejection reason.',
   );
   if (decision === 'APPROVED') {
     requireCondition(
       request.submittedData.snapshot ===
         registrationSnapshot(state, request.entityId),
-      '상신 이후 제품 정보가 변경되었습니다. 반려 후 다시 상신하세요.',
+      'Product information changed after submission. Reject and resubmit.',
     );
     validateProducts(state, request.submittedData.productIds);
   }
@@ -312,7 +312,7 @@ export function decideProductApproval(
               masterProductId: row.id,
               sku: row.sku,
               validFrom: now,
-              note: '최종 승인',
+              note: 'Final approval',
             })),
         ]
       : state.masterProductSkus,

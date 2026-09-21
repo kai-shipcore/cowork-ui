@@ -19,21 +19,21 @@ export function getSampleGate(
 ): SampleGate {
   const blockers: { message: string; tab: 'designs' | 'samples' }[] = [];
   if (!zones.length)
-    blockers.push({ message: '대상 Zone Project가 없습니다.', tab: 'designs' });
+    blockers.push({ message: 'No target zone project.', tab: 'designs' });
   for (const zone of zones) {
     const zoneDesigns = designs.filter(
       (design) => design.vehicleProjectId === zone.id,
     );
     if (!zoneDesigns.length) {
       blockers.push({
-        message: `${zone.code} Zone에 연결된 ${product === 'Car Cover' ? '전체 패턴' : product === 'Floor Mat' ? '금형' : 'Part / Design'}이 없습니다. 먼저 등록 또는 연결하세요.`,
+        message: `${zone.code}: ${product === 'Car Cover' ? 'Full pattern' : product === 'Floor Mat' ? 'Mold' : 'Part / Design'} is missing. Register or link it first.`,
         tab: 'designs',
       });
     }
     for (const design of zoneDesigns) {
       if (design.requiresRevisionAfterReview) {
         blockers.push({
-          message: `${design.name}: Shape 검토에서 패턴 재작업이 요청되었습니다. 수정 Revision을 등록하고 새 샘플을 요청하세요.`,
+          message: `${design.name}: Pattern rework was requested in Shape review. Add a revised version and request new samples.`,
           tab: 'designs',
         });
         continue;
@@ -49,7 +49,7 @@ export function getSampleGate(
       );
       if (!revision) {
         blockers.push({
-          message: `${design.name}: Revision을 먼저 등록하세요.`,
+          message: `${design.name}: Register a revision first.`,
           tab: 'designs',
         });
         continue;
@@ -62,24 +62,24 @@ export function getSampleGate(
       const label = `${design.name} · Rev ${revision.revisionNumber}`;
       if (!revisionItems.length) {
         blockers.push({
-          message: `${label}: 현재 Revision의 샘플 요청이 없습니다. 새 Sample Request를 등록하세요.`,
+          message: `${label}: No sample request for the current revision. Create a new sample request.`,
           tab: 'samples',
         });
       } else if (!revisionItems.some((item) => item.sampleReceivedAt)) {
         blockers.push({
-          message: `${label}: 샘플 입고 처리가 필요합니다.`,
+          message: `${label}: Record sample receipt first.`,
           tab: 'samples',
         });
       } else if (
         !revisionItems.some((item) => canApproveRevisionSample(revision, item))
       ) {
         blockers.push({
-          message: `${label}: 항목별 검수에서 도면 일치와 수정 반영 결과를 확인하세요.`,
+          message: `${label}: Check drawing match and change implementation in item inspection.`,
           tab: 'samples',
         });
       } else if (product !== 'Floor Mat' && !revision.sampleApprovedAt) {
         blockers.push({
-          message: `${label}: Sample Approval에서 현재 Revision을 승인하세요. 요청 상태의 APPROVED와는 별도입니다.`,
+          message: `${label}: Approve the current revision in Sample Approval. This is separate from the request's APPROVED status.`,
           tab: 'samples',
         });
       }

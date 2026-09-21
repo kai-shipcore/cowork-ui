@@ -159,7 +159,7 @@ export function VehicleOptionsPage() {
   return (
     <section>
       <PageHeader
-        description="차량 옵션 사전 — Vehicle Research의 Configuration, Seat Cover Code 매핑, unique_vehicle.option_hash가 모두 이 값을 읽습니다"
+        description="Vehicle option dictionary — Used by Vehicle Research configurations, Seat Cover code mappings, and unique_vehicle.option_hash"
         tables={
           import.meta.env.DEV
             ? [{ name: 'vehicle_option_key' }, { name: 'vehicle_option_value' }]
@@ -173,8 +173,8 @@ export function VehicleOptionsPage() {
             <div className="search-field">
               <Search aria-hidden="true" />
               <Input
-                aria-label="옵션 키 또는 값 검색"
-                placeholder="키 / 값 검색"
+                aria-label="Search option key or value"
+                placeholder="Search key / Value"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
               />
@@ -186,7 +186,7 @@ export function VehicleOptionsPage() {
               }
             >
               <SelectTrigger
-                aria-label="Product Type 필터"
+                aria-label="Product type filter"
                 className="filter-select wide"
               >
                 <SelectValue />
@@ -209,7 +209,7 @@ export function VehicleOptionsPage() {
                   setProductType('ALL');
                 }}
               >
-                <X /> 필터 초기화
+                <X /> Clear filters
               </Button>
             )}
           </div>
@@ -221,7 +221,7 @@ export function VehicleOptionsPage() {
                 setKeyDialogOpen(true);
               }}
             >
-              <Plus /> 옵션 키 등록
+              <Plus /> Add option key
             </Button>
           </div>
         </div>
@@ -240,7 +240,7 @@ export function VehicleOptionsPage() {
                     <div className="option-key-name">
                       <strong>{optionKey.name}</strong>
                       <small>
-                        {productName} · {values.length} 값
+                        {productName} · {values.length} Value
                       </small>
                     </div>
                     <div className="option-value-list">
@@ -249,13 +249,13 @@ export function VehicleOptionsPage() {
                           <span className="option-value-chip" key={value.id}>
                             {value.value}
                             {codeLinkCount(value) > 0 && (
-                              <em title="Seat Cover Code가 참조 중">
+                              <em title="Referenced by Seat Cover codes">
                                 {codeLinkCount(value)}
                               </em>
                             )}
                             <button
                               type="button"
-                              aria-label={`${value.value} 삭제`}
+                              aria-label={`${value.value} Delete`}
                               onClick={() => setPendingDelete(value)}
                             >
                               <Trash2 />
@@ -264,7 +264,8 @@ export function VehicleOptionsPage() {
                         ))
                       ) : (
                         <span className="muted-text">
-                          값이 없습니다. Configuration에서 선택할 수 없습니다.
+                          No values. This option cannot be selected in
+                          configurations.
                         </span>
                       )}
                     </div>
@@ -276,7 +277,7 @@ export function VehicleOptionsPage() {
                         setValueDialogFor(optionKey);
                       }}
                     >
-                      <Plus /> 값 추가
+                      <Plus /> Add value
                     </Button>
                   </div>
                 );
@@ -291,8 +292,8 @@ export function VehicleOptionsPage() {
         ) : (
           <div className="empty-state">
             <div className="empty-icon">🔍</div>
-            <strong>조건에 맞는 옵션 키가 없습니다.</strong>
-            <p>검색어나 Product Type 필터를 바꿔 보세요.</p>
+            <strong>No matching option keys.</strong>
+            <p>Try changing the search term or product type filter.</p>
           </div>
         )}
       </Card>
@@ -300,7 +301,7 @@ export function VehicleOptionsPage() {
       <Dialog open={keyDialogOpen} onOpenChange={setKeyDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>옵션 키 등록</DialogTitle>
+            <DialogTitle>Add option key</DialogTitle>
           </DialogHeader>
           <DialogBody className="dialog-form-grid">
             <label>
@@ -324,33 +325,33 @@ export function VehicleOptionsPage() {
               </Select>
             </label>
             <label>
-              키 이름
+              Key name
               <Input
-                placeholder="예: Front Seat"
+                placeholder="Example: Front Seat"
                 value={keyName}
                 onChange={(event) => setKeyName(event.target.value)}
               />
             </label>
             <div className="dialog-note">
-              키는 Product Type 안에서 유일합니다. Car Cover 차트는 제목이 없어
-              일반 키 하나(Submodel)만 씁니다.
+              Keys must be unique within each product type. The Car Cover chart
+              uses one general key (Submodel) because it has no headings.
             </div>
             {duplicateKey && keyName.trim() && (
               <div className="dialog-error">
-                이 Product Type에 같은 이름의 키가 이미 있습니다.
+                A key with this name already exists for this product type.
               </div>
             )}
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setKeyDialogOpen(false)}>
-              취소
+              Cancelled
             </Button>
             <Button
               variant="primary"
               disabled={!keyName.trim() || duplicateKey}
               onClick={addKey}
             >
-              등록
+              Create
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -362,24 +363,24 @@ export function VehicleOptionsPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{valueDialogFor?.name} · 값 추가</DialogTitle>
+            <DialogTitle>{valueDialogFor?.name} · Add value</DialogTitle>
           </DialogHeader>
           <DialogBody className="dialog-form-grid">
             <label className="full-width">
-              값
+              Value
               <Input
-                placeholder="예: Bucket"
+                placeholder="Example: Bucket"
                 value={valueText}
                 onChange={(event) => setValueText(event.target.value)}
               />
             </label>
             <div className="dialog-note">
-              값은 키 안에서 유일합니다. 등록하면 Vehicle Research의
-              Configuration 선택 목록에 바로 나타납니다.
+              Values must be unique within each key. New values become available
+              immediately in Vehicle Research configuration options.
             </div>
             {duplicateValue && valueText.trim() && (
               <div className="dialog-error">
-                이 키에 같은 값이 이미 있습니다.
+                This value already exists under this key.
               </div>
             )}
           </DialogBody>
@@ -388,14 +389,14 @@ export function VehicleOptionsPage() {
               variant="outline"
               onClick={() => setValueDialogFor(undefined)}
             >
-              취소
+              Cancelled
             </Button>
             <Button
               variant="primary"
               disabled={!valueText.trim() || duplicateValue}
               onClick={() => valueDialogFor && addValue(valueDialogFor)}
             >
-              추가
+              Add
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -407,20 +408,20 @@ export function VehicleOptionsPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>옵션 값 삭제</DialogTitle>
+            <DialogTitle>Delete option value</DialogTitle>
           </DialogHeader>
           <DialogBody>
             {blockingLinks > 0 ? (
               <div className="dialog-error">
-                Seat Cover Code {blockingLinks}건이 이 값을 참조하고 있어 삭제할
-                수 없습니다. 먼저 Reference Data의 Seat Cover Code 탭에서 연결을
-                해제하세요.
+                {blockingLinks} Seat Cover Code references use this value, so it
+                cannot be deleted. Unlink it in Reference Data → Seat Cover
+                Codes first.
               </div>
             ) : (
               <div className="dialog-note">
-                &quot;{pendingDelete?.value}&quot;를 삭제합니다. 이후
-                Configuration에서 선택할 수 없게 됩니다. 이미 이 값을 쓰는
-                차량의 기존 기록은 그대로 남습니다.
+                &quot;{pendingDelete?.value}&quot; will be deleted and
+                unavailable for new configurations. Existing vehicle records
+                using this value are preserved.
               </div>
             )}
           </DialogBody>
@@ -429,14 +430,14 @@ export function VehicleOptionsPage() {
               variant="outline"
               onClick={() => setPendingDelete(undefined)}
             >
-              취소
+              Cancelled
             </Button>
             <Button
               variant="destructive"
               disabled={blockingLinks > 0}
               onClick={confirmDelete}
             >
-              삭제
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>

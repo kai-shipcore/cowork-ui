@@ -21,7 +21,7 @@ export function DevelopmentRequestTabs({
   return (
     <Card className="min-w-0 overflow-hidden">
       <ContentTabs
-        label="개발 요청 보기"
+        label="Development request view"
         value={params.get('view') === 'complaints' ? 'complaints' : 'requests'}
         onValueChange={(value) => {
           setParams((current) => {
@@ -33,12 +33,12 @@ export function DevelopmentRequestTabs({
         items={[
           {
             value: 'requests',
-            label: '개발 요청 등록',
+            label: 'Development Requests',
             icon: <ClipboardList />,
           },
           {
             value: 'complaints',
-            label: '컴플레인 가져오기',
+            label: 'Import Complaints',
             icon: <Download />,
           },
         ]}

@@ -71,22 +71,22 @@ export function getWorkspaceMenu(
       icon: ClipboardList,
     },
     requests: {
-      title: '팀 간 요청',
+      title: 'Team Requests',
       path: '/work/requests?team=' + team,
       icon: GitPullRequest,
     },
     notifications: {
-      title: '알림 · 활동',
+      title: 'Notifications & Activity',
       path: '/work/notifications?team=' + team,
       icon: Bell,
     },
     reports: {
-      title: '업무 리포트',
+      title: 'Work Reports',
       path: '/work/reports?team=' + team,
       icon: BarChart3,
     },
     settings: {
-      title: '설정',
+      title: 'Settings',
       path: '/work/settings?team=' + team,
       icon: Settings,
     },

@@ -85,7 +85,7 @@ const PROJECT_STAGE_FILTERS = [
   { label: 'Design', value: 'Design' },
   { label: 'Sample', value: 'Sample' },
   { label: 'Fitting', value: 'Fitting' },
-  { label: '개발 완료', value: 'Approved' },
+  { label: 'Development complete', value: 'Approved' },
 ] as const;
 type ProjectStageFilter = (typeof PROJECT_STAGE_FILTERS)[number]['value'];
 
@@ -351,18 +351,18 @@ export function VehicleProjectsPage() {
     if (!wizardProductChoice) return;
     if (searchParams.has('intake') && !intake) {
       setWizardMessage(
-        '원본 개발 요청을 읽지 못했습니다. 요청 화면에서 다시 시작하세요.',
+        'Unable to read the original development request. Start again from Requests.',
       );
       return;
     }
     if (
       intake &&
-      (intake.status !== '개발 승인' ||
+      (intake.status !== 'Development approved' ||
         intake.configurationId !== wizardConfiguration.id ||
         intake.product !== wizardProduct)
     ) {
       setWizardMessage(
-        '개발 승인된 요청의 구성·제품과 일치해야 합니다. 요청을 다시 검토하세요.',
+        'The configuration and product must match the approved request. Review the request again.',
       );
       return;
     }
@@ -374,7 +374,7 @@ export function VehicleProjectsPage() {
       )
     ) {
       setWizardMessage(
-        '동일 구성·제품의 프로젝트가 이미 있습니다. 기존 프로젝트를 확인하세요.',
+        'A project already exists for this configuration and product. Check the existing project.',
       );
       return;
     }
@@ -448,7 +448,7 @@ export function VehicleProjectsPage() {
   const continueWizard = () => {
     setWizardMessage('');
     if (wizardStep === 2 && !wizardConfigurationId) {
-      setWizardMessage('Vehicle Configuration을 1개 선택하세요.');
+      setWizardMessage('Select one vehicle configuration.');
       return;
     }
     if (wizardStep === 4) {
@@ -487,7 +487,7 @@ export function VehicleProjectsPage() {
         const stageIndex = Math.max(0, pipeline.indexOf(zone.currentStage));
         return (
           <StatusBadge
-            label={`${String(stageIndex + 1)} / ${String(pipeline.length)} · ${zone.currentStage === 'Approved' ? '개발 완료' : zone.currentStage}`}
+            label={`${String(stageIndex + 1)} / ${String(pipeline.length)} · ${zone.currentStage === 'Approved' ? 'Development complete' : zone.currentStage}`}
             tone={zone.currentStage === 'Approved' ? 'success' : 'progress'}
           />
         );
@@ -543,7 +543,7 @@ export function VehicleProjectsPage() {
     },
     {
       id: 'target',
-      header: '목표 (단계 우선)',
+      header: 'Target (stage first)',
       width: 100,
       sortValue: ({ zone }) =>
         currentStageTiming(zone)?.targetDueAt ?? zone.targetAt,
@@ -605,7 +605,7 @@ export function VehicleProjectsPage() {
   return (
     <section>
       <PageHeader
-        description="차량·제품별 Zone 개발 프로젝트 · 패턴 → 샘플 → 피팅 → Handoff로 개발 완료 · 이후 Shape 메뉴에서 검토·발급"
+        description="Zone development by vehicle and product · Pattern → Sample → Fitting → Handoff completes development · Review and issue in Shapes afterward"
         tables={
           import.meta.env.DEV
             ? [
@@ -630,7 +630,7 @@ export function VehicleProjectsPage() {
           <div>
             <div className="flex justify-end px-5 pt-4">
               <Button asChild variant="outline" size="sm">
-                <Link to="/reference-data?tab=stages">단계 기준 설정</Link>
+                <Link to="/reference-data?tab=stages">Stage Standards</Link>
               </Button>
             </div>
             <ProjectHealthFilters
@@ -651,7 +651,7 @@ export function VehicleProjectsPage() {
           <div className="rd-workspace p-5">
             <div className="grid min-w-0 grid-cols-1 items-end gap-4 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
               <label>
-                차량 검색
+                Search vehicles
                 <input
                   value={query}
                   onChange={(event) => {
@@ -660,7 +660,7 @@ export function VehicleProjectsPage() {
                 />
               </label>
               <label>
-                제품
+                Product
                 <select
                   value={product}
                   onChange={(event) => {
@@ -674,7 +674,7 @@ export function VehicleProjectsPage() {
                 </select>
               </label>
               <label>
-                단계
+                Stage
                 <select
                   value={stageFilter}
                   onChange={(event) => {
@@ -726,8 +726,8 @@ export function VehicleProjectsPage() {
               primarySoft: '#EFF6FF',
             }}
             search={{
-              label: 'Make 또는 Model 검색',
-              placeholder: 'Make / Model 검색',
+              label: 'Search make or model',
+              placeholder: 'Search make / model',
               value: query,
               onChange: setQuery,
             }}
@@ -786,7 +786,7 @@ export function VehicleProjectsPage() {
                 </Button>
               </>
             }
-            emptyMessage="조건에 맞는 프로젝트가 없습니다."
+            emptyMessage="No projects match these filters."
             pagination={{
               page: pagination.pageIndex + 1,
               pageSize: pagination.pageSize,
@@ -854,8 +854,8 @@ export function VehicleProjectsPage() {
                   })}
                 </div>
                 <div className="dialog-note">
-                  Product Type을 먼저 선택하면 제품군에 맞는 Zone과 개발
-                  Pipeline이 자동 적용됩니다.
+                  Select a product type first to apply its zones and development
+                  pipeline automatically.
                 </div>
               </>
             )}
@@ -867,7 +867,8 @@ export function VehicleProjectsPage() {
                     <strong>Select Vehicle Configuration</strong>
                     <span>
                       {' '}
-                      — Research Complete만 표시 · 1개 선택 = 1 Project Group
+                      — Completed research only · One selection = one project
+                      group
                     </span>
                   </p>
                   <div className="wizard-fnumber-note">
@@ -923,20 +924,20 @@ export function VehicleProjectsPage() {
                             <ConfigChips options={configuration.options} />
                             {usedProject && (
                               <small>
-                                이미 {usedProject.id}에서 {wizardProduct}(으)로
-                                개발 중 — 선택 불가
+                                {wizardProduct} already in development in{' '}
+                                {usedProject.id} — cannot select
                               </small>
                             )}
                             {!usedProject && otherProjects.length > 0 && (
                               <small>
-                                다른 Product Type에서 개발 중:{' '}
+                                In development for another product type:{' '}
                                 {otherProjects
                                   .map(
                                     (project) =>
                                       `${project.product} ${project.id}`,
                                   )
                                   .join(', ')}{' '}
-                                — {wizardProduct}(으)로는 시작 가능
+                                — {wizardProduct} can be started
                               </small>
                             )}
                           </span>
@@ -951,7 +952,7 @@ export function VehicleProjectsPage() {
               <div className="wizard-zone-step">
                 <div className="wizard-zone-heading">
                   <strong>Zone Project Settings</strong>
-                  <span>— 개발할 Zone과 담당자를 확인합니다</span>
+                  <span>— Confirm the zones and assignee</span>
                 </div>
                 <p className="wizard-configuration-summary">
                   {wizardConfiguration.vehicle} ·{' '}
@@ -1003,10 +1004,10 @@ export function VehicleProjectsPage() {
                   })}
                 </div>
                 <div className="dialog-note wizard-rule-note">
-                  <strong>Handoff 시 프로젝트 개발이 완료됩니다.</strong>{' '}
-                  Part·샘플·피팅과 인계를 마친 후 Shape 메뉴에서 최종 검토·승인,
-                  발급 및 구성 등록을 진행하세요. 담당자는 생성되는 각 Zone
-                  프로젝트에 적용됩니다.
+                  <strong>Handoff completes project development.</strong> After
+                  parts, samples, fitting, and handoff are complete, use Shapes
+                  for final review, approval, issuance, and composition. The
+                  assignee applies to each created zone project.
                 </div>
               </div>
             )}
@@ -1071,10 +1072,10 @@ export function VehicleProjectsPage() {
                   );
                 })}
                 <div className="wizard-fnumber-note full-width">
-                  <strong>Shape — 개발 완료 후 발급</strong>
+                  <strong>Shape — Issued after development</strong>
                   <span>
-                    프로젝트 번호는 자동 생성됩니다. 공식 Shape는 Handoff 후
-                    별도 검토·승인을 거쳐 발급합니다.
+                    Project numbers are generated automatically. Official Shapes
+                    are issued after separate post-handoff review and approval.
                   </span>
                 </div>
               </div>

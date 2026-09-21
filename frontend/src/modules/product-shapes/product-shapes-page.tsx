@@ -40,8 +40,12 @@ import { ShapeReviewWorkspace } from './shape-review-workspace';
 import './shape-management.css';
 
 const SHAPE_VIEWS = [
-  { value: 'review', label: '검토·발급 대기', icon: ClipboardCheck },
-  { value: 'issued', label: '개발·확정 Shape', icon: Shapes },
+  {
+    value: 'review',
+    label: 'Awaiting review / issuance',
+    icon: ClipboardCheck,
+  },
+  { value: 'issued', label: 'Developed / Confirmed Shapes', icon: Shapes },
 ] as const;
 
 export function ProductShapesPage() {
@@ -86,7 +90,7 @@ export function ProductShapesPage() {
     },
     {
       id: 'product',
-      header: '제품 유형',
+      header: 'Product type',
       width: 180,
       sortValue: (shape) =>
         PRODUCT_TYPES.find((item) => item.id === shape.productTypeId)
@@ -100,30 +104,30 @@ export function ProductShapesPage() {
     },
     {
       id: 'status',
-      header: '상태',
+      header: 'Status',
       width: 180,
       sortValue: (shape) => SHAPE_STATUSES[shape.status],
       cell: (shape) => <>{SHAPE_STATUSES[shape.status]}</>,
     },
     {
       id: 'dimensions',
-      header: '치수',
+      header: 'Dimensions',
       width: 180,
       cell: (shape) => <>{dimensionsLabel(shape.dimensions)}</>,
     },
     {
       id: 'composition',
-      header: '구성 등록',
+      header: 'Composition',
       width: 180,
       cell: (shape) => (
         <>
           {compositionIsCurrent(shape, projectDetails)
-            ? '구성 등록 완료'
+            ? 'Composition complete'
             : shape.composition?.status === 'COMPLETE'
-              ? '원본 변경 · 재확인 필요'
+              ? 'Source changed · Recheck required'
               : shape.composition
-                ? '작성 중'
-                : '구성 등록 대기'}
+                ? 'Draft'
+                : 'Awaiting composition'}
           <Button
             size="sm"
             variant="ghost"
@@ -138,7 +142,7 @@ export function ProductShapesPage() {
     },
     {
       id: 'projects',
-      header: '적용 프로젝트',
+      header: 'Linked projects',
       width: 180,
       sortValue: (shape) => shapeUsage(shape.id, projects).length,
       cell: (shape) => {
@@ -152,7 +156,7 @@ export function ProductShapesPage() {
               }}
               aria-expanded={expanded === shape.id}
             >
-              {usage.length}개 · 보기
+              {usage.length} projects · View
             </Button>
             {expanded === shape.id && (
               <div className="shape-usage">
@@ -166,7 +170,7 @@ export function ProductShapesPage() {
                     </Link>
                   ))
                 ) : (
-                  <span>연결된 프로젝트가 없습니다.</span>
+                  <span>No linked projects.</span>
                 )}
               </div>
             )}
@@ -176,7 +180,7 @@ export function ProductShapesPage() {
     },
     {
       id: 'actions',
-      header: '작업',
+      header: 'Actions',
       width: 180,
       hideable: false,
       cell: (shape) => (
@@ -188,7 +192,7 @@ export function ProductShapesPage() {
               setEditing(shape);
             }}
           >
-            수정
+            Edit
           </Button>
         </div>
       ),
@@ -221,7 +225,7 @@ export function ProductShapesPage() {
   return (
     <section className="shape-management">
       <PageHeader
-        description="Shape — 개발 Shape 생성부터 품질 검토·확정까지 관리합니다. 판매 차량 적용은 F#에서 별도로 기록합니다."
+        description="Shapes — Manage development Shapes through quality review and confirmation. Record sales vehicle fitment separately in F#."
         tables={[
           { name: 'vehicle_product_shape' },
           { name: 'vehicle_product_shape_dimension' },
@@ -230,7 +234,7 @@ export function ProductShapesPage() {
       />
       <Card>
         <div className="grid-tabs-row">
-          <div className="stage-tabs" role="group" aria-label="Shape 보기">
+          <div className="stage-tabs" role="group" aria-label="Shape view">
             {SHAPE_VIEWS.map(({ value, label, icon: Icon }) => (
               <button
                 type="button"
@@ -254,8 +258,8 @@ export function ProductShapesPage() {
                 <div className="search-field">
                   <Search aria-hidden="true" />
                   <Input
-                    aria-label="Make 또는 Model 검색"
-                    placeholder="Make / Model 검색"
+                    aria-label="Search make or model"
+                    placeholder="Search make / model"
                     value={reviewQuery}
                     onChange={(event) => {
                       setReviewQuery(event.target.value);
@@ -268,7 +272,7 @@ export function ProductShapesPage() {
                     checked={showAll}
                     onCheckedChange={setShowAll}
                   />
-                  완료 항목과 검토 이력도 표시
+                  Include completed items and review history
                 </label>
               </>
             ) : (
@@ -276,8 +280,8 @@ export function ProductShapesPage() {
                 <div className="search-field">
                   <Search aria-hidden="true" />
                   <Input
-                    aria-label="Shape 검색"
-                    placeholder="Shape 번호 또는 ID 검색"
+                    aria-label="Search Shapes"
+                    placeholder="Search Shape number or ID"
                     value={query}
                     onChange={(event) => {
                       setQuery(event.target.value);
@@ -286,13 +290,13 @@ export function ProductShapesPage() {
                 </div>
                 <Select value={product} onValueChange={setProduct}>
                   <SelectTrigger
-                    aria-label="제품 유형 필터"
+                    aria-label="Product type filter"
                     className="filter-select wide"
                   >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ALL">전체 제품 유형</SelectItem>
+                    <SelectItem value="ALL">All product types</SelectItem>
                     {PRODUCT_TYPES.map((item) => (
                       <SelectItem key={item.id} value={item.id}>
                         {item.product}
@@ -302,13 +306,13 @@ export function ProductShapesPage() {
                 </Select>
                 <Select value={status} onValueChange={setStatus}>
                   <SelectTrigger
-                    aria-label="Shape 상태 필터"
+                    aria-label="Shape status filter"
                     className="filter-select"
                   >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ALL">전체 상태</SelectItem>
+                    <SelectItem value="ALL">All statuses</SelectItem>
                     {Object.entries(SHAPE_STATUSES).map(([value, label]) => (
                       <SelectItem key={value} value={value}>
                         {label}
@@ -327,7 +331,7 @@ export function ProductShapesPage() {
                 void navigate('/vehicle-projects');
               }}
             >
-              개발 프로젝트
+              Development projects
             </Button>
           </div>
         </div>
@@ -336,14 +340,14 @@ export function ProductShapesPage() {
         ) : (
           <>
             <div className="shape-info">
-              <strong>개발·확정 Shape · 구성 등록</strong>
+              <strong>Developed / Confirmed Shapes · Composition</strong>
               <p>
-                개발 Shape → 피팅·품질 검토 → Shape 확정 → Handoff · Part
-                구성·Blueprint 등록
+                Development Shape → Fitting and quality review → Shape
+                confirmation → Handoff · Parts composition and blueprint
               </p>
               <p>
-                Shape가 같으면 여러 차량 프로젝트가 같은 Shape를 참조합니다.
-                Part 구성·수정 버전과 피팅 결과는 각 프로젝트에서 관리합니다.
+                Multiple vehicle projects may reference the same Shape. Parts,
+                revisions, and fitting results are managed in each project.
               </p>
             </div>
             <FlatDataGrid
@@ -352,7 +356,7 @@ export function ProductShapesPage() {
               columns={columns}
               rows={pagedShapes}
               getRowId={(shape) => shape.id}
-              emptyMessage="검색 조건에 맞는 Shape가 없습니다."
+              emptyMessage="No Shapes match your search."
 
               pagination={{
                 page: pagination.pageIndex + 1,

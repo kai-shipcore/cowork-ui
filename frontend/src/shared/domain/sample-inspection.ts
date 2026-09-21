@@ -39,28 +39,29 @@ export function inspectionErrors(
   now = Date.now(),
 ): string[] {
   const errors: string[] = [];
-  if (!item.sampleReceivedAt) errors.push('입고된 항목만 검수할 수 있습니다.');
+  if (!item.sampleReceivedAt)
+    errors.push('Only received items can be inspected.');
   else if (!Number.isFinite(Date.parse(item.sampleReceivedAt)))
-    errors.push('입고 시각이 올바르지 않습니다.');
+    errors.push('Invalid receipt time.');
   if (!item.inspectedBy || !item.inspectedAt)
-    errors.push('검수자와 검수 시각이 필요합니다.');
+    errors.push('An inspector and inspection time are required.');
   if (item.drawingMatch === undefined)
-    errors.push('도면 일치 여부를 선택하세요.');
+    errors.push('Select the drawing match result.');
   if (item.sampleRound > 1 && !item.revisionReflected)
-    errors.push('반복 샘플은 수정 반영 판정이 필요합니다.');
+    errors.push('Repeat samples require an implementation assessment.');
   const inspected = Date.parse(item.inspectedAt ?? '');
   if (
     !Number.isFinite(inspected) ||
     inspected > now ||
     inspected < Date.parse(item.sampleReceivedAt ?? '')
   )
-    errors.push('검수 시각은 입고 이후부터 현재까지여야 합니다.');
+    errors.push('Inspection time must be between receipt and now.');
   if (
     (item.drawingMatch === false ||
       (item.revisionReflected && item.revisionReflected !== 'CORRECT')) &&
     !item.inspectionNote?.trim()
   )
-    errors.push('불합격 사유를 입력하세요.');
+    errors.push('Enter a failure reason.');
   return errors;
 }
 

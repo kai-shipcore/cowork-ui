@@ -55,8 +55,12 @@ const STATUS_CARDS: readonly {
   { status: 'DRAFT', label: 'Draft Request', tone: 'neutral' },
   { status: 'SENT', label: 'Sent / Awaiting Shipment', tone: 'warning' },
   { status: 'IN_TRANSIT', label: 'In Transit', tone: 'progress' },
-  { status: 'ARRIVED', label: 'Arrived / 검수 대기', tone: 'warning' },
-  { status: 'PASSED', label: '검수 통과', tone: 'success' },
+  {
+    status: 'ARRIVED',
+    label: 'Arrived / Awaiting inspection',
+    tone: 'warning',
+  },
+  { status: 'PASSED', label: 'Inspection passed', tone: 'success' },
 ];
 
 function itemsOf(request: SampleRequest, items: readonly SampleRequestItem[]) {
@@ -152,7 +156,7 @@ export function SamplesPage() {
           <button
             type="button"
             className="sample-id text-left underline-offset-4 hover:underline"
-            aria-label={`${request.id} 입고·검수 열기`}
+            aria-label={`${request.id} Open receipt & inspection`}
             onClick={() => {
               setInspection({ requestId: request.id });
             }}
@@ -286,7 +290,7 @@ export function SamplesPage() {
     },
     {
       id: 'inspection',
-      header: '검수 결과',
+      header: 'Inspection results',
       width: 180,
       cell: (request) => {
         const requestItems = itemsOf(request, sampleRequestItems);
@@ -304,7 +308,7 @@ export function SamplesPage() {
     },
     {
       id: 'actions',
-      header: '작업',
+      header: 'Actions',
       width: 180,
       hideable: false,
       cell: (request) => {
@@ -318,7 +322,7 @@ export function SamplesPage() {
                 setInspection({ requestId: request.id });
               }}
             >
-              입고·검수
+              Receipt & inspection
             </Button>
             {state !== 'ARRIVED' && (
               <Button
@@ -457,7 +461,7 @@ export function SamplesPage() {
   return (
     <section>
       <PageHeader
-        description="Request 발송 · design/revision/round별 Item · 실제 Shipment/입고를 분리해 추적합니다. Part Lines는 Sample Tracking 시트 형식(부품 1개 = 1행)입니다. Sample 승인은 Parts의 Revision에서 처리합니다."
+        description="Track request dispatch, design/revision/round items, and actual shipments and receipts separately. Part Lines uses the Sample Tracking format (one part per row). Approve samples on the part revision."
         tables={
           import.meta.env.DEV
             ? [
@@ -473,12 +477,12 @@ export function SamplesPage() {
         }
       />
       <p className="mb-4 text-sm text-muted-foreground">
-        요청 행 또는 검수 버튼을 선택해 입고·검수를 진행하세요. 저장 결과는
-        목록에 바로 반영됩니다.
+        Select a request row or inspection button to record receipt and
+        inspection. Saved results appear in the list immediately.
       </p>
       <details className="mb-5 rounded-xl border border-border p-5">
         <summary className="cursor-pointer text-sm font-semibold">
-          공장별 품질 · 납기 리포트 / 샘플 연계 품질 이슈
+          Factory Quality & Delivery Report / Sample-linked Quality Issues
         </summary>
         <div className="mt-5">
           <VendorQualityReport />
@@ -495,7 +499,7 @@ export function SamplesPage() {
       <div
         className="summary-grid sample-status-grid"
         role="group"
-        aria-label="샘플 상태 필터"
+        aria-label="Sample status filters"
       >
         {STATUS_CARDS.map((card) => (
           <SummaryCard
@@ -518,14 +522,15 @@ export function SamplesPage() {
         ))}
       </div>
       <p className="mb-4 text-xs text-muted-foreground" role="status">
-        카드 숫자는 요청 건수입니다. 검수 대기: 입고 후 미검수 항목이 있는 요청
-        · 검수 통과: 모든 항목이 통과한 요청. 불합격 결과는 필터 초기화 후 전체
-        목록에서 확인하세요.
-        {status === 'ARRIVED' && ' Part Lines에는 검수 대기 항목만 표시합니다.'}
+        Cards count requests. Awaiting inspection: requests with received,
+        uninspected items. Passed: every item passed. Clear filters to find
+        failed results in the full list.
+        {status === 'ARRIVED' &&
+          ' Part Lines shows only items awaiting inspection.'}
       </p>
       <Card>
         <div className="grid-tabs-row">
-          <div className="stage-tabs" role="group" aria-label="보기 방식">
+          <div className="stage-tabs" role="group" aria-label="View mode">
             <button
               type="button"
               className="stage-tab"
@@ -557,8 +562,8 @@ export function SamplesPage() {
             <div className="search-field">
               <Search aria-hidden="true" />
               <Input
-                aria-label="Request, Project, 차량, 공장, 송장번호 검색"
-                placeholder="Request / Project / 차량 / 송장번호"
+                aria-label="Search request, project, vehicle, factory, or tracking number"
+                placeholder="Request / Project / Vehicle / Tracking number"
                 value={query}
                 onChange={(event) => {
                   setQuery(event.target.value);
@@ -567,7 +572,7 @@ export function SamplesPage() {
             </div>
             <Select value={factory} onValueChange={setFactory}>
               <SelectTrigger
-                aria-label="공장 필터"
+                aria-label="Factory filter"
                 className="filter-select wide"
               >
                 <SelectValue />
@@ -583,15 +588,15 @@ export function SamplesPage() {
             </Select>
             {(query || factory !== 'ALL' || status !== 'ALL') && (
               <Button size="sm" variant="ghost" onClick={resetFilters}>
-                <X /> 필터 초기화
+                <X /> Clear filters
               </Button>
             )}
           </div>
         </div>
         {view === 'PARTS' && (
           <p className="sample-view-note">
-            Part Lines = Sample Tracking 시트(SeatCover-Sample-Request) 형식 ·
-            부품 1개 = 1행
+            Part Lines = Sample Tracking (SeatCover-Sample-Request) format · One
+            part per row
           </p>
         )}
         {view === 'PARTS' ? (
@@ -620,7 +625,9 @@ export function SamplesPage() {
               onRowClick={(request) => {
                 setInspection({ requestId: request.id });
               }}
-              rowActionLabel={(request) => `${request.id} 입고·검수 열기`}
+              rowActionLabel={(request) =>
+                `${request.id} Open receipt & inspection`
+              }
               pagination={{
                 page: pagination.pageIndex + 1,
                 pageSize: pagination.pageSize,
@@ -657,8 +664,8 @@ export function SamplesPage() {
         ) : (
           <div className="empty-state">
             <div className="empty-icon">🔍</div>
-            <strong>조건에 맞는 샘플 요청이 없습니다.</strong>
-            <p>검색어, 공장, 상태 필터를 바꿔 보세요.</p>
+            <strong>No matching sample requests.</strong>
+            <p>Try changing the search, factory, or status filters.</p>
           </div>
         )}
       </Card>
@@ -683,7 +690,7 @@ export function SamplesPage() {
           }}
           onSaved={() => {
             setInspectionMessage(
-              `${inspection.requestId} 검수 결과가 저장되었습니다.`,
+              `${inspection.requestId} Inspection results saved.`,
             );
           }}
         />

@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
-import { Input } from '@coverland-engineering/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@coverland-engineering/ui/select';
 import {
   Dialog,
   DialogBody,
@@ -10,6 +8,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@coverland-engineering/ui/dialog';
+import { Input } from '@coverland-engineering/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@coverland-engineering/ui/select';
 import { useNavigate } from 'react-router';
 import type { ProductType, ProjectDesign } from '@/shared/types/workbench';
 import { usePartLibrary } from './part-library';
@@ -58,16 +64,16 @@ export function PartLinkDialog({
     >
       <DialogContent className="part-link-dialog">
         <DialogHeader>
-          <DialogTitle>기존 Part 연결</DialogTitle>
+          <DialogTitle>Link existing part</DialogTitle>
         </DialogHeader>
         <DialogBody>
           <div className="part-link-form">
             <label>
-              Part 검색
+              Search parts
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="이름 / Part Type"
+                placeholder="Name / Part type"
               />
             </label>
             <label>
@@ -79,46 +85,51 @@ export function PartLinkDialog({
                   setRevisionId('');
                 }}
               >
-                <SelectTrigger aria-label="Part 선택"><SelectValue placeholder="연결할 Part를 선택하세요" /></SelectTrigger>
+                <SelectTrigger aria-label="Select part">
+                  <SelectValue placeholder="Select a part to link" />
+                </SelectTrigger>
                 <SelectContent className="part-link-options" position="popper">
-                {library
-                  .filter((p) =>
-                    `${p.name} ${p.type}`
-                      .toLowerCase()
-                      .includes(search.toLowerCase()),
-                  )
-                  .map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
+                  {library
+                    .filter((p) =>
+                      `${p.name} ${p.type}`
+                        .toLowerCase()
+                        .includes(search.toLowerCase()),
+                    )
+                    .map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </label>
             {!library.length && (
               <p>
-                등록된 {product} Part가 없습니다. 새 Part를 먼저 생성하세요.
+                Registered {product} parts are not available. Create a new part
+                first.
               </p>
             )}
             <label>
-              적용 버전
+              Applied revision
               <Select
                 value={revision?.id ?? ''}
                 onValueChange={setRevisionId}
                 disabled={!part?.revisions.length}
               >
-                <SelectTrigger aria-label="적용 버전"><SelectValue placeholder="Part를 먼저 선택하세요" /></SelectTrigger>
+                <SelectTrigger aria-label="Applied revision">
+                  <SelectValue placeholder="Select a part first" />
+                </SelectTrigger>
                 <SelectContent className="part-link-options" position="popper">
-                {part?.revisions.map((r) => (
-                  <SelectItem key={r.id} value={r.id}>
-                    v{r.revisionNumber} · {r.note}
-                  </SelectItem>
-                ))}
+                  {part?.revisions.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      v{r.revisionNumber} · {r.note}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </label>
             <label>
-              프로젝트 수량
+              Project quantity
               <Input
                 type="number"
                 min="1"
@@ -128,22 +139,26 @@ export function PartLinkDialog({
               />
             </label>
             <p className="part-link-note">
-              선택한 버전이 고정됩니다. 이 차량에서의 피팅은 별도로 확인합니다.
+              The selected revision is pinned. Fitting on this vehicle must be
+              verified separately.
             </p>
-            {duplicate && <p role="alert">이미 연결된 Part입니다.</p>}
+            {duplicate && <p role="alert">This part is already linked.</p>}
           </div>
         </DialogBody>
         <DialogFooter className="part-link-footer">
-          <Button variant="outline"
+          <Button
+            variant="outline"
             onClick={() =>
               navigate(
                 `/parts?${new URLSearchParams({ view: 'create', product, returnTo, zone: new URLSearchParams(returnTo.split('?')[1]).get('zone') ?? 'F' })}`,
               )
             }
           >
-            새 Part 만들기
+            Create new part
           </Button>
-          <Button variant="outline" onClick={onClose}>취소</Button>
+          <Button variant="outline" onClick={onClose}>
+            Cancelled
+          </Button>
           <Button
             variant="primary"
             disabled={
@@ -184,7 +199,7 @@ export function PartLinkDialog({
               });
             }}
           >
-            프로젝트에 연결
+            Link to project
           </Button>
         </DialogFooter>
       </DialogContent>

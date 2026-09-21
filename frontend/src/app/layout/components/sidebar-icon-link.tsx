@@ -18,7 +18,7 @@ export function SidebarIconLink({
   pathname: string;
 }) {
   const available = Boolean(item.path && item.path !== '#' && !item.disabled);
-  const label = (item.title ?? '메뉴') + (available ? '' : ' · 준비 중');
+  const label = (item.title ?? 'Menu') + (available ? '' : ' · Coming soon');
   const active =
     available && Boolean(item.path && isSidebarLinkActive(pathname, item.path));
   const Icon = item.icon ?? Circle;

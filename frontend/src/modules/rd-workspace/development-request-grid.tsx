@@ -38,7 +38,7 @@ export function DevelopmentRequestGrid({
   const columns: FlatDataGridColumn<DevelopmentIntake>[] = [
     {
       id: 'vehicle',
-      header: '차량 / 제품',
+      header: 'Vehicle / Product',
       width: 240,
       sortValue: (entry) => entry.vehicle,
       cell: (entry) => (
@@ -46,14 +46,15 @@ export function DevelopmentRequestGrid({
           <strong>{entry.vehicle}</strong>
           <br />
           <small>
-            {entry.product} · {entry.configurationId || '구성 미연결'}
+            {entry.product} ·{' '}
+            {entry.configurationId || 'No configuration linked'}
           </small>
         </div>
       ),
     },
     {
       id: 'source',
-      header: '유입 · 수요',
+      header: 'Source / Demand',
       width: 240,
       sortValue: (entry) => entry.source,
       cell: (entry) => (
@@ -61,16 +62,16 @@ export function DevelopmentRequestGrid({
           {entry.source}
           <br />
           <small>
-            Notify {entry.notifyCount} / 불만 {entry.complaintCount} / B2B{' '}
+            Notify {entry.notifyCount} / Complaints {entry.complaintCount} / B2B{' '}
             {entry.b2bUnits}
-            {entry.releaseDate && ` / 출시 ${entry.releaseDate}`}
+            {entry.releaseDate && ` / Launch ${entry.releaseDate}`}
           </small>
         </div>
       ),
     },
     {
       id: 'priority',
-      header: '우선순위',
+      header: 'Priority',
       width: 120,
       sortValue: (entry) =>
         ['LOW', 'NORMAL', 'HIGH', 'URGENT'].indexOf(entry.priority),
@@ -78,14 +79,14 @@ export function DevelopmentRequestGrid({
     },
     {
       id: 'status',
-      header: '검토 결과',
+      header: 'Review decision',
       width: 130,
       sortValue: (entry) => entry.status,
       cell: (entry) => entry.status,
     },
     {
       id: 'project',
-      header: '프로젝트',
+      header: 'Project',
       width: 190,
       cell: (entry) => {
         const linked = linkedIntakeProjects(entry, projects);
@@ -108,7 +109,7 @@ export function DevelopmentRequestGrid({
             </div>
           );
         if (
-          entry.status === '개발 승인' &&
+          entry.status === 'Development approved' &&
           config?.researchStatus === 'COMPLETE'
         )
           return (
@@ -121,21 +122,21 @@ export function DevelopmentRequestGrid({
                 encodeURIComponent(entry.id)
               }
             >
-              프로젝트 생성 →
+              Create project →
             </Link>
           );
         return (
           <small>
-            {entry.status === '개발 승인'
-              ? '조사 완료 구성 연결 필요'
-              : '검토 후 생성'}
+            {entry.status === 'Development approved'
+              ? 'Link a completed research configuration'
+              : 'Create after review'}
           </small>
         );
       },
     },
     {
       id: 'review',
-      header: '검토',
+      header: 'Review',
       width: 125,
       hideable: false,
       cell: (entry) => (
@@ -146,7 +147,7 @@ export function DevelopmentRequestGrid({
             onFilter('request', entry.id);
           }}
         >
-          근거 · 검토
+          Evidence / Review
         </Button>
       ),
     },
@@ -154,14 +155,14 @@ export function DevelopmentRequestGrid({
   return (
     <FlatDataGrid
       embedded
-      label="개발 요청 검토 대기열"
+      label="Development request review queue"
       rows={rows}
       columns={columns}
       getRowId={(entry) => entry.id}
       sorting={{ mode: 'client' }}
       search={{
-        label: '개발 요청 검색',
-        placeholder: '차량 / 유입 경로 / 출처 검색',
+        label: 'Search development requests',
+        placeholder: 'Search vehicle / Source / Reference',
         value: query,
         onChange: (value) => {
           onFilter('q', value);
@@ -170,9 +171,9 @@ export function DevelopmentRequestGrid({
       filters={[
         {
           id: 'status',
-          label: '검토 상태',
+          label: 'Review status',
           value: status,
-          options: ['전체', ...INTAKE_STATUSES].map((value) => ({
+          options: ['All', ...INTAKE_STATUSES].map((value) => ({
             value,
             label: value,
           })),
@@ -183,11 +184,11 @@ export function DevelopmentRequestGrid({
       ]}
       toolbarContent={
         <span className="text-sm text-muted-foreground">
-          검토 대기열 · {rows.length}건
+          Review queue · {rows.length} items
         </span>
       }
       actions={actions}
-      emptyMessage="조건에 맞는 요청이 없습니다. 검색 조건을 변경하거나 새 요청을 등록하세요."
+      emptyMessage="No matching requests. Change the search filters or create a request."
     />
   );
 }

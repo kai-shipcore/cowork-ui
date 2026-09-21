@@ -40,10 +40,12 @@ export function ProductApprovalPanel({
           return latest;
         }
       });
-      setMessage('처리를 저장했습니다.');
+      setMessage('Action saved.');
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : '처리할 수 없습니다.',
+        error instanceof Error
+          ? error.message
+          : 'Unable to complete this action.',
       );
     }
   }
@@ -51,19 +53,20 @@ export function ProductApprovalPanel({
     users.includes(id) ? users.filter((user) => user !== id) : [...users, id];
   return (
     <section className="shape-section">
-      <h3>단계별 승인</h3>
+      <h3>Stage approvals</h3>
       <p>
-        현재 사용자:{' '}
+        Current user:{' '}
         {state.appUsers.find((user) => user.id === CURRENT_USER_ID)?.name ??
           CURRENT_USER_ID}
-        . 동일 단계의 모든 승인자가 승인해야 다음 단계로 진행합니다.
+        . All approvers in the current step must approve before proceeding.
       </p>
       {canSubmit && (
         <>
           {(['FORWARD', 'FINAL'] as const).map((type) => (
             <fieldset key={type}>
               <legend>
-                {type} 승인자 {type === 'FORWARD' ? '(선택 단계)' : '(필수)'}
+                {type} Approver{' '}
+                {type === 'FORWARD' ? '(Optional step)' : '(Required)'}
               </legend>
               {state.appUsers
                 .filter(
@@ -108,16 +111,19 @@ export function ProductApprovalPanel({
               );
             }}
           >
-            {current ? '새 승인 요청으로 재상신' : '승인 경로 확정·상신'}
+            {current
+              ? 'Resubmit as a new approval request'
+              : 'Confirm route and submit for approval'}
           </Button>
           <p>
-            승인자가 없으면 실제 서버 권한 연결이 필요합니다. 개발 환경에서는
-            아래 모의 권한으로 흐름만 검증할 수 있습니다.
+            If no approvers are available, real server permissions must be
+            connected. In development, use the mock permissions below to test
+            the flow only.
           </p>
         </>
       )}
       <label>
-        결정 사유 (반려 필수){' '}
+        Decision reason (required for rejection){' '}
         <input
           value={comment}
           onChange={(event) => {
@@ -131,7 +137,7 @@ export function ProductApprovalPanel({
             {request.createdAt} · {request.status}
           </h4>
           <details>
-            <summary>상신 당시 데이터</summary>
+            <summary>Snapshot at submission</summary>
             <pre className="overflow-auto whitespace-pre-wrap">
               {request.submittedData.snapshot}
             </pre>
@@ -173,7 +179,7 @@ export function ProductApprovalPanel({
                                 );
                               }}
                             >
-                              승인
+                              Approve
                             </Button>
                             <Button
                               variant="outline"
@@ -189,7 +195,7 @@ export function ProductApprovalPanel({
                                 );
                               }}
                             >
-                              반려 · 이력 보존
+                              Reject · Preserve history
                             </Button>
                           </>
                         )}
@@ -201,7 +207,8 @@ export function ProductApprovalPanel({
       ))}
       {registration?.approvedAt && !requests.length && (
         <p>
-          기존 승인 기록입니다. 새 단계별 승인 이력을 임의 생성하지 않습니다.
+          This is a legacy approval record. New step-by-step approval history is
+          not fabricated.
         </p>
       )}
       {message && <p role="status">{message}</p>}
@@ -214,10 +221,10 @@ export function LocalApprovalGrants() {
   if (!import.meta.env.DEV) return null;
   return (
     <details className="shape-section">
-      <summary>개발 환경 전용 · 로컬 모의 권한 설정</summary>
+      <summary>Development only · Local mock permissions</summary>
       <p>
-        실제 인증·권한이 아닙니다. 이 브라우저의 테스트 데이터만 변경하며 서버
-        승인 권한을 부여하지 않습니다.
+        These are not real authentication or permissions. They affect only
+        browser test data and do not grant server approval access.
       </p>
       {appUsers
         .filter((user) => user.status === 'ACTIVE')

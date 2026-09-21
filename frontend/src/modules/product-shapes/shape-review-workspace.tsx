@@ -88,7 +88,7 @@ export function ShapeReviewWorkspace({
   const columns: FlatDataGridColumn<(typeof listed)[number]>[] = [
     {
       id: 'project',
-      header: '프로젝트 / Zone',
+      header: 'Project / Zone',
       width: 210,
       sortValue: ({ project }) => project.vehicle,
       cell: ({ project, zone }) => (
@@ -102,7 +102,7 @@ export function ShapeReviewWorkspace({
     },
     {
       id: 'workflow',
-      header: '후속 상태',
+      header: 'Follow-up status',
       width: 180,
       sortValue: ({ project, zone }) =>
         shapeWorkflowLabel(
@@ -126,12 +126,15 @@ export function ShapeReviewWorkspace({
       width: 180,
       sortValue: ({ zone }) => zone.productionHandoff?.completedAt,
       cell: ({ zone }) => (
-        <>{zone.productionHandoff?.completedAt.slice(0, 10) ?? '확인 필요'}</>
+        <>
+          {zone.productionHandoff?.completedAt.slice(0, 10) ??
+            'Needs verification'}
+        </>
       ),
     },
     {
       id: 'actions',
-      header: '작업',
+      header: 'Actions',
       width: 180,
       hideable: false,
       cell: ({ project, zone }) => (
@@ -143,7 +146,7 @@ export function ShapeReviewWorkspace({
               openReview(project.id, zone.id);
             }}
           >
-            검토 열기
+            Open review
           </Button>
         </div>
       ),
@@ -194,11 +197,11 @@ export function ShapeReviewWorkspace({
     <>
       <FlatDataGrid
         embedded
-        label="Shape 검토"
+        label="Shape review"
         columns={columns}
         rows={pagedRows}
         getRowId={({ zone }) => zone.id}
-        emptyMessage="현재 검토·발급 대기 항목이 없습니다. 신규 개발 프로젝트의 피팅·품질 확인 후 검토하세요."
+        emptyMessage="No items awaiting review or issuance. Review new development projects after fitting and quality verification."
 
         pagination={{
           page: pagination.pageIndex + 1,
@@ -233,9 +236,9 @@ export function ShapeReviewWorkspace({
         title={
           selected
             ? `${selected.project.vehicle} · ${selected.zone.code}`
-            : 'Shape 검토'
+            : 'Shape review'
         }
-        description="선택한 Zone 프로젝트의 Shape 검토 상세"
+        description="Shape review details for the selected zone project"
         size="lg"
         className="w-[min(1120px,96vw)] sm:max-w-none"
       >
@@ -244,7 +247,7 @@ export function ShapeReviewWorkspace({
             <Link
               to={`/vehicle-projects?project=${encodeURIComponent(selected.project.id)}&zone=${encodeURIComponent(selected.zone.code)}`}
             >
-              원래 프로젝트 · 자료 · 재작업 열기 →
+              Open original project / Materials / Rework →
             </Link>
             {detail ? (
               <ProjectShapePanel
@@ -275,8 +278,8 @@ export function ShapeReviewWorkspace({
                           time: now.toTimeString().slice(0, 5),
                           title:
                             review.outcome === 'APPROVED'
-                              ? 'Shape 검토 구두 승인'
-                              : `Shape 반려 · ${review.rejectionType === 'PATTERN' ? '패턴 재작업' : '문서 보완'}`,
+                              ? 'Shape review verbally approved'
+                              : `Shape rejected · ${review.rejectionType === 'PATTERN' ? 'Pattern rework' : 'Document corrections'}`,
                           detail: `${selected.zone.code} · ${review.reviewedBy} · ${review.note}`,
                         },
                         ...next.activity,
@@ -302,8 +305,8 @@ export function ShapeReviewWorkspace({
                         id: crypto.randomUUID(),
                         date: new Date().toISOString().slice(5, 10),
                         time: new Date().toTimeString().slice(0, 5),
-                        title: 'Shape 연결',
-                        detail: `${selected.zone.code} · ${id ?? '연결 해제'}`,
+                        title: 'Shape linked',
+                        detail: `${selected.zone.code} · ${id ?? 'Unlink'}`,
                       },
                       ...current.activity,
                     ],
@@ -312,8 +315,8 @@ export function ShapeReviewWorkspace({
               />
             ) : (
               <p>
-                이전 데이터의 인계 자료가 없습니다. 원래 프로젝트에서 인계
-                완료를 기록하세요.
+                No handoff materials in this legacy record. Record handoff
+                completion in the original project.
               </p>
             )}
           </div>

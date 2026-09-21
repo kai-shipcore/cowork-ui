@@ -49,7 +49,7 @@ await test('board exposes each zone as an accessible detail action without bypas
   assert.match(html, /type="button" class="rd-board-card"/);
   assert.match(html, /data-health="late"/);
   assert.match(html, /Late/);
-  assert.match(html, /목표일 3일 초과/);
+  assert.match(html, /Target date 3 days overdue/);
   assert.doesNotMatch(html, /draggable=/);
 });
 await test('empty board explains the active-filter empty state', () => {
@@ -62,5 +62,5 @@ await test('empty board explains the active-filter empty state', () => {
       },
     }),
   );
-  assert.match(html, /조건에 맞는 프로젝트가 없습니다/);
+  assert.match(html, /No projects match these filters/);
 });

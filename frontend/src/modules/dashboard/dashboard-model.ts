@@ -123,7 +123,7 @@ function zoneLink(zone: DashboardZone): string {
 }
 
 function visitLabel(visit: Visit): string {
-  return `${visit.vehicle} · ${visit.kind === 'SCAN' ? '스캔' : '피팅'} 방문`;
+  return `${visit.vehicle} · ${visit.kind === 'SCAN' ? 'Scan' : 'Fitting'} Visit`;
 }
 
 /**
@@ -231,7 +231,7 @@ function arrivals(input: DashboardInput): ArrivalItem[] {
       : undefined;
     if (!request) return [];
     const round = Math.max(...items.map((item) => item.sampleRound));
-    const title = `${request.vehicle} · ${round}차`;
+    const title = `${request.vehicle} · Round ${round}`;
     const detail = `${request.product} · ${shipment.factory}`;
     const isRepeatSample = round >= REPEAT_SAMPLE_ROUND;
     if (shipment.arrivedAt) {
@@ -245,8 +245,8 @@ function arrivals(input: DashboardInput): ArrivalItem[] {
             id: shipment.id,
             title,
             detail,
-            dateLabel: '도착 완료',
-            status: verified ? '검증 완료' : '검증 대기',
+            dateLabel: 'Arrived',
+            status: verified ? 'Verified' : 'Awaiting verification',
             tone: verified ? 'success' : 'warning',
             isRepeatSample,
           },
@@ -264,8 +264,8 @@ function arrivals(input: DashboardInput): ArrivalItem[] {
           id: shipment.id,
           title,
           detail,
-          dateLabel: expected ? formatMonthDay(expected) : '도착일 미정',
-          status: daysOut < 0 ? '지연' : '운송 중',
+          dateLabel: expected ? formatMonthDay(expected) : 'Arrival date TBD',
+          status: daysOut < 0 ? 'Late' : 'In transit',
           tone: daysOut < 0 ? 'danger' : 'neutral',
           isRepeatSample,
         },
@@ -279,7 +279,7 @@ function arrivals(input: DashboardInput): ArrivalItem[] {
 
 function formatMonthDay(date: string): string {
   const [, month, day] = date.split('-').map(Number);
-  return month && day ? `${month}월 ${day}일` : date;
+  return month && day ? `${month}/${day}` : date;
 }
 
 /** Everything the dashboard shows, derived from workbench state. */
@@ -340,13 +340,13 @@ export function summarizeDashboard(input: DashboardInput): DashboardSummary {
     ...orphanVisits.map((visit) => ({
       id: `orphan-${visit.id}`,
       kind: 'ORPHAN_VISIT' as const,
-      message: `${visitLabel(visit)} · 차량이 목록에서 사라졌습니다 (${visit.date} ${visit.dealer})`,
+      message: `${visitLabel(visit)} · Vehicle no longer in the registry (${visit.date} ${visit.dealer})`,
       to: ROUTES.huntBoard,
     })),
     ...unassignedVisits.map((visit) => ({
       id: `unassigned-${visit.id}`,
       kind: 'UNASSIGNED_VISIT' as const,
-      message: `${visitLabel(visit)} · 담당자가 없습니다 (${visit.date} ${visit.time} ${visit.dealer})`,
+      message: `${visitLabel(visit)} · No assignee (${visit.date} ${visit.time} ${visit.dealer})`,
       to: ROUTES.huntBoard,
     })),
     ...waits
@@ -354,7 +354,7 @@ export function summarizeDashboard(input: DashboardInput): DashboardSummary {
       .map((wait) => ({
         id: `sample-${wait.requestId}`,
         kind: 'SAMPLE_WAITING' as const,
-        message: `${wait.vehicle} ${wait.round}차 샘플 · 입고 후 ${wait.waitingDays}일째 피팅 예약이 없습니다`,
+        message: `${wait.vehicle} · Sample round ${wait.round} · No fitting booked ${wait.waitingDays} days after receipt`,
         to: ROUTES.huntBoard,
       })),
   ];
@@ -366,20 +366,20 @@ export function summarizeDashboard(input: DashboardInput): DashboardSummary {
     ...orphanVisits.map((visit) => ({
       id: `orphan-${visit.id}`,
       tone: 'danger' as const,
-      badge: '차량 없음',
+      badge: 'Vehicle missing',
       title: visitLabel(visit),
       detail: `${visit.dealer} · ${visit.date} ${visit.time}`,
       ownerId: visit.staffIds?.[0],
-      actionLabel: '방문 보기',
+      actionLabel: 'View visit',
       to: ROUTES.huntBoard,
     })),
     ...unassignedVisits.map((visit) => ({
       id: `unassigned-${visit.id}`,
       tone: 'warning' as const,
-      badge: '담당자 없음',
+      badge: 'Unassigned',
       title: visitLabel(visit),
       detail: `${visit.dealer} · ${visit.date} ${visit.time}`,
-      actionLabel: '담당자 지정',
+      actionLabel: 'Assign owner',
       to: ROUTES.huntBoard,
     })),
     ...waits
@@ -387,40 +387,40 @@ export function summarizeDashboard(input: DashboardInput): DashboardSummary {
       .map((wait) => ({
         id: `sample-${wait.requestId}`,
         tone: 'warning' as const,
-        badge: `${wait.waitingDays}일 대기`,
-        title: `${wait.vehicle} · ${wait.round}차 샘플 피팅 예약`,
-        detail: `${wait.product} · ${wait.requestId} · 입고 ${wait.receivedAt.slice(0, 10)}`,
-        actionLabel: '예약하기',
+        badge: `${wait.waitingDays} days waiting`,
+        title: `${wait.vehicle} · Schedule fitting for sample round ${wait.round}`,
+        detail: `${wait.product} · ${wait.requestId} · Received ${wait.receivedAt.slice(0, 10)}`,
+        actionLabel: 'Schedule',
         to: ROUTES.huntBoard,
       })),
     ...overdue.map((zone) => ({
       id: `overdue-${zone.id}`,
       tone: 'danger' as const,
-      badge: `${daysBetween(zone.targetAt ?? '', input.today)}일 지연`,
+      badge: `${daysBetween(zone.targetAt ?? '', input.today)} days late`,
       title: `${zone.project.vehicle} · ${zone.label} ${zone.currentStage}`,
       detail: `${zone.project.product} · ${zone.id}`,
       ownerId: zone.managerId,
-      actionLabel: '프로젝트 열기',
+      actionLabel: 'Open project',
       to: zoneLink(zone),
     })),
     ...todayVisits.map((visit) => ({
       id: `today-${visit.id}`,
       tone: 'cyan' as const,
-      badge: '오늘 예정',
+      badge: 'Scheduled today',
       title: visitLabel(visit),
       detail: `${visit.time} · ${visit.dealer}`,
       ownerId: visit.staffIds?.[0],
-      actionLabel: '방문 보기',
+      actionLabel: 'View visit',
       to: ROUTES.huntBoard,
     })),
     ...handoffPending.map((zone) => ({
       id: `handoff-${zone.id}`,
       tone: 'purple' as const,
-      badge: '승인 대기',
-      title: `${zone.project.vehicle} · ${zone.label} 인계 승인`,
-      detail: `${zone.project.product} · 피팅 PASS · ${zone.id}`,
+      badge: 'Pending approval',
+      title: `${zone.project.vehicle} · ${zone.label} Handoff approval`,
+      detail: `${zone.project.product} · Fitting PASS · ${zone.id}`,
       ownerId: zone.managerId,
-      actionLabel: '검토하기',
+      actionLabel: 'Review',
       to: zoneLink(zone),
     })),
     ...input.registrations
@@ -428,21 +428,21 @@ export function summarizeDashboard(input: DashboardInput): DashboardSummary {
       .map((registration) => ({
         id: `registration-${registration.id}`,
         tone: 'purple' as const,
-        badge: '승인 대기',
-        title: `SKU 등록 요청 ${registration.id}`,
-        detail: `요청 ${registration.requestedAt.slice(0, 10)}`,
+        badge: 'Pending approval',
+        title: `SKU registration request ${registration.id}`,
+        detail: `Requested ${registration.requestedAt.slice(0, 10)}`,
         ownerId: registration.requestedBy,
-        actionLabel: '검토하기',
+        actionLabel: 'Review',
         to: ROUTES.productRegistrations,
       })),
     ...stalled.map((zone) => ({
       id: `stalled-${zone.id}`,
       tone: 'warning' as const,
-      badge: `${daysBetween(zone.lastActivityAt ?? zone.project.created, input.today)}일 정체`,
+      badge: `${daysBetween(zone.lastActivityAt ?? zone.project.created, input.today)} days stalled`,
       title: `${zone.project.vehicle} · ${zone.label} ${zone.currentStage}`,
       detail: `${zone.project.product} · ${zone.id}`,
       ownerId: zone.managerId,
-      actionLabel: '프로젝트 열기',
+      actionLabel: 'Open project',
       to: zoneLink(zone),
     })),
   ];

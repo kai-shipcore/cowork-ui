@@ -26,11 +26,11 @@ interface PersonalSettingsProps {
   children: ReactNode;
 }
 const SECTIONS = [
-  { id: 'profile', title: '개인 프로필', icon: UserRound },
-  { id: 'approvals', title: '결재 라인', icon: GitPullRequest },
-  { id: 'workspace', title: '업무 환경', icon: Monitor },
-  { id: 'notifications', title: '알림 설정', icon: Bell },
-  { id: 'account', title: '계정 · 연결', icon: ShieldCheck },
+  { id: 'profile', title: 'Personal profile', icon: UserRound },
+  { id: 'approvals', title: 'Approval workflow', icon: GitPullRequest },
+  { id: 'workspace', title: 'Workspace preferences', icon: Monitor },
+  { id: 'notifications', title: 'Notification preferences', icon: Bell },
+  { id: 'account', title: 'Account & connections', icon: ShieldCheck },
 ];
 
 /** Device-local personal settings; backup tools remain separate from the editor form. */
@@ -45,11 +45,15 @@ export function PersonalSettings({
       <div className="prefs-heading">
         <div>
           <span className="prefs-eyebrow">MY WORKSPACE</span>
-          <h1>개인 환경 설정</h1>
-          <p>내 프로필부터 결재 흐름까지, 나에게 맞는 업무 공간을 만드세요.</p>
+          <h1>Personal Settings</h1>
+          <p>
+            Personalize your workspace, from your profile to your approval
+            workflow.
+          </p>
         </div>
         <span className="prefs-badge">
-          <Monitor aria-hidden="true" />이 브라우저에 저장
+          <Monitor aria-hidden="true" />
+          Saved in this browser
         </span>
       </div>
       <div className="prefs-layout">
@@ -60,9 +64,9 @@ export function PersonalSettings({
             </span>
             <strong>{saved.displayName}</strong>
             <p>{TEAM_NAMES[actor.team]}</p>
-            <span className="prefs-badge">데모 프로필</span>
+            <span className="prefs-badge">Demo profile</span>
           </div>
-          <nav aria-label="개인 설정 섹션">
+          <nav aria-label="Personal settings sections">
             {SECTIONS.map(({ id, title, icon: Icon }) => (
               <a key={id} href={'#' + id}>
                 <Icon aria-hidden="true" />
@@ -72,8 +76,8 @@ export function PersonalSettings({
             ))}
           </nav>
           <p className="prefs-sidebar-note">
-            설정은 현재 데모 사용자별로 구분됩니다. 다른 기기와는 동기화되지
-            않습니다.
+            Settings are separate for each demo user and do not sync across
+            devices.
           </p>
         </aside>
         <div className="prefs-main">
@@ -92,13 +96,16 @@ export function PersonalSettings({
               <header>
                 <UserRound aria-hidden="true" />
                 <div>
-                  <h2 id="profile-title">개인 프로필</h2>
-                  <p>프로필 카드에 사용할 이름과 담당 업무를 정리하세요.</p>
+                  <h2 id="profile-title">Personal profile</h2>
+                  <p>
+                    Set the name and responsibilities shown on your profile
+                    card.
+                  </p>
                 </div>
               </header>
               <div className="prefs-fields">
                 <label>
-                  표시 이름
+                  Display name
                   <Input
                     required
                     maxLength={40}
@@ -109,10 +116,10 @@ export function PersonalSettings({
                   />
                 </label>
                 <label>
-                  직무 · 담당 업무
+                  Role & responsibilities
                   <Input
                     maxLength={60}
-                    placeholder="예: 제품 개발 · 차량 적합성 검토"
+                    placeholder="Example: Product development · Vehicle fitment review"
                     value={draft.jobTitle}
                     onChange={(event) => {
                       update({ jobTitle: event.target.value });
@@ -120,23 +127,28 @@ export function PersonalSettings({
                   />
                 </label>
                 <label>
-                  소속 팀<Input readOnly value={TEAM_NAMES[actor.team]} />
+                  Team
+                  <Input readOnly value={TEAM_NAMES[actor.team]} />
                   <small>
-                    소속 및 권한은 개인 설정에서 변경할 수 없습니다.
+                    Team membership and permissions cannot be changed in
+                    personal settings.
                   </small>
                 </label>
                 <label>
-                  회사 계정
-                  <Input readOnly value="Google Workspace 연결 대기" />
-                  <small>회사 디렉터리 연결 후 계정 정보를 표시합니다.</small>
+                  Company account
+                  <Input readOnly value="Google Workspace not connected" />
+                  <small>
+                    Account information will appear after the company directory
+                    is connected.
+                  </small>
                 </label>
               </div>
               <label>
-                업무 소개
+                About your work
                 <textarea
                   rows={3}
                   maxLength={240}
-                  placeholder="담당 범위나 협업 시 참고할 내용을 적어 주세요. 데모에는 실제 개인정보를 입력하지 마세요."
+                  placeholder="Describe your responsibilities or collaboration notes. Do not enter real personal information in this demo."
                   value={draft.introduction}
                   onChange={(event) => {
                     update({ introduction: event.target.value });
@@ -144,8 +156,8 @@ export function PersonalSettings({
                 />
               </label>
               <p className="prefs-note">
-                표시 이름은 이 개인 프로필에만 사용됩니다. 업무 기록의 작성자
-                이름과 인증 정보는 변경되지 않습니다.
+                The display name is used only in this personal profile. It does
+                not change work-record authors or authentication details.
               </p>
             </section>
             <ApprovalPreferences
@@ -161,13 +173,15 @@ export function PersonalSettings({
               <header>
                 <Monitor aria-hidden="true" />
                 <div>
-                  <h2 id="workspace-title">업무 환경</h2>
-                  <p>자주 여는 화면과 새 요청의 기본값을 설정하세요.</p>
+                  <h2 id="workspace-title">Workspace preferences</h2>
+                  <p>
+                    Choose frequent destinations and defaults for new requests.
+                  </p>
                 </div>
               </header>
               <div className="prefs-fields">
                 <label>
-                  시작 바로가기 팀
+                  Start shortcut team
                   <select
                     value={draft.startTeam}
                     onChange={(event) => {
@@ -185,7 +199,7 @@ export function PersonalSettings({
                   </select>
                 </label>
                 <label>
-                  시작 바로가기 화면
+                  Start shortcut page
                   <select
                     value={draft.startPage}
                     onChange={(event) => {
@@ -197,12 +211,12 @@ export function PersonalSettings({
                       });
                     }}
                   >
-                    <option value="dashboard">팀 대시보드</option>
-                    <option value="tasks">My Tasks · 업무함</option>
+                    <option value="dashboard">Team dashboard</option>
+                    <option value="tasks">My Tasks · Inbox</option>
                   </select>
                 </label>
                 <label>
-                  새 요청 기본 우선순위
+                  Default request priority
                   <select
                     value={draft.priority}
                     onChange={(event) => {
@@ -215,16 +229,16 @@ export function PersonalSettings({
                         update({ priority });
                     }}
                   >
-                    <option value="normal">보통</option>
-                    <option value="high">높음</option>
-                    <option value="urgent">긴급</option>
+                    <option value="normal">Normal</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
                   </select>
                 </label>
               </div>
               <div className="prefs-inline">
                 <p>
-                  저장한 바로가기를 아래 버튼으로 열 수 있습니다. 현재 팀이나
-                  로그인 후 경로를 자동 변경하지 않습니다.
+                  Open your saved shortcut using the button below. This does not
+                  automatically change your team or sign-in destination.
                 </p>
                 <Button
                   type="button"
@@ -239,7 +253,7 @@ export function PersonalSettings({
                     }}
                     aria-disabled={dirty}
                   >
-                    내 시작 화면 열기
+                    Open my start page
                     <ChevronRight aria-hidden="true" />
                   </Link>
                 </Button>
@@ -253,8 +267,10 @@ export function PersonalSettings({
               <header>
                 <Bell aria-hidden="true" />
                 <div>
-                  <h2 id="notifications-title">알림 설정</h2>
-                  <p>‘알림 · 활동’에서 보고 싶은 활동 종류를 선택하세요.</p>
+                  <h2 id="notifications-title">Notification preferences</h2>
+                  <p>
+                    Choose activity types to show in Notifications & Activity.
+                  </p>
                 </div>
               </header>
               {NOTIFICATION_OPTIONS.map(({ kind, title, description }) => (
@@ -278,8 +294,8 @@ export function PersonalSettings({
                 </div>
               ))}
               <p className="prefs-note">
-                화면의 표시 필터만 변경하며 기록은 삭제하지 않습니다.
-                이메일·모바일 푸시 알림은 아직 연결되지 않았습니다.
+                This changes display filters only; records are not deleted.
+                Email and mobile push notifications are not connected yet.
               </p>
             </section>
             <section
@@ -290,29 +306,33 @@ export function PersonalSettings({
               <header>
                 <ShieldCheck aria-hidden="true" />
                 <div>
-                  <h2 id="account-title">계정 · 연결</h2>
-                  <p>회사 보안과 개인 취향은 별도로 관리합니다.</p>
+                  <h2 id="account-title">Account & connections</h2>
+                  <p>
+                    Company security and personal preferences are managed
+                    separately.
+                  </p>
                 </div>
               </header>
               <div className="prefs-connection">
                 <div>
                   <strong>Google Workspace</strong>
-                  <p>회사 로그인 · 조직 프로필 동기화</p>
+                  <p>Company sign-in & directory sync</p>
                 </div>
-                <span className="prefs-badge">연결 대기</span>
+                <span className="prefs-badge">Not connected</span>
               </div>
               <div className="prefs-connection">
                 <div>
-                  <strong>권한 · 결재 정책</strong>
+                  <strong>Permissions & approval policies</strong>
                   <p>
-                    부서 이동, 권한 부여, 대결 지정은 운영 연결 후 관리자 관리
+                    Team transfers, permissions, and delegates will be managed
+                    by administrators after production integration.
                   </p>
                 </div>
-                <span className="prefs-badge">관리자 영역</span>
+                <span className="prefs-badge">Administrator settings</span>
               </div>
               <p className="prefs-note">
-                현재는 로그인된 회사 계정이 아닌 데모 사용자입니다. 비밀번호나
-                실제 개인정보를 입력하지 마세요.
+                You are using a demo identity, not an authenticated company
+                account. Do not enter passwords or real personal information.
               </p>
             </section>
             <div className="prefs-savebar">
@@ -325,8 +345,8 @@ export function PersonalSettings({
                   <p>
                     {feedback.message ||
                       (dirty
-                        ? '저장하지 않은 변경사항이 있습니다.'
-                        : '변경사항은 저장 버튼을 누르면 적용됩니다.')}
+                        ? 'You have unsaved changes.'
+                        : 'Changes take effect when you save.')}
                   </p>
                 )}
               </div>
@@ -337,11 +357,11 @@ export function PersonalSettings({
                   disabled={!dirty}
                   onClick={cancel}
                 >
-                  변경 취소
+                  Discard changes
                 </Button>
                 <Button type="submit" disabled={!dirty || blocked}>
                   <Check aria-hidden="true" />
-                  변경사항 저장
+                  Save changes
                 </Button>
               </div>
             </div>
@@ -349,7 +369,7 @@ export function PersonalSettings({
           <details className="prefs-backup">
             <summary>
               <Database aria-hidden="true" />
-              데모 데이터 · 백업 도구<span>고급</span>
+              Demo data & backup tools<span>Advanced</span>
             </summary>
             <div className="prefs-backup-body">{children}</div>
           </details>

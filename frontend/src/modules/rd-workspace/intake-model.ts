@@ -3,22 +3,50 @@ import type { VehicleProjectGroup } from '@/shared/types/workbench';
 
 export const INTAKE_SOURCES = [
   'Notify Me',
-  '컴플레인',
+  'Complaint',
   'B2B',
-  '신차 출시',
+  'Vehicle launch',
 ] as const;
 export const INTAKE_STATUSES = [
-  '검토 대기',
-  '개발 승인',
-  '보류',
-  '반려',
+  'Awaiting review',
+  'Development approved',
+  'On hold',
+  'Rejected',
 ] as const;
+// Normalize only legacy machine values. User-written evidence and review notes remain untouched.
+const legacyStatuses: Record<string, (typeof INTAKE_STATUSES)[number]> = {
+  '검토 대기': 'Awaiting review',
+  '개발 승인': 'Development approved',
+  보류: 'On hold',
+  반려: 'Rejected',
+};
+const intakeStatusSchema = z.preprocess(
+  (value) =>
+    typeof value === 'string' ? (legacyStatuses[value] ?? value) : value,
+  z.enum(INTAKE_STATUSES),
+);
+
+/** Old bookmarked filters remain valid after switching the interface to English. */
+export function parseIntakeStatusFilter(
+  value: string | null,
+): DevelopmentIntake['status'] | 'All' {
+  const result = intakeStatusSchema.safeParse(value);
+  return result.success ? result.data : 'All';
+}
 export const intakeSchema = z.object({
   id: z.string().min(1),
   vehicle: z.string().trim().min(1).max(160),
   configurationId: z.string(),
   product: z.enum(['Seat Cover', 'Floor Mat', 'Car Cover']),
-  source: z.enum(INTAKE_SOURCES),
+  source: z.preprocess(
+    (value) =>
+      value === '컴플레인'
+        ? 'Complaint'
+        : value === '신차 출시'
+          ? 'Vehicle launch'
+          : value,
+    z.enum(INTAKE_SOURCES),
+  ),
   sourceReference: z.string().max(300),
   notifyCount: z.number().int().min(0),
   complaintCount: z.number().int().min(0),
@@ -26,11 +54,11 @@ export const intakeSchema = z.object({
   releaseDate: z.union([z.literal(''), z.iso.date()]),
   evidence: z.string().trim().min(1).max(2000),
   priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']),
-  status: z.enum(INTAKE_STATUSES),
+  status: intakeStatusSchema,
   reviews: z.array(
     z.object({
       at: z.string(),
-      status: z.enum(INTAKE_STATUSES),
+      status: intakeStatusSchema,
       priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']),
       reason: z.string().trim().min(1).max(1000),
       actor: z.string(),

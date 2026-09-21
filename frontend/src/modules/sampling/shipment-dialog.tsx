@@ -59,7 +59,7 @@ export function ShipmentDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            Shipment 등록 · {subject} · {factory}
+            Create shipment · {subject} · {factory}
           </DialogTitle>
         </DialogHeader>
         <DialogBody>
@@ -102,7 +102,7 @@ export function ShipmentDialog({
               Note
               <Textarea
                 rows={2}
-                placeholder="포장 · 운송사 · 특이사항"
+                placeholder="Packaging / Carrier / Special notes"
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
               />
@@ -111,10 +111,10 @@ export function ShipmentDialog({
         </DialogBody>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            취소
+            Cancelled
           </Button>
           <Button variant="primary" disabled={!canSubmit} onClick={submit}>
-            Shipment 등록
+            Create shipment
           </Button>
         </DialogFooter>
       </DialogContent>

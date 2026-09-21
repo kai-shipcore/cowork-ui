@@ -21,7 +21,7 @@ export function ReportViewTabs({
   return (
     <Card className="min-w-0 overflow-hidden">
       <ContentTabs
-        label="리포트 종류"
+        label="Report type"
         value={params.get('report') === 'rd' ? 'rd' : 'operations'}
         onValueChange={(value) => {
           setParams((current) => {
@@ -33,10 +33,14 @@ export function ReportViewTabs({
         items={[
           {
             value: 'operations',
-            label: '팀 간 요청 현황',
+            label: 'Team Request Overview',
             icon: <ClipboardList />,
           },
-          { value: 'rd', label: 'R&D 성과', icon: <ChartNoAxesCombined /> },
+          {
+            value: 'rd',
+            label: 'R&D Performance',
+            icon: <ChartNoAxesCombined />,
+          },
         ]}
         className="[--primary:#2F80FF] [--color-primary:#2F80FF]"
       >

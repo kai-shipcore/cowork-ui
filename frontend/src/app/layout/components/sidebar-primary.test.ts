@@ -68,7 +68,9 @@ await test('switching teams selects their own icons without inventing placeholde
     for (const item of MENU_SIDEBAR_TEAM_TOOLS[title] ?? []) {
       const escapedTitle = item.title?.replace(/&/g, '&amp;');
       assert.ok(
-        html.includes('aria-label="' + (escapedTitle ?? '') + ' · 준비 중"'),
+        html.includes(
+          'aria-label="' + (escapedTitle ?? '') + ' · Coming soon"',
+        ),
       );
     }
     assert.doesNotMatch(

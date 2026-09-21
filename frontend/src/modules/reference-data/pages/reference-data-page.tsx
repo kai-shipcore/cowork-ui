@@ -51,8 +51,8 @@ import { StageDurationSettings } from '../components/stage-duration-settings';
 import '../stage-duration.css';
 
 const KIND_LABELS: Record<ReferenceKind, string> = {
-  colors: '색상',
-  materials: '재질',
+  colors: 'Color',
+  materials: 'Material',
   parts: 'Seat Cover Part',
   codes: 'Seat Cover Code',
 };
@@ -100,7 +100,8 @@ export function ReferenceDataPage() {
     : 'colors';
   const items = isMaterials ? productMaterials : productColors;
   const setItems = isMaterials ? setProductMaterials : setProductColors;
-  const entityLabel = kind === 'stages' ? '개발 단계 기준' : KIND_LABELS[kind];
+  const entityLabel =
+    kind === 'stages' ? 'Development Stage Standards' : KIND_LABELS[kind];
 
   const normalizedQuery = query.trim().toLowerCase();
   const visibleItems = items.filter(
@@ -172,7 +173,7 @@ export function ReferenceDataPage() {
   return (
     <section>
       <PageHeader
-        description="SKU·BOM 기준정보와 제품별 개발 단계 표준 기간을 관리합니다."
+        description="Manage SKU/BOM reference data and standard development stage durations by product."
         tables={
           import.meta.env.DEV
             ? [
@@ -201,12 +202,12 @@ export function ReferenceDataPage() {
           <TabsList variant="line" className="grid-tabs-list">
             <TabsTrigger value="colors">
               <Palette aria-hidden="true" />
-              색상
+              Color
               <span className="stage-tab-count">{productColors.length}</span>
             </TabsTrigger>
             <TabsTrigger value="materials">
               <Layers aria-hidden="true" />
-              재질
+              Material
               <span className="stage-tab-count">{productMaterials.length}</span>
             </TabsTrigger>
             <TabsTrigger value="parts">
@@ -221,7 +222,7 @@ export function ReferenceDataPage() {
             </TabsTrigger>
             <TabsTrigger value="stages">
               <Timer aria-hidden="true" />
-              개발 단계 기준
+              Development Stage Standards
             </TabsTrigger>
           </TabsList>
 
@@ -235,8 +236,8 @@ export function ReferenceDataPage() {
                     <div className="search-field">
                       <Search aria-hidden="true" />
                       <Input
-                        aria-label="Code 또는 이름 검색"
-                        placeholder="Code / 이름 검색"
+                        aria-label="Search code or name"
+                        placeholder="Search code / Name"
                         value={query}
                         onChange={(event) => {
                           setQuery(event.target.value);
@@ -248,7 +249,7 @@ export function ReferenceDataPage() {
                       onValueChange={setProductTypeFilter}
                     >
                       <SelectTrigger
-                        aria-label="Product Type 필터"
+                        aria-label="Product type filter"
                         className="filter-select wide"
                       >
                         <SelectValue />
@@ -274,13 +275,13 @@ export function ReferenceDataPage() {
                           setProductTypeFilter('ALL');
                         }}
                       >
-                        <X /> 필터 초기화
+                        <X /> Clear filters
                       </Button>
                     )}
                   </div>
                   <div className="grid-toolbar-actions">
                     <Button variant="primary" onClick={openCreate}>
-                      <Plus /> {entityLabel} 등록
+                      <Plus /> {entityLabel} Create
                     </Button>
                   </div>
                 </div>
@@ -324,7 +325,7 @@ export function ReferenceDataPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{entityLabel} 삭제</DialogTitle>
+            <DialogTitle>{entityLabel} Delete</DialogTitle>
           </DialogHeader>
           <DialogBody>
             {pendingDelete && (
@@ -338,8 +339,8 @@ export function ReferenceDataPage() {
             {blockingSkus.length ? (
               <div className="dialog-error">
                 <strong>
-                  이 Code를 쓰는 Product가 {blockingSkus.length}건 있어 삭제할
-                  수 없습니다.
+                  Products using this code: {blockingSkus.length} items;
+                  deletion is not allowed.
                 </strong>
                 <div className="version-list blocking-sku-list">
                   {blockingSkus.map((sku) => (
@@ -348,12 +349,13 @@ export function ReferenceDataPage() {
                     </span>
                   ))}
                 </div>
-                신규 등록에서만 제외하려면 삭제하지 말고 이름을 정리하세요.
+                To exclude it only from new registrations, update the name
+                instead of deleting it.
               </div>
             ) : (
               <div className="dialog-note">
-                이 Code를 쓰는 Product가 없어 삭제할 수 있습니다. 이후 등록에서
-                선택할 수 없게 됩니다.
+                No products use this code, so it can be deleted. It will no
+                longer be selectable for new registrations.
               </div>
             )}
           </DialogBody>
@@ -364,14 +366,14 @@ export function ReferenceDataPage() {
                 setPendingDelete(undefined);
               }}
             >
-              취소
+              Cancelled
             </Button>
             <Button
               variant="destructive"
               disabled={blockingSkus.length > 0}
               onClick={confirmDelete}
             >
-              삭제
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -61,7 +61,7 @@ void test('all forward assignees must approve before final; final atomically act
   const [a, b, c] = state.approvalAssignments;
   assert.throws(
     () => decideProductApproval(state, c.id, 'u1', 'APPROVED', ''),
-    /진행/,
+    /(?:current|active)/,
   );
   state = decideProductApproval(state, a.id, 'u1', 'APPROVED', '');
   assert.equal(state.approvalSteps[1].status, 'WAITING');
@@ -74,7 +74,7 @@ void test('all forward assignees must approve before final; final atomically act
   assert.equal(state.masterProductSkus.length, 1);
   assert.throws(
     () => decideProductApproval(state, c.id, 'u1', 'APPROVED', ''),
-    /진행/,
+    /(?:current|active)/,
   );
 });
 void test('other users, revoked grants, missing final route and duplicate requests cannot approve', () => {
@@ -88,9 +88,12 @@ void test('other users, revoked grants, missing final route and duplicate reques
         'APPROVED',
         '',
       ),
-    /권한/,
+    /permissions/,
   );
-  assert.throws(() => submitProductApproval(state, 'r', 'u1', route), /진행/);
+  assert.throws(
+    () => submitProductApproval(state, 'r', 'u1', route),
+    /(?:current|active)/,
+  );
   state = { ...state, approvalGrants: [] };
   assert.throws(
     () =>
@@ -101,7 +104,7 @@ void test('other users, revoked grants, missing final route and duplicate reques
         'APPROVED',
         '',
       ),
-    /권한/,
+    /permissions/,
   );
   assert.throws(
     () => submitProductApproval(fixture(), 'r', 'u1', [route[0]]),
@@ -119,7 +122,7 @@ void test('rejection preserves registration/products/snapshot and resubmission c
         'REJECTED',
         '',
       ),
-    /사유/,
+    /reason/,
   );
   state = decideProductApproval(
     state,
@@ -154,7 +157,7 @@ void test('changed snapshots and previously used SKU block approval', () => {
         'APPROVED',
         '',
       ),
-    /변경/,
+    /changed/,
   );
   const existing = fixture();
   existing.masterProductSkus = [

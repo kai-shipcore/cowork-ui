@@ -18,7 +18,7 @@ export function ShipmentSummary({ shipment }: ShipmentSummaryProps) {
   return (
     <div className="shipment-summary">
       <span className="tracking-code">
-        {shipment.externalReference ?? '참조 번호 없음'}
+        {shipment.externalReference ?? 'No reference number'}
       </span>
       <div className="vehicle-meta">{timeline.join(' · ')}</div>
       {shipment.note && <div className="vehicle-meta">{shipment.note}</div>}

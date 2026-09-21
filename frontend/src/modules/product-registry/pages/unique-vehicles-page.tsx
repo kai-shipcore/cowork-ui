@@ -128,7 +128,7 @@ export function UniqueVehiclesPage() {
     },
     {
       id: 'project',
-      header: '출처 (Group)',
+      header: 'Source (Group)',
       width: 180,
       sortValue: (vehicle) => vehicle.projectGroupId,
       cell: (vehicle) => (
@@ -180,7 +180,7 @@ export function UniqueVehiclesPage() {
                   setRequesting(vehicle);
                 }}
               >
-                등록 요청
+                Registration request
               </Button>
             </div>
           )}
@@ -202,7 +202,7 @@ export function UniqueVehiclesPage() {
     },
     {
       id: 'status',
-      header: '상태',
+      header: 'Status',
       width: 180,
       cell: (vehicle) => (
         <>
@@ -282,7 +282,7 @@ export function UniqueVehiclesPage() {
         (id) => !applied.some((row) => row.vehicleProductShapeId === id),
       )
     ) {
-      setMessage('Zone별 PRIMARY Shape 적용을 먼저 확인하세요.');
+      setMessage('Verify PRIMARY Shape assignments by zone first.');
       return;
     }
     const shapeFor = (code: string) =>
@@ -306,7 +306,7 @@ export function UniqueVehiclesPage() {
         ),
       )
     ) {
-      setMessage('현재 또는 과거에 사용된 SKU입니다.');
+      setMessage('This SKU is in use or was used previously.');
       return;
     }
     const newProducts: MasterProduct[] = draft.combinations.map(
@@ -396,14 +396,14 @@ export function UniqueVehiclesPage() {
     setComplaints((current) => [complaint, ...current]);
     setComplaining(undefined);
     setMessage(
-      `${complaint.id} 컴플레인을 접수했습니다 — ${vehicle.fNumber} · ${draft.design}`,
+      `${complaint.id} Complaint logged — ${vehicle.fNumber} · ${draft.design}`,
     );
   }
 
   return (
     <section>
       <PageHeader
-        description="Fitting으로 Configuration이 확정된 차량 — Shape / Product / SKU는 이 F#에 연결됩니다"
+        description="Vehicles with fitting-confirmed configurations — Shape / Product / SKU link to this F#"
         tables={
           import.meta.env.DEV
             ? [
@@ -428,8 +428,8 @@ export function UniqueVehiclesPage() {
             <div className="search-field">
               <Search aria-hidden="true" />
               <Input
-                aria-label="F Number 또는 Vehicle 검색"
-                placeholder="F Number / Vehicle 검색"
+                aria-label="Search F number or vehicle"
+                placeholder="Search F number / Vehicle"
                 value={query}
                 onChange={(event) => {
                   setQuery(event.target.value);
@@ -444,7 +444,7 @@ export function UniqueVehiclesPage() {
           columns={columns}
           rows={pagedVehicles}
           getRowId={(vehicle) => vehicle.fNumber}
-          emptyMessage="조건에 맞는 차량이 없습니다."
+          emptyMessage="No matching vehicles."
 
           pagination={{
             page: pagination.pageIndex + 1,

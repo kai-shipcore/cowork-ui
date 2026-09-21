@@ -72,21 +72,21 @@ export function ResearchEvidence({
             validateResearchEvidence(result.data, configurations);
           } catch (cause) {
             setMessage(
-              cause instanceof Error ? cause.message : '입력값을 확인하세요.',
+              cause instanceof Error ? cause.message : 'Check your input.',
             );
             return;
           }
           void save((current) => [...current, result.data]).then((ok) => {
-            if (ok) setMessage('조사 근거와 판단 이력을 저장했습니다.');
+            if (ok) setMessage('Research evidence and decision history saved.');
           });
         }}
       >
         <div className="rd-toolbar">
           <h2>
-            조사 근거 · {configuration.vehicle} / {configuration.id}
+            Research evidence · {configuration.vehicle} / {configuration.id}
           </h2>
           <Button type="button" variant="outline" onClick={onClose}>
-            닫기
+            Close
           </Button>
         </div>
         <p>
@@ -94,7 +94,7 @@ export function ResearchEvidence({
         </p>
         <div className="rd-fields">
           <label>
-            확인한 매물·자료 건수
+            Listings / Sources reviewed
             <input
               type="number"
               name="count"
@@ -105,20 +105,20 @@ export function ResearchEvidence({
             />
           </label>
           <label>
-            구성 판단
+            Configuration decision
             <select
               name="decision"
-              defaultValue={latest?.decision ?? '검토 중'}
+              defaultValue={latest?.decision ?? 'Under review'}
             >
-              <option>검토 중</option>
-              <option>별도 구성 유지</option>
-              <option>병합 제안</option>
+              <option>Under review</option>
+              <option>Keep separate configuration</option>
+              <option>Propose merge</option>
             </select>
           </label>
           <label>
-            병합 제안 대상
+            Proposed merge target
             <select name="target" defaultValue={latest?.mergeTargetId ?? ''}>
-              <option value="">해당 없음</option>
+              <option value="">Not applicable</option>
               {configurations
                 .filter(
                   (item) =>
@@ -135,7 +135,7 @@ export function ResearchEvidence({
           </label>
         </div>
         <label>
-          출처 URL · 한 줄에 하나
+          Source URLs · One per line
           <textarea
             name="sources"
             rows={3}
@@ -144,7 +144,7 @@ export function ResearchEvidence({
           />
         </label>
         <label>
-          증빙 사진 · PNG/JPEG/WebP, 1 MB 이하
+          Evidence photo · PNG/JPEG/WebP, up to 1 MB
           <input
             type="file"
             accept="image/png,image/jpeg,image/webp"
@@ -157,7 +157,7 @@ export function ResearchEvidence({
                 ) ||
                 file.size > 1024 * 1024
               ) {
-                setMessage('1 MB 이하의 PNG/JPEG/WebP 사진을 선택하세요.');
+                setMessage('Select a PNG/JPEG/WebP photo up to 1 MB.');
                 return;
               }
               setReading(true);
@@ -166,12 +166,12 @@ export function ResearchEvidence({
                 if (typeof reader.result === 'string') {
                   setPhoto(reader.result);
                   setPhotoName(file.name);
-                  setMessage('사진을 읽었습니다. 저장 버튼으로 기록하세요.');
+                  setMessage('Photo loaded. Save to record it.');
                 }
                 setReading(false);
               };
               reader.onerror = () => {
-                setMessage('사진을 읽지 못했습니다.');
+                setMessage('Unable to read the photo.');
                 setReading(false);
               };
               reader.readAsDataURL(file);
@@ -183,7 +183,7 @@ export function ResearchEvidence({
             <img
               className="rd-photo"
               src={photo}
-              alt={'조사 증빙: ' + photoName}
+              alt={'Research evidence: ' + photoName}
             />
             <small>{photoName}</small>
             <Button
@@ -194,12 +194,12 @@ export function ResearchEvidence({
                 setPhotoName('');
               }}
             >
-              새 기록에서 사진 제외
+              Exclude photo from new record
             </Button>
           </div>
         )}
         <label>
-          관찰 내용 · 분리/병합 판단 근거
+          Observations / Rationale for separation or merging
           <textarea
             name="reason"
             rows={3}
@@ -209,12 +209,13 @@ export function ResearchEvidence({
           />
         </label>
         <p className="rd-note">
-          조사 건수는 담당자가 확인한 수량입니다. ‘10건 이상’ 같은 임의 기준을
-          적용하지 않습니다. 병합 제안은 판단 기록이며 구성·기존 프로젝트를 자동
-          병합하지 않습니다.
+          Research counts reflect the sources actually checked. No arbitrary
+          threshold such as 10 sources is applied. A merge proposal records a
+          decision; it does not merge configurations or existing projects
+          automatically.
         </p>
         <Button type="submit" disabled={saving || reading}>
-          조사 근거 저장
+          Save research evidence
         </Button>
         {error && (
           <p role="alert" className="rd-error">
@@ -222,15 +223,17 @@ export function ResearchEvidence({
           </p>
         )}
         <p role="status">{message}</p>
-        <h2>판단 이력 · {history.length}건</h2>
+        <h2>Decision history · {history.length} items</h2>
         {[...history].reverse().map((record) => (
           <details key={record.id}>
             <summary className="cursor-pointer text-sm">
               {record.at.slice(0, 16).replace('T', ' ')} · {record.actor} ·{' '}
-              {record.decision} · {record.checkedCount}건 확인
+              {record.decision} · {record.checkedCount} reviewed
             </summary>
             <p className="whitespace-pre-wrap">{record.reason}</p>
-            {record.mergeTargetId && <p>제안 대상: {record.mergeTargetId}</p>}
+            {record.mergeTargetId && (
+              <p>Proposed target: {record.mergeTargetId}</p>
+            )}
             {record.sources.map((url) => (
               <p key={url}>
                 <a href={url} target="_blank" rel="noreferrer">

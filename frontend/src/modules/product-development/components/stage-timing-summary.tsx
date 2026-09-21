@@ -12,11 +12,13 @@ export function StageTimingSummary({
 }): ReactElement {
   const timing = currentStageTiming(zone);
   return (
-    <section className="shape-section" aria-label="현재 단계 일정">
+    <section className="shape-section" aria-label="Current stage schedule">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <strong>
-          현재 단계 일정 ·{' '}
-          {zone.currentStage === 'Approved' ? '개발 완료' : zone.currentStage}
+          Current stage schedule ·{' '}
+          {zone.currentStage === 'Approved'
+            ? 'Development complete'
+            : zone.currentStage}
         </strong>
         <Link
           to={
@@ -24,23 +26,27 @@ export function StageTimingSummary({
             encodeURIComponent(zone.productTypeId)
           }
         >
-          단계 기준 설정
+          Stage Standards
         </Link>
       </div>
       {zone.currentStage === 'Approved' ? (
-        <p>개발 완료 · 표준 기간과 목표일을 새로 계산하지 않습니다.</p>
+        <p>
+          Development complete · Standard durations and due dates are not
+          recalculated.
+        </p>
       ) : (
         <p>
-          시작 {reportDate(timing?.startedAt) ?? '기록 없음'} · 적용 표준{' '}
+          Start {reportDate(timing?.startedAt) ?? 'No record'} · Applied
+          standard{' '}
           {timing?.targetDays !== undefined
-            ? `${String(timing.targetDays)}일`
-            : '미설정'}{' '}
-          · 단계 목표 {reportDate(timing?.targetDueAt) ?? '미설정'}
+            ? `${String(timing.targetDays)} days`
+            : 'Not set'}{' '}
+          · Stage target {reportDate(timing?.targetDueAt) ?? 'Not set'}
         </p>
       )}
       <p>
-        전체 프로젝트 목표 {reportDate(zone.targetAt) ?? '미지정'} · 기준 변경은
-        다음 단계 시작부터 적용됩니다.
+        Overall project target {reportDate(zone.targetAt) ?? 'Unassigned'} ·
+        Standard changes apply when the next stage starts.
       </p>
     </section>
   );

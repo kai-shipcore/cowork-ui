@@ -113,7 +113,7 @@ function floorMatSku(input: SkuInput): SkuResult {
   if (!input.materialCode || !input.fNumber) {
     return {
       status: 'unsupported',
-      reason: '재질 코드와 F#가 모두 있어야 SKU를 만들 수 있습니다.',
+      reason: 'Both a material code and F# are required to generate a SKU.',
     };
   }
   return {
@@ -137,7 +137,7 @@ function seatCoverSku(input: SkuInput): SkuResult {
   if (!input.materialCode || !input.colorCode || !input.shapeNames.length) {
     return {
       status: 'unsupported',
-      reason: '재질, Shape, Color가 모두 있어야 합니다.',
+      reason: 'Material, Shape, and Color are all required.',
     };
   }
   return {
@@ -164,14 +164,14 @@ function carCoverSku(input: SkuInput): SkuResult {
   if (!input.materialCode || !input.colorCode || !shapeName) {
     return {
       status: 'unsupported',
-      reason: '재질, Shape, Color가 모두 있어야 합니다.',
+      reason: 'Material, Shape, and Color are all required.',
     };
   }
   const hyphen = shapeName.indexOf('-');
   if (hyphen <= 0 || hyphen === shapeName.length - 1) {
     return {
       status: 'unsupported',
-      reason: `Shape 이름 "${shapeName}"이 "차종미러-규격" 형태가 아닙니다 (예: CN-M).`,
+      reason: `Shape name "${shapeName}" must use the "vehicle-mirror-size" format (example: CN-M).`,
     };
   }
   return {

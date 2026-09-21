@@ -6,10 +6,10 @@ import { MemoryRouter } from 'react-router-dom';
 import { ProjectViewTabs } from './project-view-tabs';
 
 for (const [query, activeLabel] of [
-  ['', '목록'],
-  ['?view=list', '목록'],
-  ['?view=board&team=rd', '단계별 보드'],
-  ['?view=unknown', '목록'],
+  ['', 'List'],
+  ['?view=list', 'List'],
+  ['?view=board&team=rd', 'Stage Board'],
+  ['?view=unknown', 'List'],
 ] as const) {
   await test(`project tabs select ${activeLabel} for ${query || 'the default URL'} and preserve both panels`, () => {
     const tree = createElement(
@@ -27,7 +27,7 @@ for (const [query, activeLabel] of [
 
     const html = renderToStaticMarkup(tree);
 
-    assert.match(html, /role="tablist"[^>]*aria-label="프로젝트 보기"/);
+    assert.match(html, /role="tablist"[^>]*aria-label="Project view"/);
     const activeTab =
       /<button[^>]*aria-selected="true"[^>]*>[\s\S]*?<\/button>/.exec(
         html,

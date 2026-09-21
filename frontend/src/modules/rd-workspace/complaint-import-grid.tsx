@@ -26,14 +26,14 @@ export function ComplaintImportGrid({
   const columns: FlatDataGridColumn<DevelopmentIntake>[] = [
     {
       id: 'reference',
-      header: '컴플레인 번호',
+      header: 'Complaint ID',
       width: 165,
       sortValue: (entry) => entry.sourceReference,
       cell: (entry) => entry.sourceReference,
     },
     {
       id: 'vehicle',
-      header: '차량 / 제품',
+      header: 'Vehicle / Product',
       width: 240,
       sortValue: (entry) => entry.vehicle,
       cell: (entry) => (
@@ -46,7 +46,7 @@ export function ComplaintImportGrid({
     },
     {
       id: 'evidence',
-      header: '컴플레인 내용',
+      header: 'Complaint details',
       width: 340,
       cell: (entry) => (
         <span className="whitespace-pre-wrap break-words">
@@ -56,34 +56,33 @@ export function ComplaintImportGrid({
     },
     {
       id: 'configuration',
-      header: '조사 구성',
+      header: 'Research configuration',
       width: 170,
       sortValue: (entry) => entry.configurationId,
-      cell: (entry) => entry.configurationId || '구성 미연결',
+      cell: (entry) => entry.configurationId || 'No configuration linked',
     },
     {
       id: 'import',
-      header: '가져오기 상태',
+      header: 'Import status',
       width: 145,
       sortValue: (entry) => (imported.has(entry.id) ? 1 : 0),
-      cell: (entry) =>
-        imported.has(entry.id) ? '가져오기 완료' : '가져오기 대기',
+      cell: (entry) => (imported.has(entry.id) ? 'Imported' : 'Pending import'),
     },
   ];
   return (
     <FlatDataGrid
       embedded
-      label="컴플레인 가져오기 목록"
+      label="Complaint import list"
       rows={rows}
       columns={columns}
       getRowId={(entry) => entry.id}
       sorting={{ mode: 'client' }}
       toolbarContent={
         <div>
-          <strong>미종결 컴플레인 · {rows.length}건</strong>
+          <strong>Open complaints · {rows.length} items</strong>
           <p>
-            차량·내용이 유효한 항목만 표시하며, 이미 가져온 항목은 중복 등록하지
-            않습니다.
+            Only valid vehicle and issue records are shown. Previously imported
+            items are not added again.
           </p>
         </div>
       }
@@ -91,11 +90,11 @@ export function ComplaintImportGrid({
         <Button disabled={saving || pendingCount === 0} onClick={onImport}>
           <Download />
           {saving
-            ? '가져오는 중…'
-            : `미등록 ${String(pendingCount)}건 가져오기`}
+            ? 'Importing…'
+            : `Import ${String(pendingCount)} new ${pendingCount === 1 ? 'item' : 'items'}`}
         </Button>
       }
-      emptyMessage="가져올 수 있는 미종결 컴플레인이 없습니다."
+      emptyMessage="No eligible open complaints to import."
     />
   );
 }

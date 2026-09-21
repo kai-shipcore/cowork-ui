@@ -51,7 +51,7 @@ function renderItems(children: MenuItem[] | undefined) {
             aria-disabled="true"
           >
             {content}
-            <span className="text-[10px]">준비 중</span>
+            <span className="text-[10px]">Coming soon</span>
           </div>
         )}
       </AccordionMenuItem>

@@ -36,7 +36,7 @@ const revisionSchema = z
       revision.stages.length === stages.length &&
       stages.every((stage, index) => revision.stages[index]?.stage === stage)
     );
-  }, '제품의 개발 단계 순서와 기간을 확인하세요.');
+  }, "Check the product's development stage sequence and durations.");
 export const stageDurationSchema = z.array(revisionSchema);
 export type StageDurationRevision = z.infer<typeof revisionSchema>;
 export const EMPTY_STAGE_DURATIONS: StageDurationRevision[] = [];
@@ -54,13 +54,13 @@ export function appendStageDurationRevision(
   expectedId?: string,
 ): StageDurationRevision[] {
   if (!canEditStageDurations(actor) || actor.id !== draft.updatedBy)
-    throw new Error('R&D 관리자만 수정할 수 있습니다.');
+    throw new Error('Only the R&D lead can edit these settings.');
   const previous = current
     .slice()
     .reverse()
     .find((entry) => entry.productTypeId === draft.productTypeId);
   if (previous?.id !== expectedId)
-    throw new Error('다른 창에서 기준이 변경되었습니다. 다시 불러오세요.');
+    throw new Error('Standards changed in another window. Please reload.');
   return stageDurationSchema.parse([...current, revisionSchema.parse(draft)]);
 }
 

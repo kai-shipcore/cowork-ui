@@ -109,13 +109,13 @@ export function SeatCoverPartPanel({
     },
     {
       id: 'middle-seat',
-      header: '중간석',
+      header: 'Center seat',
       width: 180,
       sortValue: (part) => Number(part.isForMiddleSeat),
       cell: (part) => (
         <>
           {part.isForMiddleSeat ? (
-            <StatusBadge label="중간석" tone="purple" />
+            <StatusBadge label="Center seat" tone="purple" />
           ) : (
             <span className="muted-text">—</span>
           )}
@@ -124,7 +124,7 @@ export function SeatCoverPartPanel({
     },
     {
       id: 'type',
-      header: '구분',
+      header: 'Type',
       width: 180,
       sortValue: (part) => Number(part.isCustom),
       cell: (part) => (
@@ -142,7 +142,7 @@ export function SeatCoverPartPanel({
     },
     {
       id: 'status',
-      header: '상태',
+      header: 'Status',
       width: 180,
       sortValue: (part) => part.status,
       cell: (part) => (
@@ -156,7 +156,7 @@ export function SeatCoverPartPanel({
     },
     {
       id: 'actions',
-      header: '작업',
+      header: 'Actions',
       width: 180,
       hideable: false,
       cell: (part) => (
@@ -168,7 +168,7 @@ export function SeatCoverPartPanel({
               toggleStatus(part);
             }}
           >
-            {part.status === 'ACTIVE' ? '비활성' : '활성'}
+            {part.status === 'ACTIVE' ? 'Inactive' : 'Active'}
           </Button>
         </div>
       ),
@@ -241,8 +241,8 @@ export function SeatCoverPartPanel({
           <div className="search-field">
             <Search aria-hidden="true" />
             <Input
-              aria-label="Part 이름 또는 설명 검색"
-              placeholder="Part 검색"
+              aria-label="Search part name or description"
+              placeholder="Search parts"
               value={query}
               onChange={(event) => {
                 onQueryChange(event.target.value);
@@ -257,7 +257,7 @@ export function SeatCoverPartPanel({
               setDialogOpen(true);
             }}
           >
-            <Plus /> Part 등록
+            <Plus /> Add part
           </Button>
         </div>
       </div>
@@ -307,21 +307,21 @@ export function SeatCoverPartPanel({
       ) : (
         <div className="empty-state">
           <div className="empty-icon">🔍</div>
-          <strong>조건에 맞는 Part가 없습니다.</strong>
-          <p>검색어를 바꿔 보세요.</p>
+          <strong>No matching parts.</strong>
+          <p>Try another search term.</p>
         </div>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Seat Cover Part 등록</DialogTitle>
+            <DialogTitle>Add Seat Cover part</DialogTitle>
           </DialogHeader>
           <DialogBody className="dialog-form-grid">
             <label>
               Name
               <Input
-                placeholder="예: FMB"
+                placeholder="Example: FMB"
                 value={name}
                 onChange={(event) => {
                   setName(event.target.value);
@@ -365,10 +365,10 @@ export function SeatCoverPartPanel({
                   setIsForMiddleSeat(Boolean(checked));
                 }}
               />
-              중간석 변형 (FMB vs FB)
+              Center seat variant (FMB vs FB)
             </label>
             <label className="full-width">
-              설명 (선택)
+              Description (optional)
               <Input
                 value={description}
                 onChange={(event) => {
@@ -377,13 +377,13 @@ export function SeatCoverPartPanel({
               />
             </label>
             <div className="dialog-note">
-              신규 Part는 항상 Custom입니다. Legacy universal part
-              집합(is_custom = false)은 닫혀 있어 더 만들 수 없습니다 — 반복된
-              피팅 문제로 중단된 방식입니다.
+              New parts are always Custom. The legacy universal part set
+              (is_custom = false) is closed; this approach was discontinued due
+              to recurring fitment issues.
             </div>
             {duplicate && name.trim() && (
               <div className="dialog-error">
-                같은 이름의 Part가 이미 있습니다.
+                A part with this name already exists.
               </div>
             )}
           </DialogBody>
@@ -394,14 +394,14 @@ export function SeatCoverPartPanel({
                 setDialogOpen(false);
               }}
             >
-              취소
+              Cancelled
             </Button>
             <Button
               variant="primary"
               disabled={!name.trim() || duplicate}
               onClick={addPart}
             >
-              등록
+              Create
             </Button>
           </DialogFooter>
         </DialogContent>

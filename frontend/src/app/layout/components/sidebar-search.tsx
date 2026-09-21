@@ -22,8 +22,8 @@ export function SidebarSearch() {
       <Input
         name="query"
         type="search"
-        aria-label="업무 통합 검색 후 Enter"
-        placeholder="업무 검색 · Enter"
+        aria-label="Search all work and press Enter"
+        placeholder="Search work · Enter"
       />
     </form>
   );

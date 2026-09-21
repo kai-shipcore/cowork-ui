@@ -30,8 +30,8 @@ export function HeaderUserMenu({ team }: HeaderUserMenuProps): ReactElement {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label="Kai Chung 사용자 메뉴"
-        title="데모 사용자 프로필"
+        aria-label="Kai Chung user menu"
+        title="Demo user profile"
         className="cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
         <Avatar className="size-7">
@@ -85,7 +85,7 @@ export function HeaderUserMenu({ team }: HeaderUserMenuProps): ReactElement {
           <Link
             to={ROUTES.login}
             replace
-            title="데모를 나가 로그인 화면으로 이동"
+            title="Exit demo and return to sign in"
           >
             <LogOut aria-hidden="true" />
             <span>Sign out</span>

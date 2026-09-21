@@ -48,7 +48,7 @@ export function InspectionPanel({
         (user) => user.id === CURRENT_USER_ID && user.status === 'ACTIVE',
       )
     )
-      errors.push('활성 검수자 계정이 필요합니다.');
+      errors.push('An active inspector account is required.');
     if (errors.length) {
       setMessage(errors.join(' '));
       return;
@@ -59,15 +59,15 @@ export function InspectionPanel({
         row.id === next.id ? next : row,
       ),
     }));
-    setMessage('검수 결과를 저장했습니다. 목록에도 반영되었습니다.');
+    setMessage('Inspection results saved and reflected in the list.');
     onSaved();
   };
   return (
     <section className="sample-inspection-form space-y-4">
-      <h3>항목별 입고·검수</h3>
+      <h3>Item receipt & inspection</h3>
       <p>
-        도면 준비와 샘플 검수는 별도입니다. 최초 차수는 수정 반영을 비워 둘 수
-        있습니다.
+        Drawing preparation and sample inspection are separate. Change
+        implementation can be blank for the first round.
       </p>
       {item && (
         <>
@@ -77,10 +77,10 @@ export function InspectionPanel({
                 (request) => request.id === item.sampleRequestId,
               )?.factory
             }{' '}
-            · Revision {item.vehicleProductDesignRevisionId} · 입고{' '}
+            · Revision {item.vehicleProductDesignRevisionId} · Received{' '}
             {item.sampleReceivedAt
-              ? new Date(item.sampleReceivedAt).toLocaleString('ko-KR')
-              : '미입고 · 입고 확인 후 검수할 수 있습니다.'}
+              ? new Date(item.sampleReceivedAt).toLocaleString('en-US')
+              : 'Not received · Confirm receipt before inspection.'}
           </p>
           {!item.productionStartedAt && !item.sampleShipmentId && (
             <Button
@@ -104,7 +104,7 @@ export function InspectionPanel({
                 }));
               }}
             >
-              이 항목 생산 시작
+              Start production for this item
             </Button>
           )}
           {!item.sampleReceivedAt && (
@@ -136,11 +136,11 @@ export function InspectionPanel({
                 }));
               }}
             >
-              이 항목 입고 확인
+              Confirm receipt of this item
             </Button>
           )}
           <label>
-            도면 일치{' '}
+            Drawing match{' '}
             <select
               value={drawing}
               onChange={(event) => {
@@ -149,13 +149,13 @@ export function InspectionPanel({
                 setMessage('');
               }}
             >
-              <option value="">선택</option>
-              <option value="YES">일치</option>
-              <option value="NO">불일치 · 공장 문제</option>
+              <option value="">Select</option>
+              <option value="YES">Matches</option>
+              <option value="NO">Mismatch · Factory issue</option>
             </select>
           </label>
           <label>
-            수정 반영{' '}
+            Change implementation{' '}
             <select
               value={reflected}
               onChange={(event) => {
@@ -164,17 +164,19 @@ export function InspectionPanel({
                 setMessage('');
               }}
             >
-              <option value="">미판정 / 최초 차수 해당 없음</option>
-              <option value="CORRECT">정확히 반영</option>
-              <option value="PARTIAL">일부 반영</option>
-              <option value="NOT_REFLECTED">미반영</option>
+              <option value="">
+                Not assessed / Not applicable to first round
+              </option>
+              <option value="CORRECT">Fully implemented</option>
+              <option value="PARTIAL">Partially implemented</option>
+              <option value="NOT_REFLECTED">Not implemented</option>
             </select>
           </label>
           <label>
-            검수 사유{' '}
+            Inspection reason{' '}
             <textarea
               rows={3}
-              placeholder="불일치 또는 수정 미반영 시 사유를 입력하세요."
+              placeholder="Enter a reason for drawing mismatches or unimplemented changes."
               value={note}
               onChange={(event) => {
                 setNote(event.target.value);
@@ -184,7 +186,7 @@ export function InspectionPanel({
             />
           </label>
           <Button disabled={!item.sampleReceivedAt} onClick={save}>
-            검수 저장
+            Save inspection
           </Button>
         </>
       )}

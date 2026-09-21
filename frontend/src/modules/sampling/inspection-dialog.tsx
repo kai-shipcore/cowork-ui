@@ -38,7 +38,7 @@ export function InspectionDialog({
   const [dirty, setDirty] = useState(false);
   const allowDiscard = () =>
     !dirty ||
-    window.confirm('저장하지 않은 검수 내용이 있습니다. 변경 내용을 버릴까요?');
+    window.confirm('You have unsaved inspection changes. Discard them?');
   const close = () => {
     if (allowDiscard()) onClose();
   };
@@ -51,15 +51,15 @@ export function InspectionDialog({
     >
       <DialogContent className="max-w-4xl">
         <DialogHeader>
-          <DialogTitle>샘플 입고·검수 · {requestId}</DialogTitle>
+          <DialogTitle>Sample receipt & inspection · {requestId}</DialogTitle>
           <DialogDescription>
-            {request?.vehicle} · {request?.factory} · {items.length}개 항목
+            {request?.vehicle} · {request?.factory} · {items.length} items
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="max-h-[70dvh] overflow-y-auto">
           <div className="grid gap-5 md:grid-cols-[240px_1fr]">
             <div className="space-y-2">
-              <p className="text-sm font-semibold">검수할 항목</p>
+              <p className="text-sm font-semibold">Items to inspect</p>
               {items.map((item) => (
                 <button
                   type="button"
@@ -81,14 +81,14 @@ export function InspectionDialog({
                     )?.name ?? item.vehicleProductDesignId}
                   </span>
                   <span className="mb-2 block text-xs text-muted-foreground">
-                    {item.sampleRound}차 샘플
+                    Sample round {item.sampleRound}
                   </span>
                   <InspectionResult item={item} />
                 </button>
               ))}
               {!items.length && (
                 <p className="text-sm text-muted-foreground">
-                  등록된 요청 항목이 없습니다.
+                  No request items registered.
                 </p>
               )}
             </div>
@@ -107,7 +107,7 @@ export function InspectionDialog({
         </DialogBody>
         <DialogFooter>
           <Button variant="outline" onClick={close}>
-            닫기
+            Close
           </Button>
         </DialogFooter>
       </DialogContent>

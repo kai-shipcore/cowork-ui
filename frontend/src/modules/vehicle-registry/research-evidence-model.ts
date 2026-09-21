@@ -14,7 +14,7 @@ export const researchEvidenceSchema = z.object({
           !url.username &&
           !url.password
         );
-      }, 'http/https 출처 URL을 입력하세요.'),
+      }, 'Enter an HTTP/HTTPS source URL.'),
     )
     .max(50),
   photo: z
@@ -24,10 +24,20 @@ export const researchEvidenceSchema = z.object({
       (value) =>
         !value ||
         /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value),
-      'PNG/JPEG/WebP 사진만 지원합니다.',
+      'Only PNG, JPEG, and WebP photos are supported.',
     ),
   photoName: z.string().max(200),
-  decision: z.enum(['검토 중', '별도 구성 유지', '병합 제안']),
+  decision: z.preprocess(
+    (value) => {
+      const legacy: Record<string, string> = {
+        '검토 중': 'Under review',
+        '별도 구성 유지': 'Keep separate configuration',
+        '병합 제안': 'Propose merge',
+      };
+      return typeof value === 'string' ? (legacy[value] ?? value) : value;
+    },
+    z.enum(['Under review', 'Keep separate configuration', 'Propose merge']),
+  ),
   mergeTargetId: z.string(),
   reason: z.string().trim().min(1).max(2000),
   actor: z.string(),
@@ -48,11 +58,13 @@ export function validateResearchEvidence(
     (item) => item.id === value.configurationId,
   );
   const target = configurations.find((item) => item.id === value.mergeTargetId);
-  if (!source) throw new Error('조사 구성을 찾지 못했습니다.');
+  if (!source) throw new Error('Research configuration not found.');
   if (
-    value.decision === '병합 제안' &&
+    value.decision === 'Propose merge' &&
     (!target || target.id === source.id || target.vehicle !== source.vehicle)
   )
-    throw new Error('같은 차량의 다른 병합 대상 구성을 선택하세요.');
+    throw new Error(
+      'Select another configuration of the same vehicle as the merge target.',
+    );
   return value;
 }

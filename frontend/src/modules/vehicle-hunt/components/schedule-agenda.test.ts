@@ -25,8 +25,8 @@ await test('week/day agenda presents dates and disables booking until a queue it
       (html.match(/class="rd-day"/g) ?? []).length,
       mode === 'week' ? 7 : 1,
     );
-    assert.match(html, /현재 예약 가능한 대기 업무가 없습니다/);
+    assert.match(html, /No pending work is currently eligible for scheduling/);
     assert.match(html, /disabled=""/);
-    assert.match(html, /예약할 대기 업무/);
+    assert.match(html, /Pending work to schedule/);
   }
 });

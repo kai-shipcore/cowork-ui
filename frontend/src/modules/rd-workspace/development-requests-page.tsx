@@ -14,6 +14,7 @@ import {
   INTAKE_STATUSES,
   intakeSchema,
   intakesSchema,
+  parseIntakeStatusFilter,
   reviewIntake,
   type DevelopmentIntake,
 } from './intake-model';
@@ -36,10 +37,10 @@ export function DevelopmentRequestsPage(): ReactElement {
   const [message, setMessage] = useState('');
   const selected = records.find((entry) => entry.id === params.get('request'));
   const query = params.get('q') ?? '';
-  const filter = params.get('status') ?? '전체';
+  const filter = parseIntakeStatusFilter(params.get('status'));
   const visible = records.filter(
     (entry) =>
-      (filter === '전체' || entry.status === filter) &&
+      (filter === 'All' || entry.status === filter) &&
       `${entry.vehicle} ${entry.source} ${entry.sourceReference}`
         .toLowerCase()
         .includes(query.toLowerCase()),
@@ -62,7 +63,7 @@ export function DevelopmentRequestsPage(): ReactElement {
         vehicle: complaint.vehicle,
         configurationId: vehicle?.vehicleResearchId ?? '',
         product: complaint.product,
-        source: '컴플레인',
+        source: 'Complaint',
         sourceReference: complaint.id,
         notifyCount: 0,
         complaintCount: 1,
@@ -70,7 +71,7 @@ export function DevelopmentRequestsPage(): ReactElement {
         releaseDate: '',
         evidence: complaint.issue,
         priority: 'NORMAL',
-        status: '검토 대기',
+        status: 'Awaiting review',
         reviews: [],
         createdAt: '',
       });
@@ -88,23 +89,24 @@ export function DevelopmentRequestsPage(): ReactElement {
     ]);
     if (ok)
       setMessage(
-        '유효한 미종결 컴플레인을 가져왔습니다. 중복 항목과 차량·내용이 누락된 기록은 건너뛰었습니다.',
+        'Imported eligible open complaints. Duplicates and records missing a vehicle or issue were skipped.',
       );
   }
   return (
     <section className="rd-workspace">
       <div className="rd-toolbar">
         <div>
-          <h1>개발 요청 · 수요 검토</h1>
+          <h1>Development Requests · Demand Review</h1>
           <p>
-            Notify Me · 컴플레인 · B2B · 신차 출시 → 개발 판단 → 프로젝트 연결
+            Notify Me · Complaints · B2B · Vehicle Launches → Development
+            Decision → Project
           </p>
         </div>
       </div>
       <p className="rd-note">
-        브라우저 저장 데모입니다. Notify Me·B2B·신차 정보는 근거를 직접 등록하며
-        외부 시스템과 자동 동기화되지 않습니다. 개발 승인은 실제 회사 결재가
-        아닌 검토 기록입니다.
+        Browser-local demo. Enter Notify Me, B2B, and vehicle launch evidence
+        manually; external systems do not sync automatically. Development
+        approval is a review record, not an official company authorization.
       </p>
       {error && (
         <p role="alert" className="rd-error">
@@ -141,7 +143,9 @@ export function DevelopmentRequestsPage(): ReactElement {
                   }}
                 >
                   <Plus />
-                  {showForm ? '등록 폼 닫기' : '새 개발 요청'}
+                  {showForm
+                    ? 'Close registration form'
+                    : 'New development request'}
                 </Button>
               }
             />
@@ -166,12 +170,12 @@ export function DevelopmentRequestsPage(): ReactElement {
                     releaseDate: data.get('release'),
                     evidence: data.get('evidence'),
                     priority: data.get('priority'),
-                    status: '검토 대기',
+                    status: 'Awaiting review',
                     reviews: [],
                     createdAt: new Date().toISOString(),
                   });
                   if (!result.success) {
-                    setMessage('입력값과 수요 근거를 확인하세요.');
+                    setMessage('Check the entered values and demand evidence.');
                     return;
                   }
                   const configuration = configurations.find(
@@ -184,15 +188,15 @@ export function DevelopmentRequestsPage(): ReactElement {
                   void save((current) => [...current, draft]).then((ok) => {
                     if (ok) {
                       setShowForm(false);
-                      setMessage('개발 요청을 등록했습니다.');
+                      setMessage('Development request created.');
                     }
                   });
                 }}
               >
-                <h2>새 개발 요청</h2>
+                <h2>New development request</h2>
                 <div className="rd-fields">
                   <label>
-                    차량명
+                    Vehicle name
                     <input
                       name="vehicle"
                       required
@@ -201,9 +205,9 @@ export function DevelopmentRequestsPage(): ReactElement {
                     />
                   </label>
                   <label>
-                    기존 조사 구성 연결
+                    Link existing research configuration
                     <select name="configuration">
-                      <option value="">미연결 · 조사 후 연결</option>
+                      <option value="">Not linked · Link after research</option>
                       {configurations.map((entry) => (
                         <option key={entry.id} value={entry.id}>
                           {entry.vehicle} · {entry.id} ·{' '}
@@ -213,7 +217,7 @@ export function DevelopmentRequestsPage(): ReactElement {
                     </select>
                   </label>
                   <label>
-                    제품
+                    Product
                     <select name="product">
                       <option>Seat Cover</option>
                       <option>Floor Mat</option>
@@ -221,7 +225,7 @@ export function DevelopmentRequestsPage(): ReactElement {
                     </select>
                   </label>
                   <label>
-                    주요 유입 경로
+                    Primary source
                     <select name="source">
                       {INTAKE_SOURCES.map((source) => (
                         <option key={source}>{source}</option>
@@ -229,11 +233,11 @@ export function DevelopmentRequestsPage(): ReactElement {
                     </select>
                   </label>
                   <label>
-                    출처 번호 / 문서 참조
+                    Source ID / Document reference
                     <input name="reference" maxLength={300} />
                   </label>
                   <label>
-                    Notify Me 건수
+                    Notify Me count
                     <input
                       type="number"
                       name="notify"
@@ -244,7 +248,7 @@ export function DevelopmentRequestsPage(): ReactElement {
                     />
                   </label>
                   <label>
-                    컴플레인 건수
+                    Complaint count
                     <input
                       type="number"
                       name="complaints"
@@ -255,7 +259,7 @@ export function DevelopmentRequestsPage(): ReactElement {
                     />
                   </label>
                   <label>
-                    B2B 약정 수량
+                    B2B committed units
                     <input
                       type="number"
                       name="b2b"
@@ -266,11 +270,11 @@ export function DevelopmentRequestsPage(): ReactElement {
                     />
                   </label>
                   <label>
-                    신차 출시 예정일
+                    Expected vehicle launch date
                     <input type="date" name="release" />
                   </label>
                   <label>
-                    초기 우선순위
+                    Initial priority
                     <select name="priority" defaultValue="NORMAL">
                       <option>LOW</option>
                       <option>NORMAL</option>
@@ -280,7 +284,7 @@ export function DevelopmentRequestsPage(): ReactElement {
                   </label>
                 </div>
                 <label>
-                  수요 근거 · 개발 필요성
+                  Demand evidence / Development rationale
                   <textarea
                     name="evidence"
                     required
@@ -289,7 +293,7 @@ export function DevelopmentRequestsPage(): ReactElement {
                   />
                 </label>
                 <Button type="submit" disabled={saving}>
-                  등록
+                  Create
                 </Button>
               </form>
             )}
@@ -325,21 +329,21 @@ export function DevelopmentRequestsPage(): ReactElement {
                         : entry,
                     ),
                   ).then((ok) => {
-                    if (ok) setMessage('검토 결과와 사유를 기록했습니다.');
+                    if (ok) setMessage('Review decision and reason recorded.');
                   });
                 }}
               >
-                <h2>{selected.vehicle} · 검토</h2>
+                <h2>{selected.vehicle} · Review</h2>
                 <p className="whitespace-pre-wrap">{selected.evidence}</p>
-                <p>출처: {selected.sourceReference || '미입력'}</p>
+                <p>Source: {selected.sourceReference || 'Not entered'}</p>
                 <div className="rd-fields">
                   <label>
-                    연결할 조사 구성
+                    Research configuration to link
                     <select
                       name="configuration"
                       defaultValue={selected.configurationId}
                     >
-                      <option value="">미연결</option>
+                      <option value="">Not linked</option>
                       {configurations
                         .filter((entry) => entry.vehicle === selected.vehicle)
                         .map((entry) => (
@@ -353,7 +357,7 @@ export function DevelopmentRequestsPage(): ReactElement {
                     </select>
                   </label>
                   <label>
-                    검토 결과
+                    Review decision
                     <select name="status" defaultValue={selected.status}>
                       {INTAKE_STATUSES.map((status) => (
                         <option key={status}>{status}</option>
@@ -361,7 +365,7 @@ export function DevelopmentRequestsPage(): ReactElement {
                     </select>
                   </label>
                   <label>
-                    우선순위
+                    Priority
                     <select name="priority" defaultValue={selected.priority}>
                       <option>LOW</option>
                       <option>NORMAL</option>
@@ -371,11 +375,11 @@ export function DevelopmentRequestsPage(): ReactElement {
                   </label>
                 </div>
                 <label>
-                  검토 · 변경 사유
+                  Review / Change reason
                   <textarea required name="reason" maxLength={1000} rows={2} />
                 </label>
                 <Button type="submit" disabled={saving}>
-                  검토 결과 저장
+                  Save review decision
                 </Button>
                 <div>
                   {selected.reviews.map((review, index) => (

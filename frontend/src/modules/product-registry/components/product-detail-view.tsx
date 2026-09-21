@@ -150,19 +150,20 @@ export function ProductDetailView({
               </dd>
             </div>
             <div>
-              <dt>재질</dt>
+              <dt>Material</dt>
               <dd>{material ? `${material.code} · ${material.name}` : '—'}</dd>
             </div>
             <div>
-              <dt>출처 등록</dt>
+              <dt>Source registration</dt>
               <dd>
                 {registration ? (
                   <>
                     <span className="visit-reference">{registration.id}</span>{' '}
-                    요청 {userName(users, registration.requestedBy)} · 승인{' '}
+                    Requests {userName(users, registration.requestedBy)} ·
+                    Approved{' '}
                     {registration.approvedBy
                       ? userName(users, registration.approvedBy)
-                      : '대기'}
+                      : 'Pending'}
                   </>
                 ) : (
                   <span className="muted-text">—</span>
@@ -170,7 +171,7 @@ export function ProductDetailView({
               </dd>
             </div>
             <div>
-              <dt>근거 Zone Project</dt>
+              <dt>Source zone project</dt>
               <dd>
                 {registrationItem?.vehicleProjectIds.length ? (
                   <span className="zone-list">
@@ -192,7 +193,8 @@ export function ProductDetailView({
       <Card className="detail-panel">
         <CardHeader>
           <CardTitle>
-            SKU 이력 {import.meta.env.DEV && <small>master_product_sku</small>}
+            SKU history{' '}
+            {import.meta.env.DEV && <small>master_product_sku</small>}
           </CardTitle>
           <Button
             size="sm"
@@ -204,7 +206,7 @@ export function ProductDetailView({
               setSkuDialogOpen(true);
             }}
           >
-            <Plus /> 새 SKU 발행
+            <Plus /> Issue new SKU
           </Button>
         </CardHeader>
         <CardContent className="version-list">
@@ -214,17 +216,17 @@ export function ProductDetailView({
                 <span className="generated-sku compact">{row.sku}</span>
                 <span className="version-range">
                   {row.validFrom.slice(0, 10)} ~{' '}
-                  {row.validTo ? row.validTo.slice(0, 10) : '현재'}
+                  {row.validTo ? row.validTo.slice(0, 10) : 'Current'}
                 </span>
                 {row.validTo === undefined && (
-                  <StatusBadge label="현재" tone="success" />
+                  <StatusBadge label="Current" tone="success" />
                 )}
                 {row.note && <span className="muted-text">{row.note}</span>}
               </div>
             ))
           ) : (
             <div className="empty-inline">
-              승인 시점에 첫 SKU 버전이 기록됩니다.
+              The first SKU version is recorded on approval.
             </div>
           )}
         </CardContent>
@@ -233,7 +235,7 @@ export function ProductDetailView({
       <Card className="detail-panel">
         <CardHeader>
           <CardTitle>
-            Packaging 이력{' '}
+            Packaging history{' '}
             {import.meta.env.DEV && <small>master_product_packaging</small>}
           </CardTitle>
           <Button
@@ -244,7 +246,7 @@ export function ProductDetailView({
               setPackagingDialogOpen(true);
             }}
           >
-            <Plus /> 새 Packaging 발행
+            <Plus /> Issue new packaging
           </Button>
         </CardHeader>
         <CardContent className="version-list">
@@ -257,16 +259,16 @@ export function ProductDetailView({
                 </strong>
                 <span className="version-range">
                   {row.validFrom.slice(0, 10)} ~{' '}
-                  {row.validTo ? row.validTo.slice(0, 10) : '현재'}
+                  {row.validTo ? row.validTo.slice(0, 10) : 'Current'}
                 </span>
                 {row.validTo === undefined && (
-                  <StatusBadge label="현재" tone="success" />
+                  <StatusBadge label="Current" tone="success" />
                 )}
               </div>
             ))
           ) : (
             <div className="empty-inline">
-              Packaging 미등록 — 물류에 필요합니다.
+              Packaging not registered — required for logistics.
             </div>
           )}
         </CardContent>
@@ -275,7 +277,7 @@ export function ProductDetailView({
       <Dialog open={skuDialogOpen} onOpenChange={setSkuDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>새 SKU 발행</DialogTitle>
+            <DialogTitle>Issue new SKU</DialogTitle>
             {errors.map((error) => (
               <p role="alert" key={error}>
                 {error}
@@ -284,14 +286,14 @@ export function ProductDetailView({
           </DialogHeader>
           <DialogBody className="dialog-form-grid">
             <label className="full-width">
-              새 SKU
+              New SKU
               <Input
                 value={newSku}
                 onChange={(event) => setNewSku(event.target.value)}
               />
             </label>
             <label>
-              적용 시작일
+              Effective start date
               <Input
                 type="date"
                 value={validFrom}
@@ -299,21 +301,21 @@ export function ProductDetailView({
               />
             </label>
             <label>
-              변경 사유
+              Reason for change
               <Input
-                placeholder="예: 코드 체계 개편"
+                placeholder="Example: Code system update"
                 value={skuNote}
                 onChange={(event) => setSkuNote(event.target.value)}
               />
             </label>
             <div className="dialog-note">
-              현재 버전의 종료일은 이 시작일로 자동 마감됩니다. 기존 행은
-              수정하지 않습니다.
+              The current version ends on this start date automatically.
+              Existing rows are not edited.
             </div>
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSkuDialogOpen(false)}>
-              취소
+              Cancelled
             </Button>
             <Button
               variant="primary"
@@ -328,7 +330,7 @@ export function ProductDetailView({
                 if (!nextErrors.length) setSkuDialogOpen(false);
               }}
             >
-              발행
+              Issue
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -337,7 +339,7 @@ export function ProductDetailView({
       <Dialog open={packagingDialogOpen} onOpenChange={setPackagingDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>새 Packaging 발행</DialogTitle>
+            <DialogTitle>Issue new packaging</DialogTitle>
             {errors.map((error) => (
               <p role="alert" key={error}>
                 {error}
@@ -346,7 +348,7 @@ export function ProductDetailView({
           </DialogHeader>
           <DialogBody className="dialog-form-grid">
             <label>
-              길이 (cm)
+              Length (cm)
               <Input
                 type="number"
                 value={length}
@@ -354,7 +356,7 @@ export function ProductDetailView({
               />
             </label>
             <label>
-              폭 (cm)
+              Width (cm)
               <Input
                 type="number"
                 value={width}
@@ -362,7 +364,7 @@ export function ProductDetailView({
               />
             </label>
             <label>
-              높이 (cm)
+              Height (cm)
               <Input
                 type="number"
                 value={height}
@@ -370,7 +372,7 @@ export function ProductDetailView({
               />
             </label>
             <label>
-              무게 (kg)
+              Weight (kg)
               <Input
                 type="number"
                 value={weight}
@@ -378,7 +380,7 @@ export function ProductDetailView({
               />
             </label>
             <label className="full-width">
-              적용 시작일
+              Effective start date
               <Input
                 type="date"
                 value={validFrom}
@@ -386,7 +388,7 @@ export function ProductDetailView({
               />
             </label>
             <div className="dialog-note">
-              현재 버전의 종료일은 이 시작일로 자동 마감됩니다.
+              The current version ends on this start date automatically.
             </div>
           </DialogBody>
           <DialogFooter>
@@ -394,7 +396,7 @@ export function ProductDetailView({
               variant="outline"
               onClick={() => setPackagingDialogOpen(false)}
             >
-              취소
+              Cancelled
             </Button>
             <Button
               variant="primary"
@@ -410,7 +412,7 @@ export function ProductDetailView({
                 if (!nextErrors.length) setPackagingDialogOpen(false);
               }}
             >
-              발행
+              Issue
             </Button>
           </DialogFooter>
         </DialogContent>

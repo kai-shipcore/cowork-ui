@@ -29,7 +29,7 @@ export function LoginPage() {
               Coverland Workbench
             </h1>
             <p className="text-muted-foreground text-sm">
-              팀 업무를 연결하는 내부 업무 포털 · 공개 프로토타입
+              An internal portal connecting team workflows · Public prototype
             </p>
           </div>
           <Button
@@ -41,28 +41,29 @@ export function LoginPage() {
             aria-describedby="google-status"
           >
             <RiGoogleFill aria-hidden="true" className="size-4" />
-            Google Workspace 로그인 · 연결 전
+            Google Workspace sign-in · Not connected
           </Button>
           <p id="google-status" className="text-muted-foreground text-sm">
-            회사 Google 계정 인증과 서버 연결은 아직 구성되지 않았습니다. 이
-            화면에서는 이메일이나 비밀번호를 수집하지 않습니다.
+            Company Google authentication and server integration are not
+            configured yet. This screen does not collect email addresses or
+            passwords.
           </p>
           <div className="bg-muted flex gap-3 rounded-lg p-4 text-sm">
             <ShieldAlert aria-hidden="true" className="size-5 shrink-0" />
             <p>
-              누구나 볼 수 있는 체험판입니다. 고객 개인정보·회사 기밀은 입력하지
-              마세요. 입력 내용은 현재 브라우저에만 저장되며 다른 직원과
-              공유되지 않습니다.
+              This demo is publicly accessible. Do not enter customer personal
+              data or company secrets. Entries are saved only in this browser
+              and are not shared with other employees.
             </p>
           </div>
           <Button asChild size="lg" className="w-full">
-            <Link to={ROUTES.dashboard}>프로토타입 둘러보기</Link>
+            <Link to={ROUTES.dashboard}>Explore prototype</Link>
           </Button>
           <Link
             to="/work/settings?team=rd"
             className="text-primary text-center text-sm underline"
           >
-            저장·백업 및 연결 상태 확인
+            Check storage, backups, and connection status
           </Link>
         </section>
       </div>

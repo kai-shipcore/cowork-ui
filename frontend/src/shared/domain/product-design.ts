@@ -8,8 +8,8 @@ export function designLabel(product: ProductType): string {
   return product === 'Seat Cover'
     ? 'Parts'
     : product === 'Car Cover'
-      ? '전체 패턴'
-      : '구역별 금형';
+      ? 'Full pattern'
+      : 'Zone molds';
 }
 
 export function hasDesignIdentity(

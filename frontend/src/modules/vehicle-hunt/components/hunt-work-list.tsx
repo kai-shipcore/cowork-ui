@@ -64,7 +64,7 @@ export function HuntWorkList({
     completed: emptyFilter(),
   });
   const filter = filters[status];
-  const label = kind === 'SCAN' ? '스캔' : '피팅';
+  const label = kind === 'SCAN' ? 'Scan' : 'Fitting';
   const done = status === 'completed';
   function update(patch: Partial<Filter>) {
     setFilters((current) => ({
@@ -106,7 +106,7 @@ export function HuntWorkList({
   const columns: FlatDataGridColumn<(typeof filtered)[number]>[] = [
     {
       id: 'vehicle',
-      header: '차량 · 제품군',
+      header: 'Vehicle / Product',
       width: 210,
       sortValue: (row) => row.project.vehicle,
       cell: (row) => (
@@ -118,7 +118,7 @@ export function HuntWorkList({
     },
     {
       id: 'project',
-      header: '프로젝트 ID',
+      header: 'Project ID',
       width: 180,
       sortValue: (row) => row.project.id,
       cell: (row) => (
@@ -136,7 +136,7 @@ export function HuntWorkList({
     },
     {
       id: 'zones',
-      header: done ? '완료 구역' : `남은 ${label} 구역`,
+      header: done ? 'Completed zones' : `Remaining ${label} zones`,
       width: 180,
       sortValue: (row) => (done ? row.completed : row.remaining).length,
       cell: (row) => (
@@ -150,7 +150,7 @@ export function HuntWorkList({
           </div>
           {!done && (
             <div className="vehicle-meta">
-              {row.remaining.length}개 구역 남음
+              {row.remaining.length} zones remaining
             </div>
           )}
         </>
@@ -158,13 +158,13 @@ export function HuntWorkList({
     },
     {
       id: 'visit',
-      header: done ? '최종 완료 방문일' : '다음 방문 일정 · 딜러',
+      header: done ? 'Last completed visit' : 'Next visit / Dealer',
       width: 180,
       sortValue: (row) => (done ? row.completedDate : row.scheduled?.date),
       cell: (row) => (
         <>
           {done ? (
-            row.completedDate || '미기록'
+            row.completedDate || 'Not recorded'
           ) : row.scheduled ? (
             <>
               <div>
@@ -174,14 +174,14 @@ export function HuntWorkList({
               <small>{assignees(row.scheduled)}</small>
             </>
           ) : (
-            '예약된 일정 없음'
+            'No visits scheduled'
           )}
         </>
       ),
     },
     {
       id: 'status',
-      header: '상태',
+      header: 'Status',
       width: 180,
       sortValue: (row) => (done ? 2 : row.scheduled ? 1 : 0),
       cell: (row) => (
@@ -189,12 +189,12 @@ export function HuntWorkList({
           <StatusBadge
             label={
               done
-                ? `${label} 완료`
+                ? `${label} Completed`
                 : row.completed.length
-                  ? `일부 완료 · ${String(row.remaining.length)}개 남음`
+                  ? `Partially complete · ${String(row.remaining.length)} remaining`
                   : row.scheduled
-                    ? '예약됨'
-                    : '미예약'
+                    ? 'Scheduled'
+                    : 'Not scheduled'
             }
             tone={
               done
@@ -208,7 +208,7 @@ export function HuntWorkList({
           />
           {!done && row.completed.length > 0 && (
             <div className="vehicle-meta">
-              {row.scheduled ? '예약됨' : '미예약'}
+              {row.scheduled ? 'Scheduled' : 'Not scheduled'}
             </div>
           )}
         </>
@@ -216,7 +216,7 @@ export function HuntWorkList({
     },
     {
       id: 'actions',
-      header: '작업',
+      header: 'Actions',
       width: 180,
       hideable: false,
       cell: (row) => (
@@ -229,7 +229,7 @@ export function HuntWorkList({
                 onProject(row.project.id);
               }}
             >
-              프로젝트 보기
+              Project view
             </Button>
           ) : row.scheduled ? (
             <Button
@@ -239,7 +239,7 @@ export function HuntWorkList({
                 if (row.scheduled) onVisit(row.scheduled);
               }}
             >
-              일정 보기
+              View schedule
             </Button>
           ) : (
             <Button
@@ -249,7 +249,7 @@ export function HuntWorkList({
                 onSchedule(row.project.id);
               }}
             >
-              일정 잡기
+              Schedule
             </Button>
           )}
         </div>
@@ -282,21 +282,25 @@ export function HuntWorkList({
     (pagination.pageIndex + 1) * pagination.pageSize,
   );
   const statusTabs = [
-    { value: 'waiting', label: '대기', count: rows.filter((r) => !r.done) },
-    { value: 'completed', label: '완료', count: rows.filter((r) => r.done) },
+    { value: 'waiting', label: 'Pending', count: rows.filter((r) => !r.done) },
+    {
+      value: 'completed',
+      label: 'Completed',
+      count: rows.filter((r) => r.done),
+    },
   ] as const;
   return (
     <div className="hunt-work-list">
       <div className="grid-toolbar">
         <div
           className="grid-toolbar-filters"
-          aria-label={`${label} ${done ? '완료' : '대기'} 검색 및 필터`}
+          aria-label={`${label} ${done ? 'Completed' : 'Pending'} Search & filters`}
         >
           <div className="search-field">
             <Search aria-hidden="true" />
             <Input
-              aria-label={`${label} ${done ? '완료' : '대기'} 검색`}
-              placeholder="차량명 · 프로젝트 ID 검색"
+              aria-label={`${label} ${done ? 'Completed' : 'Pending'} Search`}
+              placeholder="Search vehicle / Project ID"
               value={filter.query}
               onChange={(e) => {
                 update({ query: e.target.value });
@@ -309,11 +313,14 @@ export function HuntWorkList({
               update({ product: value === ALL ? '' : value });
             }}
           >
-            <SelectTrigger aria-label="제품군" className="filter-select wide">
+            <SelectTrigger
+              aria-label="Product family"
+              className="filter-select wide"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={ALL}>전체 제품군</SelectItem>
+              <SelectItem value={ALL}>All product families</SelectItem>
               {[
                 'Seat Cover',
                 'Floor Mat',
@@ -330,7 +337,7 @@ export function HuntWorkList({
               <Input
                 className="hunt-date-input"
                 type="date"
-                aria-label="완료 방문일 · 시작"
+                aria-label="Completed visit date · From"
                 value={filter.from}
                 onChange={(e) => {
                   update({ from: e.target.value });
@@ -339,7 +346,7 @@ export function HuntWorkList({
               <Input
                 className="hunt-date-input"
                 type="date"
-                aria-label="완료 방문일 · 종료"
+                aria-label="Completed visit date · To"
                 value={filter.to}
                 onChange={(e) => {
                   update({ to: e.target.value });
@@ -353,20 +360,23 @@ export function HuntWorkList({
                 update({ scheduled: value === ALL ? '' : value });
               }}
             >
-              <SelectTrigger aria-label="일정 상태" className="filter-select">
+              <SelectTrigger
+                aria-label="Schedule status"
+                className="filter-select"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL}>전체 일정</SelectItem>
-                <SelectItem value="no">미예약</SelectItem>
-                <SelectItem value="yes">예약됨</SelectItem>
+                <SelectItem value={ALL}>All schedules</SelectItem>
+                <SelectItem value="no">Not scheduled</SelectItem>
+                <SelectItem value="yes">Scheduled</SelectItem>
               </SelectContent>
             </Select>
           )}
           <div
             className="stage-tabs"
             role="group"
-            aria-label={`${label} 처리 상태`}
+            aria-label={`${label} Work status`}
           >
             {statusTabs.map((tab) => (
               <button
@@ -391,19 +401,19 @@ export function HuntWorkList({
               update(emptyFilter());
             }}
           >
-            필터 초기화
+            Clear filters
           </Button>
         </div>
       </div>
       {invalidRange && (
         <p className="hunt-list-note" role="alert">
-          종료일은 시작일 이후로 선택하세요.
+          The end date must be on or after the start date.
         </p>
       )}
       {done && (
         <p className="hunt-list-note muted-text">
-          최근 완료 방문순 · 날짜는 마지막 완료 방문일이며, 방문 기록 없이
-          완료된 항목은 ‘미기록’으로 표시됩니다.
+          Sorted by most recent completed visit. Items completed without a visit
+          record show Not recorded.
         </p>
       )}
       <FlatDataGrid
@@ -414,8 +424,8 @@ export function HuntWorkList({
         getRowId={(row) => row.project.id}
         emptyMessage={
           subset.length
-            ? '검색 조건에 맞는 항목이 없습니다. 검색어나 필터를 변경하세요.'
-            : `${label} ${done ? '완료' : '대기'} 프로젝트가 없습니다.`
+            ? 'No matching items. Change your search or filters.'
+            : `${label} ${done ? 'Completed' : 'Pending'} No projects.`
         }
 
         pagination={{

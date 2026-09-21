@@ -82,7 +82,7 @@ export function ReferenceItemDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {entityLabel} {item ? '수정' : '등록'}
+            {entityLabel} {item ? 'Edit' : 'Create'}
           </DialogTitle>
         </DialogHeader>
         <DialogBody className="dialog-form-grid">
@@ -110,13 +110,13 @@ export function ReferenceItemDialog({
           <label>
             Code
             <Input
-              placeholder={kind === 'colors' ? '예: BK' : '예: 10'}
+              placeholder={kind === 'colors' ? 'Example: BK' : 'Example: 10'}
               value={code}
               onChange={(event) => setCode(event.target.value)}
             />
           </label>
           <label className="full-width">
-            {entityLabel} 이름
+            {entityLabel} Name
             <Input
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -124,19 +124,19 @@ export function ReferenceItemDialog({
           </label>
 
           <div className="dialog-note">
-            Code는 SKU 문자열에 그대로 들어갑니다. 대문자로 저장되며 Product
-            Type 안에서 중복될 수 없습니다.
-            {normalizedCode && ` 저장될 Code: ${normalizedCode}`}
+            Codes are used directly in SKUs, saved in uppercase, and must be
+            unique within each product type.
+            {normalizedCode && ` Code to save: ${normalizedCode}`}
           </div>
           {isDuplicate && (
             <div className="dialog-error">
-              이 Product Type에 같은 Code 또는 이름이 이미 있습니다.
+              This code or name already exists for the product type.
             </div>
           )}
         </DialogBody>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            취소
+            Cancelled
           </Button>
           <Button
             variant="primary"
@@ -149,7 +149,7 @@ export function ReferenceItemDialog({
               })
             }
           >
-            {item ? '수정 저장' : '등록'}
+            {item ? 'Save changes' : 'Create'}
           </Button>
         </DialogFooter>
       </DialogContent>

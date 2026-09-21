@@ -71,7 +71,7 @@ export function ProductRegistrationsPage() {
   const columns: FlatDataGridColumn<(typeof visible)[number]>[] = [
     {
       id: 'registration',
-      header: '등록',
+      header: 'Create',
       width: 210,
       sortValue: (row) => row.id,
       cell: (row) => (
@@ -83,7 +83,7 @@ export function ProductRegistrationsPage() {
     },
     {
       id: 'requester',
-      header: '요청자',
+      header: 'Requester',
       width: 180,
       sortValue: (row) => userName(appUsers, row.requestedBy),
       cell: (row) => <>{userName(appUsers, row.requestedBy)}</>,
@@ -98,7 +98,7 @@ export function ProductRegistrationsPage() {
             <div key={item.id}>
               {masterProducts.find(
                 (product) => product.id === item.masterProductId,
-              )?.sku ?? '제품 누락'}
+              )?.sku ?? 'Product missing'}
             </div>
           ))}
         </>
@@ -106,14 +106,14 @@ export function ProductRegistrationsPage() {
     },
     {
       id: 'status',
-      header: '상태',
+      header: 'Status',
       width: 180,
       sortValue: (row) => statusOf(row.id),
       cell: (row) => <>{statusOf(row.id)}</>,
     },
     {
       id: 'actions',
-      header: '작업',
+      header: 'Actions',
       width: 180,
       hideable: false,
       cell: (row) => (
@@ -124,7 +124,7 @@ export function ProductRegistrationsPage() {
               setReviewing(row.id);
             }}
           >
-            검토·이력
+            Review / History
           </Button>
         </>
       ),
@@ -151,7 +151,7 @@ export function ProductRegistrationsPage() {
   return (
     <section className="shape-management">
       <PageHeader
-        description="제품 등록 · 단계별 승인 / 반려 이력 보존 / 최종 승인 시 제품과 SKU 일괄 반영"
+        description="Product registration · Step-by-step approvals / Rejection history preserved / Products and SKUs created together on final approval"
         tables={
           import.meta.env.DEV
             ? [
@@ -170,8 +170,8 @@ export function ProductRegistrationsPage() {
         }
       />
       <p>
-        현재 브라우저 저장 기반의 승인 흐름입니다. 실제 사용자 인증과 서버
-        트랜잭션은 연결 전입니다.
+        This approval flow uses browser storage. Real authentication and server
+        transactions are not connected yet.
       </p>
       <Card>
         <div className="grid-toolbar">
@@ -179,8 +179,8 @@ export function ProductRegistrationsPage() {
             <div className="search-field">
               <Search aria-hidden="true" />
               <Input
-                aria-label="등록 번호, 요청자, SKU 검색"
-                placeholder="등록 번호 / 요청자 / SKU 검색"
+                aria-label="Search registration ID, requester, or SKU"
+                placeholder="Search registration ID / Requester / SKU"
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
@@ -189,7 +189,7 @@ export function ProductRegistrationsPage() {
             </div>
             <Select value={filter} onValueChange={setFilter}>
               <SelectTrigger
-                aria-label="승인 상태"
+                aria-label="Approval status"
                 className="filter-select wide"
               >
                 <SelectValue />
@@ -249,8 +249,8 @@ export function ProductRegistrationsPage() {
         {!visible.length && (
           <div className="empty-state">
             <div className="empty-icon">🔍</div>
-            <strong>표시할 등록 요청이 없습니다.</strong>
-            <p>검색어나 승인 상태 필터를 바꿔 보세요.</p>
+            <strong>No registration requests to display.</strong>
+            <p>Try changing the search term or approval status filter.</p>
           </div>
         )}
       </Card>
@@ -262,7 +262,7 @@ export function ProductRegistrationsPage() {
       >
         <DialogContent className="detail-dialog">
           <DialogHeader>
-            <DialogTitle>등록 검토 · {reviewing}</DialogTitle>
+            <DialogTitle>Registration review · {reviewing}</DialogTitle>
           </DialogHeader>
           <DialogBody>
             {itemsOf(reviewing).map((item) => (
@@ -275,15 +275,15 @@ export function ProductRegistrationsPage() {
                   }
                 </strong>
                 <p>
-                  근거 Shape:{' '}
+                  Reference Shape:{' '}
                   {item.sourceShapeIds?.length
                     ? item.sourceShapeIds.join(', ')
-                    : '별도 근거 없음'}
+                    : 'No separate reference'}
                 </p>
                 {item.vehicleProjectIds.length > 0 && (
                   <p>
-                    이전 기록의 프로젝트 참조:{' '}
-                    {item.vehicleProjectIds.join(', ')} (기존 데이터 보존)
+                    Legacy project reference:{' '}
+                    {item.vehicleProjectIds.join(', ')} (Legacy data preserved)
                   </p>
                 )}
               </section>
@@ -302,7 +302,7 @@ export function ProductRegistrationsPage() {
                 setReviewing('');
               }}
             >
-              닫기
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -179,7 +179,7 @@ export function RegistrationRequestDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="detail-dialog">
         <DialogHeader>
-          <DialogTitle>Product 등록 요청</DialogTitle>
+          <DialogTitle>Product registration request</DialogTitle>
         </DialogHeader>
         <DialogBody className="detail-card-list">
           <div className="detail-card">
@@ -207,7 +207,7 @@ export function RegistrationRequestDialog({
                     </span>
                   ) : (
                     <span className="muted-text">
-                      이 F#에 할당된 Shape이 없습니다
+                      No Shape assigned to this F#
                     </span>
                   )}
                 </dd>
@@ -216,7 +216,7 @@ export function RegistrationRequestDialog({
           </div>
 
           <fieldset className="visit-zone-picker">
-            <legend>STEP 1 · 근거 Shape 선택 (선택 사항)</legend>
+            <legend>STEP 1 · Select reference Shape (optional)</legend>
             {shapes.length ? (
               shapes.map((zoneProject) => (
                 <label key={zoneProject.id}>
@@ -237,13 +237,15 @@ export function RegistrationRequestDialog({
               ))
             ) : (
               <p className="visit-no-task-note">
-                이 F#의 Zone별 PRIMARY Shape 적용을 먼저 등록하세요.
+                Register PRIMARY Shape assignments per zone for this F# first.
               </p>
             )}
           </fieldset>
 
           <fieldset className="visit-zone-picker">
-            <legend>STEP 2 · 재질 — 여러 개 선택하면 조합이 늘어납니다</legend>
+            <legend>
+              STEP 2 · Material — Multiple selections create more combinations
+            </legend>
             {materials.map((material) => (
               <label key={material.id}>
                 <Checkbox
@@ -291,9 +293,9 @@ export function RegistrationRequestDialog({
                   </Select>
                 </label>
                 <label>
-                  메모 (선택)
+                  Notes (optional)
                   <Input
-                    placeholder="예: 포장 사양은 승인 후 등록"
+                    placeholder="Example: Register packaging specifications after approval"
                     value={note}
                     onChange={(event) => setNote(event.target.value)}
                   />
@@ -301,12 +303,13 @@ export function RegistrationRequestDialog({
               </div>
               <fieldset className="visit-zone-picker two-column">
                 <legend>
-                  STEP 4 · Color — 선택한 재질과 Color Type에서 가능한 색상만
+                  STEP 4 · Color — Available colors for the selected materials
+                  and color type only
                 </legend>
                 {availableColorTypes.length === 0 ? (
                   <p className="visit-no-task-note">
-                    선택한 재질들이 공통으로 허용하는 Color Type이 없습니다.
-                    재질 선택을 좁혀 주세요.
+                    The selected materials share no allowed color type. Narrow
+                    the material selection.
                   </p>
                 ) : availableColors.length ? (
                   availableColors.map((color) => (
@@ -328,8 +331,8 @@ export function RegistrationRequestDialog({
                   ))
                 ) : (
                   <p className="visit-no-task-note">
-                    이 Color Type에 등록된 색상이 없습니다. Reference Data에서
-                    추가해 주세요.
+                    No colors registered for this color type. Add them in
+                    Reference Data.
                   </p>
                 )}
               </fieldset>
@@ -339,24 +342,24 @@ export function RegistrationRequestDialog({
           {!needsColor && (
             <div className="dialog-form-grid">
               <label className="full-width">
-                메모 (선택)
+                Notes (optional)
                 <Input
-                  placeholder="예: 포장 사양은 승인 후 등록"
+                  placeholder="Example: Register packaging specifications after approval"
                   value={note}
                   onChange={(event) => setNote(event.target.value)}
                 />
               </label>
               {implicitColor ? (
                 <div className="dialog-note">
-                  Floor Mat은 색상 코드가 없고 단일 색상으로만 판매되므로 선택할
-                  것이 없습니다. product_color_id 가 NOT NULL이라 대표 행(
-                  {implicitColor.code})만 기록되고 SKU에는 들어가지 않습니다.
-                  SKU가 재질 + F#로 결정되므로 F# 하나당 Product는 한 건입니다.
+                  Floor Mat is sold in one color with no color code. Because
+                  product_color_id is NOT NULL, only a representative row (
+                  {implicitColor.code}) is recorded, without affecting the SKU.
+                  The SKU uses material + F#, so each F# has one product.
                 </div>
               ) : (
                 <div className="dialog-error">
-                  Floor Mat용 product_color 행이 없습니다. Reference Data에서
-                  Floor Mat 색상을 한 건 등록해 주세요.
+                  No Floor Mat product_color row exists. Register one Floor Mat
+                  color in Reference Data.
                 </div>
               )}
             </div>
@@ -364,8 +367,8 @@ export function RegistrationRequestDialog({
 
           <div className="detail-card">
             <span className="detail-card-label">
-              제출 미리보기 — 조합 {combinations.length}건 중 신규{' '}
-              {newCombinations.length}건
+              Submission preview — Combinations {combinations.length} items;
+              new: {newCombinations.length} items
             </span>
             {combinations.length ? (
               <div className="version-list">
@@ -375,9 +378,9 @@ export function RegistrationRequestDialog({
                       {combination.sku}
                     </span>
                     {combination.isDuplicate ? (
-                      <StatusBadge label="이미 등록됨" tone="danger" />
+                      <StatusBadge label="Already registered" tone="danger" />
                     ) : (
-                      <StatusBadge label="신규" tone="success" />
+                      <StatusBadge label="New" tone="success" />
                     )}
                   </div>
                 ))}
@@ -386,14 +389,14 @@ export function RegistrationRequestDialog({
               <div className="dialog-error">
                 {probe.status === 'unsupported'
                   ? probe.reason
-                  : '조합을 만들려면 재질과 색상을 선택하세요.'}
+                  : 'Select materials and colors to generate combinations.'}
               </div>
             )}
           </div>
         </DialogBody>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            취소
+            Cancelled
           </Button>
           <Button
             variant="primary"
@@ -407,7 +410,7 @@ export function RegistrationRequestDialog({
               })
             }
           >
-            등록 요청 제출 ({newCombinations.length}건)
+            Submit registration requests ({newCombinations.length} items)
           </Button>
         </DialogFooter>
       </DialogContent>

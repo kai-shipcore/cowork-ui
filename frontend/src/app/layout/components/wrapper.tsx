@@ -53,19 +53,20 @@ export function Wrapper() {
             <div className="ops-save-error" role="alert">
               {storageMessage}{' '}
               <Button size="sm" variant="outline" onClick={retryPersistence}>
-                R&D 저장 재시도
+                Retry R&D save
               </Button>
             </div>
           )}
           <div className="ops-demo">
             <span>
-              공개 Demo · 기밀·개인정보 입력 금지 · 회사 로그인/공동 저장 연결
-              전 · 기존 R&D 작업자는 Kai · {saving ? '저장 중…' : message}
+              Public demo · No confidential or personal data · Company
+              sign-in/shared storage not connected · R&D actor: Kai ·{' '}
+              {saving ? 'Saving…' : message}
             </span>
             <label>
-              요청 테스트 작업자
+              Request demo actor
               <select
-                aria-label="데모 작업자 선택"
+                aria-label="Select demo actor"
                 value={actor.id}
                 onChange={(event) => {
                   changeActor(event.target.value);
@@ -83,7 +84,7 @@ export function Wrapper() {
             <div className="ops-save-error" role="alert">
               {error}{' '}
               <Button size="sm" variant="outline" onClick={reload}>
-                최신 데이터 다시 읽기
+                Reload latest data
               </Button>
             </div>
           )}

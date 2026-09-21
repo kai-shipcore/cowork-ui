@@ -238,7 +238,7 @@ export function VehicleResearchPage() {
             setEvidenceConfigurationId(configuration.id);
           }}
         >
-          조사 근거 · 판단
+          Research evidence / Decision
         </Button>
       ),
     },
@@ -352,7 +352,7 @@ export function VehicleResearchPage() {
               <Button
                 size="sm"
                 variant="dashed"
-                aria-label={`${group.id} Configuration 추가`}
+                aria-label={`${group.id} Add configuration`}
                 onClick={() => {
                   openConfigurationDialog(firstConfiguration);
                 }}
@@ -368,7 +368,7 @@ export function VehicleResearchPage() {
   return (
     <section>
       <PageHeader
-        description="차량 등록 → Configuration(옵션 조합) 등록 → Research Complete 시 개발 가능 · 이 단계에서는 F# 없음"
+        description="Register vehicle → Add configuration (option combination) → Development available after Research Complete · No F# at this stage"
         tables={
           import.meta.env.DEV
             ? [
@@ -408,15 +408,15 @@ export function VehicleResearchPage() {
           primarySoft: '#EFF6FF',
         }}
         search={{
-          label: 'Make 또는 Model 검색',
-          placeholder: 'Make / Model 검색',
+          label: 'Search make or model',
+          placeholder: 'Search make / model',
           value: query,
           onChange: setQuery,
         }}
         filters={[
           {
             id: 'product',
-            label: 'Product 필터',
+            label: 'Product filter',
             value: product,
             onChange: setProduct,
             options: [
@@ -428,7 +428,7 @@ export function VehicleResearchPage() {
           },
         ]}
         toolbarContent={
-          <div className="stage-tabs" role="group" aria-label="Research 상태">
+          <div className="stage-tabs" role="group" aria-label="Research status">
             {RESEARCH_STATUS_FILTERS.map((filter) => (
               <button
                 type="button"
@@ -456,7 +456,7 @@ export function VehicleResearchPage() {
                 void navigate(ROUTES.vehicleOptions);
               }}
             >
-              차량 옵션 관리
+              Manage vehicle options
             </Button>
             <Button
               variant="primary"
@@ -464,7 +464,7 @@ export function VehicleResearchPage() {
                 setDialogOpen(true);
               }}
             >
-              <Plus /> 차량 등록
+              <Plus /> Register vehicle
             </Button>
           </>
         }
@@ -486,13 +486,13 @@ export function VehicleResearchPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>차량 등록</DialogTitle>
+            <DialogTitle>Register vehicle</DialogTitle>
           </DialogHeader>
           <DialogBody className="dialog-form-grid">
             <label>
-              제조사
+              Make
               <Select value={manufacturer} onValueChange={setManufacturer}>
-                <SelectTrigger aria-label="제조사">
+                <SelectTrigger aria-label="Make">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -505,9 +505,9 @@ export function VehicleResearchPage() {
               </Select>
             </label>
             <label>
-              차급
+              Vehicle class
               <Select value={vehicleClass} onValueChange={setVehicleClass}>
-                <SelectTrigger aria-label="차급">
+                <SelectTrigger aria-label="Vehicle class">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -520,9 +520,9 @@ export function VehicleResearchPage() {
               </Select>
             </label>
             <label>
-              모델
+              Model
               <Input
-                placeholder="예: RAV4"
+                placeholder="Example: RAV4"
                 value={model}
                 onChange={(event) => {
                   setModel(event.target.value);
@@ -531,7 +531,7 @@ export function VehicleResearchPage() {
             </label>
             <div className="year-range-fields">
               <label>
-                연식 시작
+                Model year from
                 <Input
                   min="1900"
                   max="2100"
@@ -543,7 +543,7 @@ export function VehicleResearchPage() {
                 />
               </label>
               <label>
-                연식 끝
+                Model year to
                 <Input
                   min="1900"
                   max="2100"
@@ -556,8 +556,8 @@ export function VehicleResearchPage() {
               </label>
             </div>
             <div className="dialog-note">
-              등록 후 제품 적용에 영향을 주는 Configuration 옵션을 추가할 수
-              있습니다.
+              After registration, add configuration options that affect product
+              fitment.
             </div>
           </DialogBody>
           <DialogFooter>
@@ -567,7 +567,7 @@ export function VehicleResearchPage() {
                 setDialogOpen(false);
               }}
             >
-              취소
+              Cancelled
             </Button>
             <Button
               className="vehicle-register-submit"
@@ -575,7 +575,7 @@ export function VehicleResearchPage() {
               onClick={addMockVehicle}
               disabled={!model.trim() || !yearStart || !yearEnd}
             >
-              차량 등록
+              Register vehicle
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -587,7 +587,7 @@ export function VehicleResearchPage() {
       >
         <DialogContent className="configuration-dialog">
           <DialogHeader>
-            <DialogTitle>Vehicle Configuration 추가</DialogTitle>
+            <DialogTitle>Add vehicle configuration</DialogTitle>
           </DialogHeader>
           <DialogBody>
             {configurationVehicle && (
@@ -598,7 +598,7 @@ export function VehicleResearchPage() {
             )}
             <div className="configuration-dialog-label">
               Configuration Title / Value
-              <span>— 제품 적용에 영향을 주는 조합만</span>
+              <span>— Only combinations affecting product fitment</span>
             </div>
             <div className="configuration-criteria-list">
               {criteria.map((criterion, index) => (
@@ -611,7 +611,7 @@ export function VehicleResearchPage() {
                     }}
                   >
                     <SelectTrigger
-                      aria-label={`Configuration 기준 ${String(index + 1)}`}
+                      aria-label={`Configuration criterion ${String(index + 1)}`}
                     >
                       <SelectValue />
                     </SelectTrigger>
@@ -630,7 +630,7 @@ export function VehicleResearchPage() {
                     }}
                   >
                     <SelectTrigger
-                      aria-label={`Configuration 값 ${String(index + 1)}`}
+                      aria-label={`Configuration value ${String(index + 1)}`}
                     >
                       <SelectValue />
                     </SelectTrigger>
@@ -645,7 +645,7 @@ export function VehicleResearchPage() {
                     </SelectContent>
                   </Select>
                   <Button
-                    aria-label={`${String(index + 1)}번 기준 삭제`}
+                    aria-label={`${String(index + 1)}· Remove criterion`}
                     mode="icon"
                     variant="ghost"
                     onClick={() => {
@@ -663,7 +663,7 @@ export function VehicleResearchPage() {
               variant="dashed"
               onClick={addCriterion}
             >
-              <Plus /> Configuration 기준 추가
+              <Plus /> Add configuration criterion
             </Button>
           </DialogBody>
           <DialogFooter className="configuration-dialog-footer">
@@ -673,7 +673,7 @@ export function VehicleResearchPage() {
                 setConfigurationDialogOpen(false);
               }}
             >
-              취소
+              Cancelled
             </Button>
             <Button
               className="vehicle-register-submit"
@@ -681,7 +681,7 @@ export function VehicleResearchPage() {
               onClick={saveConfiguration}
               disabled={!criteria.length}
             >
-              Configuration 등록
+              Register configuration
             </Button>
           </DialogFooter>
         </DialogContent>

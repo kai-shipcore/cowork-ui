@@ -59,14 +59,14 @@ export function ShapeAssignmentPanel({ vehicle }: { vehicle: UniqueVehicle }) {
         ? state
         : { ...state, shapeAssignments: [...state.shapeAssignments, input] },
     );
-    setMessage('적용 이력을 저장했습니다.');
+    setMessage('Assignment history saved.');
   };
   return (
     <details className="shape-section">
-      <summary>판매 차량 Shape 적용 · {vehicle.fNumber}</summary>
+      <summary>Sales vehicle Shape assignments · {vehicle.fNumber}</summary>
       <p>
-        개발 프로젝트 연결과 별개입니다. 기존 이름 목록은 보존되며 Zone을 추정해
-        자동 변환하지 않습니다.
+        Separate from development project links. Legacy name lists are
+        preserved; zones are not inferred or converted automatically.
       </p>
       <label>
         Zone{' '}
@@ -76,7 +76,7 @@ export function ShapeAssignmentPanel({ vehicle }: { vehicle: UniqueVehicle }) {
             setZone(e.target.value);
           }}
         >
-          <option value="">선택</option>
+          <option value="">Select</option>
           {vehicleZones
             .filter((row) => row.productTypeId === productTypeId)
             .map((row) => (
@@ -94,7 +94,7 @@ export function ShapeAssignmentPanel({ vehicle }: { vehicle: UniqueVehicle }) {
             setShape(e.target.value);
           }}
         >
-          <option value="">선택</option>
+          <option value="">Select</option>
           {vehicleProductShapes
             .filter(
               (row) =>
@@ -108,7 +108,7 @@ export function ShapeAssignmentPanel({ vehicle }: { vehicle: UniqueVehicle }) {
         </select>
       </label>
       <label>
-        적용 구분{' '}
+        Assignment type{' '}
         <select
           value={type}
           onChange={(e) => {
@@ -121,7 +121,7 @@ export function ShapeAssignmentPanel({ vehicle }: { vehicle: UniqueVehicle }) {
       </label>
       {type === 'ALTERNATIVE' && (
         <label>
-          대체 순위{' '}
+          Alternative priority{' '}
           <input
             type="number"
             min="1"
@@ -133,7 +133,7 @@ export function ShapeAssignmentPanel({ vehicle }: { vehicle: UniqueVehicle }) {
           />
         </label>
       )}
-      <Button onClick={save}>적용 추가</Button>
+      <Button onClick={save}>Add assignment</Button>
       {rows.map((row) => (
         <p key={row.id}>
           {vehicleZones.find((z) => z.id === row.vehicleZoneId)?.name} ·{' '}
@@ -142,7 +142,7 @@ export function ShapeAssignmentPanel({ vehicle }: { vehicle: UniqueVehicle }) {
               ?.name
           }{' '}
           · {row.type} {row.substitutionPriority} · {row.validFrom} ~{' '}
-          {row.validTo ?? '현재'}{' '}
+          {row.validTo ?? 'Current'}{' '}
           {!row.validTo && (
             <Button
               variant="outline"
@@ -157,12 +157,12 @@ export function ShapeAssignmentPanel({ vehicle }: { vehicle: UniqueVehicle }) {
                 }));
               }}
             >
-              적용 종료
+              End assignment
             </Button>
           )}
         </p>
       ))}
-      {!rows.length && <p>확정된 Zone별 적용 이력이 없습니다.</p>}
+      {!rows.length && <p>No confirmed assignments by zone.</p>}
       {message && <p role="status">{message}</p>}
     </details>
   );

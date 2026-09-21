@@ -13,12 +13,13 @@ import { useOperations } from '@/app/operations-store';
 import '@/modules/operations/operations.css';
 
 const DESCRIPTIONS = {
-  rd: '차량 연구, 제품 개발, 샘플 검증과 출시 인계를 관리합니다.',
+  rd: 'Manage vehicle research, product development, sample verification, and launch handoff.',
   'demand-planning':
-    '수요·재고·구매 계획과 다른 팀의 재고 확보 요청을 관리합니다.',
+    'Manage demand, inventory, and purchasing plans and cross-team stock requests.',
   'customer-services':
-    '고객 문의, 반품과 반복 불만을 접수하고 조사 결과를 추적합니다.',
-  ecommerce: '상품 출시 인계, 채널 운영과 프로모션 준비를 조율합니다.',
+    'Handle customer inquiries, returns, and recurring complaints and track investigation results.',
+  ecommerce:
+    'Coordinate launch handoffs, channel operations, and promotion readiness.',
 };
 
 export function TeamDashboardPage() {
@@ -31,22 +32,22 @@ export function TeamDashboardPage() {
   );
   const metrics = [
     {
-      label: '처리할 요청',
+      label: 'Pending requests',
       value: requests.filter(isOpen).length,
       filter: 'open',
     },
     {
-      label: '기한 초과',
+      label: 'Overdue',
       value: requests.filter(isOverdue).length,
       filter: 'overdue',
     },
     {
-      label: '승인 대기',
+      label: 'Pending approval',
       value: requests.filter((request) => request.status === 'review').length,
       filter: 'review',
     },
     {
-      label: '완료',
+      label: 'Completed',
       value: requests.filter((request) => request.status === 'done').length,
       filter: 'done',
     },
@@ -59,12 +60,14 @@ export function TeamDashboardPage() {
           <h1>{TEAM_NAMES[team]}</h1>
           <p>{DESCRIPTIONS[team]}</p>
         </div>
-        <Link to={'/work/requests?new=1&team=' + team}>팀 간 요청 등록 →</Link>
+        <Link to={'/work/requests?new=1&team=' + team}>
+          Create team request →
+        </Link>
       </div>
       <p>
-        Demo 데이터 · 수신 팀 기준 전체 요청 · 최종 갱신{' '}
-        {new Date(snapshot.updatedAt).toLocaleString()} · 지표를 선택해 해당
-        업무를 처리하세요.
+        Demo data · All requests by receiving team · Last updated{' '}
+        {new Date(snapshot.updatedAt).toLocaleString('en-US')} · Select a metric
+        to open the related work.
       </p>
       <div className="ops-metrics">
         {metrics.map((metric) => (
@@ -82,12 +85,12 @@ export function TeamDashboardPage() {
           >
             <span>{metric.label}</span>
             <strong>{metric.value}</strong>
-            <span>업무 목록 열기 →</span>
+            <span>Open work queue →</span>
           </Link>
         ))}
       </div>
       <div className="ops-panel">
-        <h2>우선 처리할 업무</h2>
+        <h2>Priority work</h2>
         {requests
           .filter(isOpen)
           .sort(
@@ -105,26 +108,26 @@ export function TeamDashboardPage() {
               </span>
             </div>
           ))}
-        {!requests.some(isOpen) && <p>처리 대기 중인 요청이 없습니다.</p>}
+        {!requests.some(isOpen) && <p>No requests awaiting action.</p>}
       </div>
       <div className="ops-panel">
-        <h2>팀 역할 · 업무 분담</h2>
-        <p>아래 구성원은 역할 테스트를 위한 데모 사용자입니다.</p>
+        <h2>Team roles & responsibilities</h2>
+        <p>These demo users are provided for role testing.</p>
         {members.map((person) => (
           <div className="ops-row" key={person.id}>
             <strong>{person.name}</strong>
             <span>
               {person.role === 'lead'
-                ? '완료 검토 및 반려'
-                : '접수·작업·자료 등록'}{' '}
-              · 진행{' '}
+                ? 'Review completion or reject'
+                : 'Accept, process, and add documents'}{' '}
+              · Active{' '}
               {
                 requests.filter(
                   (request) =>
                     request.assigneeId === person.id && isOpen(request),
                 ).length
               }
-              건 · 검토{' '}
+              items · Review{' '}
               {
                 requests.filter(
                   (request) =>
@@ -132,21 +135,23 @@ export function TeamDashboardPage() {
                     request.status === 'review',
                 ).length
               }
-              건
+              items
             </span>
           </div>
         ))}
       </div>
       <div className="ops-panel">
-        <h2>업무 지표 연결 상태</h2>
+        <h2>Business metrics connection</h2>
         <p>
           {team === 'demand-planning'
-            ? '수요 정확도·품절 예상·발주량은 재고/판매 데이터 연결 후 제공됩니다.'
+            ? 'Demand accuracy, stockout forecasts, and order quantities require inventory and sales data connections.'
             : team === 'customer-services'
-              ? '고객 만족도·응답 SLA·환불 금액은 고객 문의 및 주문 데이터 연결 후 제공됩니다.'
-              : '매출·리스팅 오류·채널 재고는 판매 채널 데이터 연결 후 제공됩니다.'}
+              ? 'Customer satisfaction, response SLAs, and refund amounts require support and order data connections.'
+              : 'Sales, listing errors, and channel inventory require sales channel connections.'}
         </p>
-        <Link to={'/work/reports?team=' + team}>현재 요청 데이터 리포트 →</Link>
+        <Link to={'/work/reports?team=' + team}>
+          View current request report →
+        </Link>
       </div>
     </section>
   );

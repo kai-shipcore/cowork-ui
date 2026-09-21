@@ -19,12 +19,12 @@ export function ProjectHealthFilters({
       <div
         className="project-health-filters"
         role="group"
-        aria-label="프로젝트 상태 필터"
+        aria-label="Project health filters"
       >
         <span className="project-health-heading">
-          진행 상태 <small>Zone 기준</small>
+          Progress status <small>By zone</small>
         </span>
-        {[{ value: 'all', label: '전체' } as const, ...PROJECT_HEALTH].map(
+        {[{ value: 'all', label: 'All' } as const, ...PROJECT_HEALTH].map(
           (item) => (
             <Button
               key={item.value}
@@ -47,27 +47,28 @@ export function ProjectHealthFilters({
         )}
       </div>
       <details className="project-health-help">
-        <summary>상태 판정 기준</summary>
+        <summary>Health classification rules</summary>
         <p>
-          현재 단계에 저장된 목표일을 우선 사용합니다. 단계 목표가 없는 기존
-          프로젝트는 전체 프로젝트 목표일을 사용합니다.
+          The current stage's saved due date takes priority. Legacy projects
+          without a stage due date use the overall project target.
         </p>
         <p>
-          프로토타입 기준 · LA 날짜 기준 · 목표일까지 남은 날짜와 최근 활동
-          기록을 사용합니다.
+          Prototype rules · Los Angeles dates · Based on days to target and
+          recent activity.
         </p>
         <ul>
           <li>
-            Late: 목표일 초과. At risk: 진행 보류, 목표일이 오늘~2일 이내, 또는
-            14일 이상 활동 없음.
+            Late: Past due. At risk: On hold, due within 0–2 days, or no
+            activity for at least 14 days.
           </li>
           <li>
-            Watch: 목표일이 3~7일 이내 또는 7~13일 활동 없음. On track:
-            목표일까지 8일 이상 남고 최근 7일 내 활동.
+            Watch: Due in 3–7 days or inactive for 7–13 days. On track: Due in
+            at least 8 days with activity in the last 7 days.
           </li>
           <li>
-            위험 신호를 우선 표시합니다. 판정에 필요한 날짜가 없거나 잘못되면
-            정보 부족으로 표시합니다. 완료·취소·병합은 별도 집계합니다.
+            Risk signals take priority. Missing or invalid dates show
+            Insufficient data. Completed, cancelled, and merged projects are
+            counted separately.
           </li>
         </ul>
       </details>

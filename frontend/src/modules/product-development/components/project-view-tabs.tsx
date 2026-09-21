@@ -25,7 +25,7 @@ export function ProjectViewTabs({
   return (
     <Card className="min-w-0 overflow-hidden">
       <ContentTabs
-        label="프로젝트 보기"
+        label="Project view"
         value={view}
         onValueChange={(value) => {
           setSearchParams((current) => {
@@ -35,8 +35,8 @@ export function ProjectViewTabs({
           });
         }}
         items={[
-          { value: 'list', label: '목록', icon: <List /> },
-          { value: 'board', label: '단계별 보드', icon: <Columns3 /> },
+          { value: 'list', label: 'List', icon: <List /> },
+          { value: 'board', label: 'Stage Board', icon: <Columns3 /> },
         ]}
         className="[--primary:#2F80FF] [--color-primary:#2F80FF]"
       >

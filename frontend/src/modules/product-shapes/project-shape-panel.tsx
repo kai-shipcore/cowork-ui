@@ -122,7 +122,7 @@ export function ProjectShapePanel({
   const blockers = [
     ...sizeReviewBlockers(zone, designs, visits),
     ...(!qualityReady
-      ? ['부품별 품질 확인 후 전체 제품의 PASS를 기록하세요.']
+      ? ['Check quality for each part, then record an overall product PASS.']
       : []),
   ];
   const reviewed = qualityReady && isSizeReviewCurrent(zone, designs, visits);
@@ -204,8 +204,8 @@ export function ProjectShapePanel({
         ? reviewer
         : activeUsers[0].id,
     );
-    setBlueprint(blueprint.trim() || `[TEST] ${zone.id} 최종 Blueprint`);
-    setNote(note.trim() || '[TEST] Shape 검토 입력 및 승인 흐름 테스트');
+    setBlueprint(blueprint.trim() || `[TEST] ${zone.id} Final blueprint`);
+    setNote(note.trim() || '[TEST] Shape review and approval flow test');
     setChecked(true);
     if (rejectionType === 'PATTERN' && !affectedDesignIds.length) {
       setAffectedDesignIds(parts.map((part) => part.id));
@@ -215,12 +215,16 @@ export function ProjectShapePanel({
     <div className="shape-management project-shape-panel">
       <div className="shape-info">
         <strong>Shape · {zone.code}</strong>
-        <p>개발 Shape 생성 → 피팅·품질 확인 → 검토·확정 → 인계</p>
         <p>
-          개발 중 Shape를 먼저 생성할 수 있습니다. 하나의 Shape는 하나의 개발
-          프로젝트에 연결하며, 여러 판매 차량의 적용 관계는 별도로 관리합니다.
+          Create development Shape → Verify fitting and quality → Review and
+          confirm → Handoff
         </p>
-        <Link to="/product-shapes">전체 Shape 관리 →</Link>
+        <p>
+          You can create a Shape during development. One Shape links to one
+          development project; fitments across sales vehicles are managed
+          separately.
+        </p>
+        <Link to="/product-shapes">Manage all Shapes →</Link>
         {zone.productionHandoff && (
           <p>
             Handoff: {zone.productionHandoff.completedAt.slice(0, 10)} ·{' '}
@@ -229,7 +233,7 @@ export function ProjectShapePanel({
         )}
       </div>
       <section className="shape-section">
-        <h3>1. 피팅 결과와 최종 자료 확인</h3>
+        <h3>1. Review fitting results and final materials</h3>
         {blockers.length ? (
           <ul className="shape-errors">
             {blockers.map((message) => (
@@ -238,26 +242,26 @@ export function ProjectShapePanel({
           </ul>
         ) : (
           <p>
-            피팅 PASS와 Part / 패턴 버전이 준비되었습니다. Blueprint와 최종
-            구성의 일치 여부를 검토하세요.
+            Fitting PASS and part / pattern revisions are ready. Verify that the
+            blueprint matches the final composition.
           </p>
         )}
         <div className="shape-actions">
           <Button variant="outline" onClick={() => onOpenTab('visits')}>
-            피팅 Visits
+            Fitting visits
           </Button>
           <Button variant="outline" onClick={() => onOpenTab('designs')}>
-            최종 Part / 패턴 {parts.length}개
+            Final parts / Pattern {parts.length} items
           </Button>
           <Button variant="outline" onClick={() => onOpenTab('files')}>
-            자료 확인
+            Review materials
           </Button>
         </div>
         {parts.length > 0 && (
           <ul>
             {parts.map((part) => (
               <li key={part.id}>
-                {part.name} · 수량 {part.quantity} · Rev{' '}
+                {part.name} · Quantity {part.quantity} · Rev{' '}
                 {Math.max(
                   0,
                   ...part.revisions.map((revision) => revision.revisionNumber),
@@ -269,14 +273,17 @@ export function ProjectShapePanel({
       </section>
       <FitmentQualityPanel zone={zone} designs={designs} visits={visits} />
       <section className="shape-section shape-review-section">
-        <h3>Shape 검토 회의 및 구두 승인</h3>
+        <h3>Shape review meeting and verbal approval</h3>
         <p>
-          참석 대상: PM / Director, Pattern Designer, Scan Team, Coordinator,
-          Manual Design 담당자
+          Attendees: PM / Director, Pattern Designer, Scan Team, Coordinator,
+          Manual Designer
         </p>
         {reviewed ? (
           <div className="shape-success">
-            <strong>현재 Part 구성과 피팅 결과의 검토가 완료되었습니다.</strong>
+            <strong>
+              The current parts composition and fitting results have been
+              reviewed.
+            </strong>
             <p>
               {appUsers.find((user) => user.id === zone.sizeReview?.reviewedBy)
                 ?.name ?? zone.sizeReview?.reviewedBy}{' '}
@@ -284,8 +291,8 @@ export function ProjectShapePanel({
             </p>
             <p>Blueprint: {zone.sizeReview?.blueprintReference}</p>
             <p>
-              회의: {zone.sizeReview?.meetingAt} · 참석자:{' '}
-              {zone.sizeReview?.participants?.join(', ')} · 구두 승인
+              Meeting: {zone.sizeReview?.meetingAt} · Attendees:{' '}
+              {zone.sizeReview?.participants?.join(', ')} · Verbal approval
             </p>
             {zone.sizeReview?.note && <p>{zone.sizeReview.note}</p>}
           </div>
@@ -293,22 +300,23 @@ export function ProjectShapePanel({
           <>
             {zone.sizeReview?.outcome === 'REJECTED' && (
               <div role="status" className="shape-errors">
-                <strong>수정 요청: {zone.sizeReview.note}</strong>
+                <strong>Changes requested: {zone.sizeReview.note}</strong>
                 <p>
-                  자료를 보완한 뒤 다시 검토하세요. 패턴 변경이 필요하면 새
-                  Revision·샘플·피팅을 진행하세요.
+                  Update the documents and review again. If the pattern needs
+                  changes, create a new revision and repeat sampling and
+                  fitting.
                 </p>
               </div>
             )}
             {zone.sizeReview && zone.sizeReview.outcome !== 'REJECTED' && (
               <p role="status" className="shape-errors">
-                Part 버전·구성 또는 피팅 기록이 변경되었습니다. 현재 자료로 다시
-                검토하세요. 기존 Shape 연결은 유지됩니다.
+                Part revisions, composition, or fitting records changed. Review
+                the current materials again. Existing Shape links are preserved.
               </p>
             )}
             <div className="shape-review-fields">
               <label>
-                회의 일시 *
+                Meeting date and time *
                 <Input
                   type="datetime-local"
                   value={meetingAt}
@@ -316,12 +324,12 @@ export function ProjectShapePanel({
                 />
               </label>
               <label>
-                검토 책임자 (PM / Director) *
+                Review lead (PM / Director) *
                 <UserPicker
                   users={activeUsers}
                   value={appUsers.find((user) => user.id === reviewer)}
-                  label="검토 책임자 (PM / Director)"
-                  placeholder="검토 책임자 검색·선택"
+                  label="Review lead (PM / Director)"
+                  placeholder="Search and select review lead"
                   onChange={(userId) => setReviewer(userId ?? '')}
                 />
               </label>
@@ -334,35 +342,35 @@ export function ProjectShapePanel({
                 ] as const
               ).map(([key, label]) => (
                 <label key={key}>
-                  {label} 참석자 *
+                  {label} Attendees *
                   <UserPicker
                     users={activeUsers}
                     value={appUsers.find((user) => user.id === attendees[key])}
-                    label={`${label} 참석자`}
+                    label={`${label} Attendees`}
                     onChange={(userId) =>
                       setAttendees((current) => ({
                         ...current,
                         [key]: userId ?? '',
                       }))
                     }
-                    placeholder="참석자 검색·선택"
+                    placeholder="Search and select attendees"
                   />
                 </label>
               ))}
               <label className="full-width">
-                최종 Blueprint 참조 *
+                Final blueprint reference *
                 <Input
                   value={blueprint}
                   onChange={(event) => setBlueprint(event.target.value)}
-                  placeholder="최종 Blueprint 파일명, NAS 경로 또는 문서 링크"
+                  placeholder="Final blueprint file name, NAS path, or document link"
                 />
               </label>
               <label className="full-width">
-                검토 메모
+                Review notes
                 <Input
                   value={note}
                   onChange={(event) => setNote(event.target.value)}
-                  placeholder="최종 구성, 적합성, 재사용 Shape 판단 근거"
+                  placeholder="Final composition, fitment, and rationale for Shape reuse"
                 />
               </label>
             </div>
@@ -373,15 +381,16 @@ export function ProjectShapePanel({
                   disabled={!activeUsers.length}
                   onCheckedChange={(value) => toggleTestInput(value === true)}
                 />
-                테스트용 일괄 입력
+                Fill test values
               </label>
               <label className="shape-check">
                 <Checkbox
                   checked={checked}
                   onCheckedChange={(value) => setChecked(value === true)}
                 />
-                회의에서 책임자가 피팅 결과·최종 Parts 목록·Blueprint를 검토하고
-                Shape 발급 또는 재사용을 구두 승인했음을 기록합니다.
+                Record that the lead reviewed the fitting results, final parts
+                list, and blueprint in the meeting and verbally approved Shape
+                issuance or reuse.
               </label>
               <Button
                 variant="primary"
@@ -401,12 +410,12 @@ export function ProjectShapePanel({
                   });
                 }}
               >
-                검토 승인 기록
+                Record review approval
               </Button>
             </div>
             <div className="shape-review-rejection">
               <label className="shape-review-rejection-type">
-                반려 처리
+                Record rejection
                 <select
                   value={rejectionType}
                   onChange={(event) =>
@@ -415,17 +424,20 @@ export function ProjectShapePanel({
                     )
                   }
                 >
-                  <option value="DOCUMENT">문서 보완 후 재검토</option>
+                  <option value="DOCUMENT">
+                    Revise documents and review again
+                  </option>
                   <option value="PATTERN">
-                    패턴 재작업 · 새 샘플 요청으로 복귀
+                    Pattern rework · Return to new sample request
                   </option>
                 </select>
               </label>
               {rejectionType === 'PATTERN' && (
                 <div className="shape-review-rejection-parts">
                   <p>
-                    수정할 Part를 선택하세요. 해당 Part는 새 Revision과 새
-                    샘플이 필요하며 프로젝트 전체를 다시 피팅·인계합니다.
+                    Select parts to revise. These parts need a new revision and
+                    new samples; the entire project must repeat fitting and
+                    handoff.
                   </p>
                   {parts.map((part) => (
                     <label className="shape-check" key={part.id}>
@@ -465,19 +477,20 @@ export function ProjectShapePanel({
                   setChecked(false);
                 }}
               >
-                반려 기록 (사유 메모 필수)
+                Record rejection (reason required)
               </Button>
             </div>
             <p className="muted-text">
-              피팅 이후의 회의 일시, 참석자, 필수 자료, 검토 책임자, 확인 체크를
-              모두 입력해야 기록할 수 있습니다. 현재 화면은 실무 승인 결과를
-              기록하며 계정별 승인 권한을 검증하지 않습니다.
+              A post-fitting meeting date, attendees, required materials, review
+              lead, and confirmation are all required. This screen records
+              real-world approval results but does not verify account-level
+              approval permissions.
             </p>
           </>
         )}
       </section>
       <section className="shape-section">
-        <h3>최종 Shape 발급 · 연결</h3>
+        <h3>Issue / Link final Shape</h3>
         {shape ? (
           <div className="shape-success">
             <strong>
@@ -489,11 +502,11 @@ export function ProjectShapePanel({
                 disabled={!reviewed}
                 onClick={() => setEditor('ACTIVATE')}
               >
-                품질·검토 완료 Shape 확정
+                Confirm Shape after quality and review approval
               </Button>
             )}
             <Link to={`/product-shapes?shape=${encodeURIComponent(shape.id)}`}>
-              Shape 정보와 적용 프로젝트 관리 →
+              Manage Shape details and linked projects →
             </Link>
             {reviewed && (
               <div className="shape-actions">
@@ -501,21 +514,22 @@ export function ProjectShapePanel({
                   variant="outline"
                   onClick={() => setReplacing(!replacing)}
                 >
-                  {replacing ? '변경 취소' : '연결할 Shape 변경'}
+                  {replacing ? 'Discard changes' : 'Change linked Shape'}
                 </Button>
               </div>
             )}
             <p>
-              발급 후 ‘발급된 Shape’에서 Part 구성과 Blueprint를 등록하세요.
+              After issuance, add parts composition and a blueprint in Issued
+              Shapes.
             </p>
           </div>
         ) : (
-          <p>연결된 최종 Shape가 없습니다.</p>
+          <p>No final Shape linked.</p>
         )}
         {!reviewed && (
           <p className="shape-errors">
-            개발 Shape 생성·연결은 가능하며, ACTIVE 확정에는 품질 PASS와 검토
-            승인이 필요합니다.
+            Development Shapes can be created and linked. ACTIVE confirmation
+            requires quality PASS and review approval.
           </p>
         )}
         {(!shape || replacing) && (
@@ -526,29 +540,31 @@ export function ProjectShapePanel({
                 disabled={!linkAllowed}
                 onClick={() => setEditor('NEW')}
               >
-                개발 Shape 생성 · 연결
+                Create / Link development Shape
               </Button>
             </div>
             <p>
-              아직 다른 개발 프로젝트에 연결되지 않은 Shape만 선택할 수
-              있습니다.
+              Only Shapes not already linked to another development project are
+              selectable.
             </p>
             <div className="shape-filters">
               <Input
-                aria-label="기존 Shape 검색"
+                aria-label="Search existing Shapes"
                 value={query}
                 onChange={(event) => {
                   setQuery(event.target.value);
                   setSelected('');
                 }}
-                placeholder="기존 Shape 검색"
+                placeholder="Search existing Shapes"
               />
               <select
-                aria-label="연결할 기존 Shape"
+                aria-label="Existing Shape to link"
                 value={selected}
                 onChange={(event) => setSelected(event.target.value)}
               >
-                <option value="">같은 제품 유형의 미연결 Shape 선택</option>
+                <option value="">
+                  Select an unlinked Shape of the same product type
+                </option>
                 {candidates.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name}
@@ -568,24 +584,26 @@ export function ProjectShapePanel({
                   }
                 }}
               >
-                기존 Shape 연결
+                Link existing Shape
               </Button>
             </div>
-            {!candidates.length && <p>선택 가능한 확정 Shape가 없습니다.</p>}
+            {!candidates.length && <p>No eligible confirmed Shapes.</p>}
           </>
         )}
       </section>
       {(zone.shapeReviewHistory?.length ?? 0) > 0 && (
         <details className="shape-section">
-          <summary>검토 이력 {zone.shapeReviewHistory?.length}건</summary>
+          <summary>
+            Review history {zone.shapeReviewHistory?.length} items
+          </summary>
           {zone.shapeReviewHistory?.map((review, index) => (
             <p key={`${review.reviewedAt}-${index}`}>
               {review.reviewedAt} · {review.reviewedBy} ·{' '}
               {review.outcome === 'APPROVED'
-                ? '구두 승인'
+                ? 'Verbal approval'
                 : review.rejectionType === 'PATTERN'
-                  ? '패턴 반려 → 새 샘플 요청'
-                  : '문서 보완'}{' '}
+                  ? 'Pattern rejected → New sample request'
+                  : 'Document corrections'}{' '}
               · {review.note} · Blueprint: {review.blueprintReference}
             </p>
           ))}

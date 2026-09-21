@@ -17,7 +17,15 @@ const actionsSchema = z.array(
   z.object({
     id: z.string(),
     caseId: z.string(),
-    status: z.enum(['조치 중', '종결']),
+    status: z.preprocess(
+      (value) =>
+        value === '조치 중'
+          ? 'Action in progress'
+          : value === '종결'
+            ? 'Resolved'
+            : value,
+      z.enum(['Action in progress', 'Resolved']),
+    ),
     note: z.string().trim().min(1).max(2000),
     actor: z.string(),
     at: z.string(),
@@ -30,7 +38,7 @@ export function VendorQualityReport(): ReactElement {
   const { sampleRequests, sampleRequestItems, sampleShipments, projects } =
     useWorkbenchStore();
   const { actor } = useOperations();
-  const [factory, setFactory] = useState('전체');
+  const [factory, setFactory] = useState('All');
   const [caseId, setCaseId] = useState('');
   const [message, setMessage] = useState('');
   const { records, save, error, saving } = useRdRecords(
@@ -45,16 +53,16 @@ export function VendorQualityReport(): ReactElement {
     today(),
   );
   const cases = vendorFailureCases(sampleRequests, sampleRequestItems).filter(
-    (entry) => factory === '전체' || entry.factory === factory,
+    (entry) => factory === 'All' || entry.factory === factory,
   );
   const selected = cases.find((entry) => entry.id === caseId);
   return (
     <section className="rd-workspace">
       <div className="rd-panel">
         <div className="rd-toolbar">
-          <h2>공장별 품질 · 납기 리포트</h2>
+          <h2>Factory Quality & Delivery Report</h2>
           <label>
-            공장
+            Factory
             <select
               value={factory}
               onChange={(event) => {
@@ -62,7 +70,7 @@ export function VendorQualityReport(): ReactElement {
                 setCaseId('');
               }}
             >
-              <option>전체</option>
+              <option>All</option>
               {reports.map((entry) => (
                 <option key={entry.factory}>{entry.factory}</option>
               ))}
@@ -70,27 +78,27 @@ export function VendorQualityReport(): ReactElement {
           </label>
         </div>
         <p>
-          현재 저장된 전체 기간 · 품질 모수는 검수 완료 Part Line, 납기 모수는
-          예정일과 실제 입고일이 모두 있는 Shipment입니다. 설계 피팅 불량률과
-          구분합니다.
+          All stored history · Quality denominator: inspected part lines.
+          Delivery denominator: shipments with both expected and actual receipt
+          dates. Separate from design fitment failure rates.
         </p>
         <div className="rd-table">
           <table>
             <thead>
               <tr>
-                <th>공장</th>
-                <th>요청 부품</th>
-                <th>검수 완료</th>
-                <th>제작·미반영 문제</th>
-                <th>문제율</th>
-                <th>정시 입고</th>
-                <th>미입고 지연</th>
+                <th>Factory</th>
+                <th>Requested parts</th>
+                <th>Inspected</th>
+                <th>Manufacturing / Implementation issues</th>
+                <th>Issue rate</th>
+                <th>On-time receipts</th>
+                <th>Overdue receipts</th>
               </tr>
             </thead>
             <tbody>
               {reports
                 .filter(
-                  (entry) => factory === '전체' || entry.factory === factory,
+                  (entry) => factory === 'All' || entry.factory === factory,
                 )
                 .map((entry) => (
                   <tr key={entry.factory}>
@@ -108,34 +116,35 @@ export function VendorQualityReport(): ReactElement {
                     <td>
                       {entry.measured
                         ? `${String(Math.round((entry.onTime / entry.measured) * 100))}% (${String(entry.onTime)}/${String(entry.measured)})`
-                        : '비교할 입고일 없음'}
+                        : 'No comparable receipt dates'}
                     </td>
-                    <td>{entry.overdue}건</td>
+                    <td>{entry.overdue} items</td>
                   </tr>
                 ))}
             </tbody>
           </table>
         </div>
         {!reports.length && (
-          <p className="rd-empty">공장 요청·운송 기록이 없습니다.</p>
+          <p className="rd-empty">No factory request or shipment records.</p>
         )}
       </div>
       <div className="rd-panel">
-        <h2>샘플 연계 품질 이슈 · {cases.length}건</h2>
+        <h2>Sample-linked quality issues · {cases.length} items</h2>
         <p>
-          검수 기록의 도면 불일치·부분 반영·미반영을 자동으로 묶습니다. 같은
-          부품에서 2개 이상의 라운드에 발생하면 ‘반복’으로 표시합니다. 종결 뒤
-          새 실패 라운드가 생기면 다시 확인해야 합니다.
+          Groups drawing mismatches and partial or missing implementation from
+          inspections. Issues affecting the same part in two or more rounds are
+          marked Recurring. A new failed round after closure requires another
+          review.
         </p>
         <div className="rd-table">
           <table>
             <thead>
               <tr>
-                <th>공장 / 부품</th>
-                <th>프로젝트</th>
-                <th>실패 라운드</th>
-                <th>조치 상태</th>
-                <th>연결</th>
+                <th>Factory / Part</th>
+                <th>Project</th>
+                <th>Failed rounds</th>
+                <th>Action status</th>
+                <th>Link</th>
               </tr>
             </thead>
             <tbody>
@@ -156,12 +165,12 @@ export function VendorQualityReport(): ReactElement {
                     </td>
                     <td>{project?.vehicle ?? entry.projectId}</td>
                     <td>
-                      {entry.rounds}회
+                      {entry.rounds} times
                       {entry.rounds > 1 && (
-                        <strong className="rd-error"> · 반복</strong>
+                        <strong className="rd-error"> · Recurring</strong>
                       )}
                     </td>
-                    <td>{latest?.status ?? '미조치'}</td>
+                    <td>{latest?.status ?? 'No action'}</td>
                     <td>
                       <Button
                         size="sm"
@@ -170,7 +179,7 @@ export function VendorQualityReport(): ReactElement {
                           setCaseId(entry.id);
                         }}
                       >
-                        근거 · 조치
+                        Evidence / Action
                       </Button>{' '}
                       <Link
                         to={
@@ -179,7 +188,7 @@ export function VendorQualityReport(): ReactElement {
                           '&tab=samples'
                         }
                       >
-                        프로젝트 샘플
+                        Project samples
                       </Link>
                     </td>
                   </tr>
@@ -190,8 +199,8 @@ export function VendorQualityReport(): ReactElement {
         </div>
         {!cases.length && (
           <p className="rd-empty">
-            검수에서 확인된 제작·미반영 문제가 없습니다. 미검수 항목은 이 결과에
-            포함되지 않습니다.
+            No manufacturing or implementation issues found in inspections.
+            Uninspected items are excluded.
           </p>
         )}
       </div>
@@ -203,9 +212,9 @@ export function VendorQualityReport(): ReactElement {
             event.preventDefault();
             const data = new FormData(event.currentTarget);
             const status =
-              data.get('status') === '종결'
-                ? ('종결' as const)
-                : ('조치 중' as const);
+              data.get('status') === 'Resolved'
+                ? ('Resolved' as const)
+                : ('Action in progress' as const);
             const note = formText(data, 'note').trim();
             if (!note) return;
             void save((current) => [
@@ -219,7 +228,7 @@ export function VendorQualityReport(): ReactElement {
                 at: new Date().toISOString(),
               },
             ]).then((ok) => {
-              if (ok) setMessage('품질 이슈 조치를 기록했습니다.');
+              if (ok) setMessage('Quality issue action recorded.');
             });
           }}
         >
@@ -229,27 +238,35 @@ export function VendorQualityReport(): ReactElement {
           {selected.items.map((item) => (
             <p key={item.id}>
               Round {item.sampleRound} · {item.id} ·{' '}
-              {item.revisionReflected ?? '반영 판단 없음'} · 도면{' '}
-              {item.drawingMatch === false ? '불일치' : '불일치 기록 없음'}
+              {item.revisionReflected ?? 'Implementation not assessed'} ·
+              Drawing{' '}
+              {item.drawingMatch === false
+                ? 'Mismatch'
+                : 'No mismatch recorded'}
               <br />
-              {item.inspectionNote ?? item.verificationNote ?? '추가 메모 없음'}
+              {item.inspectionNote ??
+                item.verificationNote ??
+                'No additional notes'}
             </p>
           ))}
           <label>
-            조치 상태
+            Action status
             <select name="status">
-              <option>조치 중</option>
-              <option>종결</option>
+              <option>Action in progress</option>
+              <option>Resolved</option>
             </select>
           </label>
           <label>
-            원인·공장 회신·재검증 근거
+            Cause / Factory response / Reverification evidence
             <textarea name="note" rows={3} required maxLength={2000} />
           </label>
           <Button type="submit" disabled={saving}>
-            조치 기록 저장
+            Save action record
           </Button>
-          <p>이슈 종결은 샘플 합격이나 프로젝트 승인을 대신하지 않습니다.</p>
+          <p>
+            Closing an issue does not replace sample acceptance or project
+            approval.
+          </p>
           {records
             .filter((record) => record.caseId === selected.id)
             .map((record) => (

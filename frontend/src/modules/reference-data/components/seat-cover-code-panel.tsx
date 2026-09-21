@@ -149,8 +149,8 @@ export function SeatCoverCodePanel({
           <div className="search-field">
             <Search aria-hidden="true" />
             <Input
-              aria-label="Code 또는 설명 검색"
-              placeholder="Code 검색"
+              aria-label="Search code or description"
+              placeholder="Search codes"
               value={query}
               onChange={(event) => onQueryChange(event.target.value)}
             />
@@ -158,7 +158,7 @@ export function SeatCoverCodePanel({
         </div>
         <div className="grid-toolbar-actions">
           <Button variant="primary" onClick={() => setCodeDialogOpen(true)}>
-            <Plus /> Code 등록
+            <Plus /> Add code
           </Button>
         </div>
       </div>
@@ -180,7 +180,7 @@ export function SeatCoverCodePanel({
                         }
                       />
                     </span>
-                    <small>{styleCode.description ?? '설명 없음'}</small>
+                    <small>{styleCode.description ?? 'No description'}</small>
                   </div>
                   <div className="option-value-list">
                     {links.length ? (
@@ -192,7 +192,7 @@ export function SeatCoverCodePanel({
                             {named.value}
                             <button
                               type="button"
-                              aria-label={`${named.value} 연결 해제`}
+                              aria-label={`${named.value} Unlink`}
                               onClick={() => removeLink(link.id)}
                             >
                               <Trash2 />
@@ -202,8 +202,8 @@ export function SeatCoverCodePanel({
                       })
                     ) : (
                       <span className="muted-text">
-                        연결된 옵션 값이 없습니다. 연결하지 않으면 research
-                        차량의 옵션으로부터 이 코드를 추천할 수 없습니다.
+                        No linked option values. Without a link, this code
+                        cannot be suggested from research vehicle options.
                       </span>
                     )}
                   </div>
@@ -215,7 +215,7 @@ export function SeatCoverCodePanel({
                       setLinkDialogFor(styleCode);
                     }}
                   >
-                    <Plus /> 옵션 값 연결
+                    <Plus /> Link option values
                   </Button>
                 </div>
               );
@@ -230,52 +230,52 @@ export function SeatCoverCodePanel({
       ) : (
         <div className="empty-state">
           <div className="empty-icon">🔍</div>
-          <strong>조건에 맞는 Code가 없습니다.</strong>
-          <p>검색어를 바꿔 보세요.</p>
+          <strong>No matching codes.</strong>
+          <p>Try another search term.</p>
         </div>
       )}
 
       <Dialog open={codeDialogOpen} onOpenChange={setCodeDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Seat Cover Code 등록</DialogTitle>
+            <DialogTitle>Add Seat Cover code</DialogTitle>
           </DialogHeader>
           <DialogBody className="dialog-form-grid">
             <label>
               Code
               <Input
-                placeholder="예: 424BEN"
+                placeholder="Example: 424BEN"
                 value={code}
                 onChange={(event) => setCode(event.target.value)}
               />
             </label>
             <label>
-              설명 (선택)
+              Description (optional)
               <Input
-                placeholder="예: 40/20/40 split-cushion bench"
+                placeholder="Example: 40/20/40 split-cushion bench"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
               />
             </label>
             <div className="dialog-note">
-              Code는 연식이 들어가지 않습니다 — 연식은 패턴 이름이 담당하므로
-              모델연도마다 코드가 늘지 않습니다. Shape 이름과는 다른 코드
-              체계입니다.
+              Codes do not include model years; pattern names carry the year
+              instead. This avoids creating codes for each model year. This code
+              system is separate from Shape names.
             </div>
             {duplicateCode && code.trim() && (
-              <div className="dialog-error">같은 Code가 이미 있습니다.</div>
+              <div className="dialog-error">This code already exists.</div>
             )}
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCodeDialogOpen(false)}>
-              취소
+              Cancelled
             </Button>
             <Button
               variant="primary"
               disabled={!code.trim() || duplicateCode}
               onClick={addCode}
             >
-              등록
+              Create
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -287,14 +287,16 @@ export function SeatCoverCodePanel({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{linkDialogFor?.code} · 옵션 값 연결</DialogTitle>
+            <DialogTitle>
+              {linkDialogFor?.code} · Link option values
+            </DialogTitle>
           </DialogHeader>
           <DialogBody className="dialog-form-grid">
             <label className="full-width">
-              옵션 값
+              Option value
               <Select value={linkValueId} onValueChange={setLinkValueId}>
-                <SelectTrigger aria-label="옵션 값">
-                  <SelectValue placeholder="옵션 값 선택" />
+                <SelectTrigger aria-label="Option value">
+                  <SelectValue placeholder="Select option value" />
                 </SelectTrigger>
                 <SelectContent>
                   {seatOptionValues.map((value) => {
@@ -309,11 +311,11 @@ export function SeatCoverCodePanel({
               </Select>
             </label>
             <div className="dialog-note">
-              연결한 값들이 이 코드의 의미가 됩니다. Vehicle Options에서 값을
-              먼저 등록해야 여기에 나타납니다.
+              Linked values define this code's meaning. Add values in Vehicle
+              Options before linking them here.
             </div>
             {alreadyLinked && (
-              <div className="dialog-error">이미 연결된 값입니다.</div>
+              <div className="dialog-error">This value is already linked.</div>
             )}
           </DialogBody>
           <DialogFooter>
@@ -321,14 +323,14 @@ export function SeatCoverCodePanel({
               variant="outline"
               onClick={() => setLinkDialogFor(undefined)}
             >
-              취소
+              Cancelled
             </Button>
             <Button
               variant="primary"
               disabled={!linkValueId || alreadyLinked}
               onClick={() => linkDialogFor && addLink(linkDialogFor)}
             >
-              연결
+              Link
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -151,34 +151,34 @@ export function OperationsPage() {
     if (!file) return;
     try {
       if (file.size > 10 * 1024 * 1024)
-        throw new Error('10 MB 이하의 백업을 선택하세요.');
+        throw new Error('Select a backup file under 10 MB.');
       const parsed: unknown = JSON.parse(await file.text());
       setBackup(parsed);
       setBackupMessage(
-        '파일을 읽었습니다. 복원 시 전체 형식을 검증하고 기존 ID는 보존합니다.',
+        'File loaded. Restore validates the full format and preserves existing IDs.',
       );
     } catch {
       setBackup(undefined);
-      setBackupMessage('백업 파일을 읽을 수 없습니다. JSON 파일을 확인하세요.');
+      setBackupMessage('Unable to read the backup. Check the JSON file.');
     }
   }
   const titles: Record<string, string> = {
-    tasks: 'My Tasks · 업무함',
-    requests: '팀 간 요청',
-    notifications: '알림 · 나의 활동',
-    search: '통합 검색',
-    reports: '업무 리포트',
-    settings: '개인 환경 설정',
+    tasks: 'My Tasks · Inbox',
+    requests: 'Team Requests',
+    notifications: 'Notifications · My activity',
+    search: 'Global Search',
+    reports: 'Work Reports',
+    settings: 'Personal Settings',
   };
   if (requestId) {
     const request = snapshot.requests.find((entry) => entry.id === requestId);
     return (
       <section className="ops">
-        <Link to={'/work/requests?team=' + team}>← 요청 목록</Link>
+        <Link to={'/work/requests?team=' + team}>← Request list</Link>
         {request ? (
           <RequestDetail key={request.id} request={request} />
         ) : (
-          <p>요청을 찾을 수 없습니다. 목록에서 확인하세요.</p>
+          <p>Request not found. Check the list.</p>
         )}
       </section>
     );
@@ -186,11 +186,11 @@ export function OperationsPage() {
   const content =
     section === 'notifications' ? (
       <div className="ops-panel">
-        <h2>나에게 전달된 요청·멘션·상태 변경</h2>
+        <h2>Requests, mentions, and status updates addressed to me</h2>
         <p>
-          개인 알림 설정에 따라 표시합니다.{' '}
+          Filtered by your notification preferences.{' '}
           <Link to={'/work/settings?team=' + team + '#notifications'}>
-            알림 설정 변경
+            Edit notification preferences
           </Link>
         </p>
         {personal.error && <p role="alert">{personal.error}</p>}
@@ -201,21 +201,21 @@ export function OperationsPage() {
             </Link>
             <span>
               {personName(event.actorId)} ·{' '}
-              {new Date(event.at).toLocaleString()}
+              {new Date(event.at).toLocaleString('en-US')}
             </span>
           </div>
         ))}
         {!notifications.length && (
-          <p>선택한 알림 종류에 표시할 활동이 없습니다.</p>
+          <p>No activity matches the selected notification types.</p>
         )}
       </div>
     ) : section === 'settings' ? (
       <PersonalSettings key={actor.id} actor={actor}>
         <div className="ops-panel ops-form">
-          <h2>데모 업무 데이터 백업</h2>
+          <h2>Demo work data backup</h2>
           <p>
-            팀 간 요청·댓글·문서 링크·활동 이력을 JSON으로 내보냅니다. 기존 R&D
-            데이터는 별도이며 이 백업에 포함되지 않습니다.
+            Export team requests, comments, document links, and activity as
+            JSON. Existing R&D data is separate and is not included.
           </p>
           <Button
             variant="outline"
@@ -226,7 +226,7 @@ export function OperationsPage() {
               );
             }}
           >
-            현재 요청 데이터 내보내기
+            Export current requests
           </Button>
           <Button
             variant="outline"
@@ -235,16 +235,16 @@ export function OperationsPage() {
                 const previous = previousBackup();
                 if (previous)
                   download(previous, 'coverland-requests-previous.json');
-                else setBackupMessage('아직 이전 저장본이 없습니다.');
+                else setBackupMessage('No previous save is available yet.');
               } catch {
-                setBackupMessage('이전 저장본을 읽을 수 없습니다.');
+                setBackupMessage('Unable to read the previous save.');
               }
             }}
           >
-            이전 저장본 내보내기
+            Export previous save
           </Button>
           <label>
-            백업 파일
+            Backup file
             <input
               type="file"
               accept="application/json,.json"
@@ -261,18 +261,18 @@ export function OperationsPage() {
                 if (success) {
                   setBackup(undefined);
                   setBackupMessage(
-                    '새 요청을 복원했습니다. 기존 기록은 보존했습니다.',
+                    'Restored new requests. Existing records were preserved.',
                   );
                 }
               });
             }}
           >
-            누락된 요청 복원
+            Restore missing requests
           </Button>
-          <h2>R&D 데이터 백업</h2>
+          <h2>R&D data backup</h2>
           <p>
-            {storageMessage} · 기존 R&D 데이터의 현재 상태를 내보냅니다. 이
-            파일은 요청 백업 복원기에 넣을 수 없습니다.
+            {storageMessage} · Export the current R&D data snapshot. This file
+            cannot be restored with the request backup tool.
           </p>
           <Button
             variant="outline"
@@ -280,12 +280,13 @@ export function OperationsPage() {
               download(exportSnapshot(), 'coverland-rd-' + today() + '.json');
             }}
           >
-            R&D 데이터 내보내기
+            Export R&D data
           </Button>
-          <h2>실사용 연결 준비</h2>
+          <h2>Production connection readiness</h2>
           <p>
-            Google 회사 로그인: 설정 대기 · 공용 API/DB: 연결 대기 · 현재 역할
-            선택은 테스트용입니다. 실제 회사 정보는 운영 연결 후 입력하세요.
+            Company Google sign-in: awaiting setup · Shared API/database: not
+            connected · Role selection is for testing only. Enter real company
+            data only after production integration.
           </p>
         </div>
       </PersonalSettings>
@@ -293,21 +294,21 @@ export function OperationsPage() {
       <>
         {section === 'reports' && (
           <div className="ops-panel">
-            <h2>팀별 요청 현황</h2>
+            <h2>Requests by team</h2>
             <p>
-              기준: 현재 브라우저에 저장된 전체 요청 · 마지막 변경{' '}
-              {new Date(snapshot.updatedAt).toLocaleString()} · 완료율 = 완료 /
-              취소 제외 전체
+              Source: All requests stored in this browser · Last change{' '}
+              {new Date(snapshot.updatedAt).toLocaleString('en-US')} ·
+              Completion rate = Completed / All except cancelled
             </p>
             <div className="ops-table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>수신 팀</th>
-                    <th>열린 요청</th>
-                    <th>기한 초과</th>
-                    <th>승인 대기</th>
-                    <th>완료율</th>
+                    <th>Receiving team</th>
+                    <th>Open requests</th>
+                    <th>Overdue</th>
+                    <th>Pending approval</th>
+                    <th>Completion rate</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -383,46 +384,46 @@ export function OperationsPage() {
         <div className="ops-panel">
           <div className="ops-actions">
             <label>
-              검색
+              Search
               <Input
                 type="search"
                 value={query}
                 onChange={(event) => {
                   update('q', event.target.value);
                 }}
-                placeholder="요청 · SKU · 프로젝트 · 담당자"
+                placeholder="Request · SKU · Project · Assignee"
               />
             </label>
             {section === 'tasks' && (
               <label>
-                업무함
+                Inbox
                 <select
                   value={view}
                   onChange={(event) => {
                     update('view', event.target.value);
                   }}
                 >
-                  <option value="assigned">내가 처리할 일</option>
-                  <option value="approvals">내가 승인할 일</option>
-                  <option value="requested">내가 요청한 일</option>
+                  <option value="assigned">Assigned to me</option>
+                  <option value="approvals">Awaiting my approval</option>
+                  <option value="requested">Requested by me</option>
                 </select>
               </label>
             )}
             <label>
-              상태
+              Status
               <select
                 value={filter}
                 onChange={(event) => {
                   update('filter', event.target.value);
                 }}
               >
-                <option value="all">전체</option>
-                <option value="open">미완료</option>
-                <option value="today">오늘 마감</option>
-                <option value="overdue">기한 초과</option>
-                <option value="waiting">응답 대기</option>
-                <option value="review">승인 대기</option>
-                <option value="done">완료</option>
+                <option value="all">All</option>
+                <option value="open">Incomplete</option>
+                <option value="today">Due today</option>
+                <option value="overdue">Overdue</option>
+                <option value="waiting">Awaiting response</option>
+                <option value="review">Pending approval</option>
+                <option value="done">Completed</option>
               </select>
             </label>
             <Button
@@ -431,18 +432,18 @@ export function OperationsPage() {
                 setParams({ team });
               }}
             >
-              조건 초기화
+              Clear filters
             </Button>
           </div>
           <div className="ops-table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>업무 / 관련 자료</th>
-                  <th>상태</th>
-                  <th>요청 → 수신</th>
-                  <th>담당자</th>
-                  <th>마감</th>
+                  <th>Work / References</th>
+                  <th>Status</th>
+                  <th>From → To</th>
+                  <th>Assignee</th>
+                  <th>Due</th>
                 </tr>
               </thead>
               <tbody>
@@ -464,7 +465,7 @@ export function OperationsPage() {
                     <td>{personName(request.assigneeId)}</td>
                     <td className={isOverdue(request) ? 'ops-danger' : ''}>
                       {request.dueDate}
-                      {isOverdue(request) && ' · 지연'}
+                      {isOverdue(request) && ' · Overdue'}
                     </td>
                   </tr>
                 ))}
@@ -472,15 +473,15 @@ export function OperationsPage() {
             </table>
             {visible.length === 0 && (
               <p className="ops-empty">
-                조건에 맞는 업무가 없습니다. 필터를 변경하거나 새 요청을
-                등록하세요.
+                No work matches these filters. Change the filters or create a
+                request.
               </p>
             )}
           </div>
         </div>
         {section === 'search' && (
           <div className="ops-panel">
-            <h2>상품 SKU</h2>
+            <h2>Product SKUs</h2>
             {masterProducts
               .filter((product) =>
                 (product.sku + ' ' + product.fNumber)
@@ -498,7 +499,7 @@ export function OperationsPage() {
                   <span>{product.status}</span>
                 </div>
               ))}
-            <h2>R&D 프로젝트</h2>
+            <h2>R&D projects</h2>
             {projects
               .filter((project) =>
                 (project.id + ' ' + project.vehicle)
@@ -520,17 +521,17 @@ export function OperationsPage() {
                 </div>
               ))}
             <p className="ops-muted">
-              최대 50개 표시 · 프로젝트 ID나 차량명으로 검색
+              Up to 50 results · Search by project ID or vehicle
             </p>
           </div>
         )}
         {section === 'tasks' && actor.team === 'rd' && (
           <div className="ops-panel">
-            <h2>R&D 기존 업무</h2>
+            <h2>Existing R&D work</h2>
             <p>
-              아래는 기존 R&D의 담당·승인 배정 기준 참고 목록이며 위 요청 필터와
-              별도입니다. 기존 화면에서 처리합니다. 담당 미지정 항목은 팀 확인이
-              필요합니다.
+              These reference items use existing R&D assignments and approvals,
+              independently of the request filters above. Process them in their
+              original screens. Unassigned items need team review.
             </p>
             {rd.actions
               .filter((action) =>
@@ -557,7 +558,9 @@ export function OperationsPage() {
                   </span>
                 </div>
               ))}
-            <Link to="/dashboard">담당 미지정 및 전체 R&D 현황 확인 →</Link>
+            <Link to="/dashboard">
+              View unassigned work and all R&D activity →
+            </Link>
           </div>
         )}
       </>
@@ -567,13 +570,13 @@ export function OperationsPage() {
       {section !== 'settings' && (
         <div className="ops-heading">
           <div>
-            <h1>{titles[section] ?? '업무함'}</h1>
+            <h1>{titles[section] ?? 'Inbox'}</h1>
             <p>
               {TEAM_NAMES[team]} · {personName(actor.id)}
             </p>
           </div>
           <Button asChild>
-            <Link to={'/work/requests?new=1&team=' + team}>새 요청</Link>
+            <Link to={'/work/requests?new=1&team=' + team}>New request</Link>
           </Button>
         </div>
       )}

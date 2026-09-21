@@ -65,7 +65,7 @@ await test('all teams produce valid receiving-team approval defaults for new req
       priority: settings.priority,
       reference: '',
       referencePath: '',
-      category: '일반 요청',
+      category: 'General request',
     };
     assert.equal(requestDraftSchema.safeParse(draft).success, true);
     assert.deepEqual(

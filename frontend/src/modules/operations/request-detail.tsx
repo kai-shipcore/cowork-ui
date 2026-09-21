@@ -78,26 +78,26 @@ export function RequestDetail({ request }: { request: WorkRequest }) {
         </p>
         <dl className="ops-facts">
           <div>
-            <dt>요청자</dt>
+            <dt>Requester</dt>
             <dd>{personName(request.requesterId)}</dd>
           </div>
           <div>
-            <dt>처리 담당자</dt>
+            <dt>Assignee</dt>
             <dd>{personName(request.assigneeId)}</dd>
           </div>
           <div>
-            <dt>검토자</dt>
+            <dt>Reviewer</dt>
             <dd>{personName(request.reviewerId)}</dd>
           </div>
           <div>
-            <dt>마감일</dt>
+            <dt>Due date</dt>
             <dd>{request.dueDate} (LA)</dd>
           </div>
         </dl>
         <p className="ops-preserve">{request.description}</p>
         {request.reference && (
           <p>
-            관련 업무:{' '}
+            Related work:{' '}
             {request.referencePath ? (
               <Link to={request.referencePath}>{request.reference}</Link>
             ) : (
@@ -106,18 +106,18 @@ export function RequestDetail({ request }: { request: WorkRequest }) {
           </p>
         )}
         <p className="ops-muted">
-          수정 버전 {request.revision} · 최종 변경{' '}
-          {new Date(request.updatedAt).toLocaleString()}
+          Revision {request.revision} · Last changed{' '}
+          {new Date(request.updatedAt).toLocaleString('en-US')}
         </p>
       </section>
       <section className="ops-panel">
-        <h2>업무 처리 · 댓글</h2>
+        <h2>Actions & comments</h2>
         <p>
-          상태 변경 시 처리 내용 또는 반려 사유를 기록하세요. 승인 요청에는 검토
-          자료가 필요합니다.
+          Record the work performed or rejection reason when changing status.
+          Approval requests require supporting documents.
         </p>
         <label>
-          내용
+          Content
           <textarea
             maxLength={2000}
             rows={3}
@@ -129,14 +129,14 @@ export function RequestDetail({ request }: { request: WorkRequest }) {
         </label>
         <div className="ops-actions">
           <label>
-            알림 대상
+            Notify
             <select
               value={mention}
               onChange={(event) => {
                 setMention(event.target.value);
               }}
             >
-              <option value="">멘션 없음</option>
+              <option value="">No mention</option>
               {PEOPLE.map((person) => (
                 <option value={person.id} key={person.id}>
                   {person.name}
@@ -151,13 +151,13 @@ export function RequestDetail({ request }: { request: WorkRequest }) {
               void comment();
             }}
           >
-            댓글 등록
+            Add comment
           </Button>
         </div>
         {transitions.length ? (
           <div className="ops-actions">
             <label>
-              다음 상태
+              Next status
               <select
                 value={nextStatus}
                 onChange={(event) => {
@@ -167,7 +167,7 @@ export function RequestDetail({ request }: { request: WorkRequest }) {
                   setNextStatus(status ?? '');
                 }}
               >
-                <option value="">선택하세요</option>
+                <option value="">Select an option</option>
                 {transitions.map((status) => (
                   <option key={status} value={status}>
                     {STATUS_NAMES[status]}
@@ -181,22 +181,23 @@ export function RequestDetail({ request }: { request: WorkRequest }) {
                 void changeStatus();
               }}
             >
-              상태 변경
+              Change status
             </Button>
           </div>
         ) : (
           <p className="ops-muted">
-            현재 상태의 담당자 또는 검토자가 다음 단계를 처리합니다.
+            The assigned owner or reviewer handles the next step for the current
+            status.
           </p>
         )}
       </section>
       <section className="ops-panel">
-        <h2>검토 자료 · 버전</h2>
+        <h2>Review documents & versions</h2>
         <p>
-          같은 자료 이름으로 등록하면 새 버전이 추가됩니다. 검토 중인 자료는
-          수정할 수 없습니다.
+          Using the same document name adds a new version. Documents cannot be
+          edited during review.
         </p>
-        {request.documents.length === 0 && <p>아직 등록한 자료가 없습니다.</p>}
+        {request.documents.length === 0 && <p>No documents added yet.</p>}
         {request.documents.map((entry) => {
           const latest = !request.documents.some(
             (other) =>
@@ -208,8 +209,8 @@ export function RequestDetail({ request }: { request: WorkRequest }) {
                 {entry.name} · v{entry.version}
               </a>
               <span>
-                {latest ? '최신' : '이전 버전'} ·{' '}
-                {entry.approvedAt ? '승인됨' : '미승인'} ·{' '}
+                {latest ? 'Latest' : 'Previous version'} ·{' '}
+                {entry.approvedAt ? 'Approved' : 'Not approved'} ·{' '}
                 {personName(entry.uploadedBy)}
               </span>
             </div>
@@ -223,26 +224,26 @@ export function RequestDetail({ request }: { request: WorkRequest }) {
             }}
           >
             <label>
-              자료 이름
+              Document name
               <Input
                 name="name"
                 required
                 maxLength={160}
-                placeholder="예: 피팅 결과 보고서"
+                placeholder="Example: Fitting results report"
               />
             </label>
             <label>
-              문서 URL
+              Document URL
               <Input name="url" type="url" required placeholder="https://…" />
             </label>
             <Button variant="outline" disabled={saving}>
-              자료 등록
+              Add document
             </Button>
           </form>
         )}
       </section>
       <section className="ops-panel">
-        <h2>활동 기록</h2>
+        <h2>Activity history</h2>
         <ol className="ops-timeline">
           {request.events
             .slice()
@@ -252,11 +253,11 @@ export function RequestDetail({ request }: { request: WorkRequest }) {
                 <strong>{event.message}</strong>
                 <span>
                   {personName(event.actorId)} ·{' '}
-                  {new Date(event.at).toLocaleString()}
+                  {new Date(event.at).toLocaleString('en-US')}
                 </span>
                 {event.mentions.length > 0 && (
                   <small>
-                    알림: {event.mentions.map(personName).join(', ')}
+                    Notifications: {event.mentions.map(personName).join(', ')}
                   </small>
                 )}
               </li>

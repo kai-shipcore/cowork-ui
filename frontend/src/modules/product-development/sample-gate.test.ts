@@ -48,7 +48,7 @@ test('an orphan approved sample cannot pass an empty car-cover design gate', () 
   const gate = getSampleGate('Car Cover', zones, [], [item]);
   assert.equal(gate.ready, false);
   assert.equal(gate.blockers[0]?.tab, 'designs');
-  assert.match(gate.blockers[0]?.message ?? '', /전체 패턴/);
+  assert.match(gate.blockers[0]?.message ?? '', /Full pattern/);
 });
 
 test('current revision needs its own receipt and approval', () => {

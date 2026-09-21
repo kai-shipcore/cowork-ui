@@ -30,19 +30,20 @@ export function HandoffChecklistForm({
   const errors = handoffChecklistErrors(value);
   const exportReport = () => {
     const report = [
-      `Handoff 체크리스트`,
+      `Handoff checklist`,
       `${projectId} · ${vehicle} · ${zones}`,
-      `내보낸 시각: ${new Date().toISOString()}`,
+      `Exported at: ${new Date().toISOString()}`,
       ...HANDOFF_DOCUMENTS.map(
         ([id, label]) =>
-          `${value.documents[id]?.confirmed ? '[확인]' : '[미확인]'} ${label}: ${value.documents[id]?.reference ?? ''}`,
+          `${value.documents[id]?.confirmed ? '[Verified]' : '[Not verified]'} ${label}: ${value.documents[id]?.reference ?? ''}`,
       ),
-      `적용 차량 확인: ${value.vehicleConfirmed}`,
-      `프로젝트 번호 확인: ${value.projectNumberConfirmed}`,
-      `Handoff 승인: ${value.approvalConfirmed} / ${value.approvedBy}`,
+      `Fitment vehicle confirmed: ${value.vehicleConfirmed}`,
+      `Project number confirmed: ${value.projectNumberConfirmed}`,
+      `Handoff approval: ${value.approvalConfirmed} / ${value.approvedBy}`,
       errors.length
-        ? `미완료 항목:\n${errors.join('\n')}`
-        : '체크리스트 준비 완료 (실제 인계 완료 여부는 프로젝트 기록 참조)',
+        ? `Incomplete items:
+${errors.join('\n')}`
+        : 'Checklist ready (see the project record for actual handoff completion)',
     ].join('\n');
     const url = URL.createObjectURL(
       new Blob(['\uFEFF', report], { type: 'text/plain;charset=utf-8' }),
@@ -56,7 +57,8 @@ export function HandoffChecklistForm({
   return (
     <div className="project-dialog-stack">
       <p>
-        <strong>자료·인계 체크리스트</strong> · 필수 자료 {count}/6 확인
+        <strong>Documents & handoff checklist</strong> · Required documents{' '}
+        {count}/6 verified
       </p>
       {HANDOFF_DOCUMENTS.map(([id, label]) => {
         const item = value.documents[id] ?? { reference: '', confirmed: false };
@@ -78,14 +80,14 @@ export function HandoffChecklistForm({
               {label}{' '}
               <small>
                 {item.confirmed && item.reference.trim()
-                  ? '확인 완료'
-                  : '확인 필요'}
+                  ? 'Verified'
+                  : 'Needs verification'}
               </small>
             </label>
             <Input
-              aria-label={`${label} 자료 위치`}
+              aria-label={`${label} Document location`}
               value={item.reference}
-              placeholder="파일명, NAS 경로 또는 자료 링크"
+              placeholder="File name, NAS path, or document link"
               onChange={(event) =>
                 onChange({
                   ...value,
@@ -100,8 +102,9 @@ export function HandoffChecklistForm({
         );
       })}
       <p className="muted-text">
-        자료를 직접 열어 확인한 뒤 체크하세요. 이 화면은 자료 위치와 확인 기록을
-        저장하며 파일 업로드나 내용 자동 검증은 수행하지 않습니다.
+        Open and review the material before checking this box. This screen
+        stores locations and verification records; it does not upload files or
+        validate their contents automatically.
       </p>
       <label className="shape-check">
         <Checkbox
@@ -110,7 +113,7 @@ export function HandoffChecklistForm({
             onChange({ ...value, vehicleConfirmed: checked === true })
           }
         />
-        적용 차량·옵션·Zone 확인 · {vehicle} · {zones}
+        Vehicle, options, and zone confirmed · {vehicle} · {zones}
       </label>
       <label className="shape-check">
         <Checkbox
@@ -119,18 +122,18 @@ export function HandoffChecklistForm({
             onChange({ ...value, projectNumberConfirmed: checked === true })
           }
         />
-        인계 대상 프로젝트 번호 확인 · {projectId}
+        Handoff project number confirmed · {projectId}
       </label>
       <p className="muted-text">
-        공식 Shape 번호는 인계 후 검토·승인을 거쳐 발급합니다. 여기서는 프로젝트
-        번호를 확인합니다.
+        The official Shape number is issued after post-handoff review and
+        approval. Confirm the project number here.
       </p>
       <label>
-        Handoff 승인 담당자
+        Handoff approver
         <UserPicker
           users={users}
           value={users.find((user) => user.name === value.approvedBy)}
-          label="Handoff 승인 담당자"
+          label="Handoff approver"
           onChange={(userId) =>
             onChange({
               ...value,
@@ -138,7 +141,7 @@ export function HandoffChecklistForm({
               approvalConfirmed: false,
             })
           }
-          placeholder="승인 담당자 검색·선택"
+          placeholder="Search and select approver"
         />
       </label>
       <label className="shape-check">
@@ -148,14 +151,14 @@ export function HandoffChecklistForm({
             onChange({ ...value, approvalConfirmed: checked === true })
           }
         />
-        생산 담당자에게 자료 전달 및 Handoff 승인을 확인했습니다.
+        I have confirmed delivery to production and handoff approval.
       </label>
       <p className="muted-text">
-        Handoff 확인과 이후 Shape 최종 품질 승인은 별도입니다.
+        Handoff confirmation and final Shape quality approval are separate.
       </p>
       {errors.length > 0 && (
         <div className="shape-errors" role="status">
-          <strong>아래 항목을 완료해야 인계할 수 있습니다.</strong>
+          <strong>Complete the following items before handoff.</strong>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             {errors.map((error) => (
               <li key={error}>{error}</li>
@@ -164,7 +167,7 @@ export function HandoffChecklistForm({
         </div>
       )}
       <Button variant="outline" onClick={exportReport}>
-        인계 보고서 내보내기
+        Export handoff report
       </Button>
     </div>
   );

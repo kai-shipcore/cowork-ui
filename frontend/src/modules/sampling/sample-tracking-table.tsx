@@ -119,13 +119,13 @@ export function SampleTrackingTable({
     },
     {
       id: 'inspection',
-      header: '검수 결과',
+      header: 'Inspection results',
       width: 180,
       cell: (row) => <>{renderInspection(row)}</>,
     },
     {
       id: 'actions',
-      header: '작업',
+      header: 'Actions',
       width: 180,
       hideable: false,
       cell: (row) => (
@@ -137,7 +137,7 @@ export function SampleTrackingTable({
               onInspect(row);
             }}
           >
-            입고·검수
+            Receipt & inspection
           </Button>
           <Button
             size="sm"
@@ -146,7 +146,7 @@ export function SampleTrackingTable({
               onOpenProject(row.projectGroupId);
             }}
           >
-            프로젝트
+            Project
           </Button>
         </div>
       ),
@@ -175,10 +175,10 @@ export function SampleTrackingTable({
     return (
       <div className="empty-state">
         <div className="empty-icon">📋</div>
-        <strong>등록된 부품 행이 없습니다.</strong>
+        <strong>No part lines registered.</strong>
         <p>
-          프로젝트 상세의 Samples 탭에서 Sample Request를 만들면 부품마다 한
-          행씩 생성됩니다.
+          Create a sample request in the project's Samples tab to generate one
+          row per part.
         </p>
       </div>
     );
@@ -193,7 +193,7 @@ export function SampleTrackingTable({
         rows={pageItems}
         getRowId={(row) => row.id}
         onRowClick={onInspect}
-        rowActionLabel={(row) => `${row.requestId} 입고·검수 열기`}
+        rowActionLabel={(row) => `${row.requestId} Open receipt & inspection`}
         pagination={{
           page: pagination.pageIndex + 1,
           pageSize: pagination.pageSize,

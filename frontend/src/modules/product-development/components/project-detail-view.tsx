@@ -427,7 +427,7 @@ function initialDesigns(
         {
           id: 'REV-DS-001-1',
           revisionNumber: 1,
-          note: '최초 도면',
+          note: 'Initial drawing',
           createdBy: 'USR-JH',
           createdAt: '2026-08-20T09:00:00-07:00',
         },
@@ -982,8 +982,8 @@ export function ProjectDetailView({
     );
     const assigned = activeUsers.find((user) => user.id === userId);
     addActivity(
-      'Manager 변경',
-      `${zone?.code ?? zoneId} · ${assigned ? assigned.name : '담당자 해제'}`,
+      'Manager changed',
+      `${zone?.code ?? zoneId} · ${assigned ? assigned.name : 'Assignee cleared'}`,
     );
   }
 
@@ -1080,8 +1080,8 @@ export function ProjectDetailView({
       ),
     );
     addActivity(
-      `${currentStage} 완료`,
-      `${advancingZones.map((zone) => zone.code).join(', ')} · ${nextStage} 단계로 이동`,
+      `${currentStage} Completed`,
+      `${advancingZones.map((zone) => zone.code).join(', ')} · ${nextStage} Moved to stage`,
     );
   }
 
@@ -1095,9 +1095,7 @@ export function ProjectDetailView({
         >
           <ArrowLeft /> Vehicle Projects
         </Button>
-        <div className="empty-inline">
-          {project.id}에 Zone Project가 없습니다.
-        </div>
+        <div className="empty-inline">{project.id} has no zone projects.</div>
       </section>
     );
   }
@@ -1148,7 +1146,7 @@ export function ProjectDetailView({
             onLink={(design) => {
               setDesigns((current) => [...current, design]);
               addActivity(
-                'Part 연결',
+                'Part linked',
                 `${design.name} · v${String(design.revisions[0].revisionNumber)}`,
               );
               setActiveTab('designs');
@@ -1175,7 +1173,7 @@ export function ProjectDetailView({
           );
         }}
       >
-        Shape 생성·품질 검토·확정 →
+        Shape creation, quality review & confirmation →
       </Button>
       <ProjectHeader
         project={project}
@@ -1262,22 +1260,23 @@ export function ProjectDetailView({
             }
           />
           <details className="shape-section">
-            <summary>단계 전환 이력</summary>
+            <summary>Stage transition history</summary>
             <p>
-              이번 수정 이후 기록한 전환입니다. 기존 단계의 실제 시작 시각은
-              추정하지 않습니다.
+              Transitions recorded since this update. Actual start times for
+              earlier stages are not estimated.
             </p>
             {(
               savedDetail?.zones.find((zone) => zone.id === focusedZone.id)
                 ?.stageHistory ?? []
             ).map((record) => (
               <p key={record.id}>
-                {record.stageSequence}. {record.stage} · 시작 {record.startedAt}{' '}
-                · 완료 {record.completedAt ?? '진행 중'} · 표준{' '}
+                {record.stageSequence}. {record.stage} · Started{' '}
+                {record.startedAt} · Completed{' '}
+                {record.completedAt ?? 'In progress'} · Standard{' '}
                 {record.targetDays !== undefined
-                  ? `${String(record.targetDays)}일`
-                  : '미설정'}{' '}
-                · 단계 목표 {record.targetDueAt ?? '미설정'}
+                  ? `${String(record.targetDays)} days`
+                  : 'Not set'}{' '}
+                · Stage target {record.targetDueAt ?? 'Not set'}
               </p>
             ))}
           </details>
@@ -1384,7 +1383,7 @@ export function ProjectDetailView({
                 ),
               );
               addActivity(
-                'Sample Revision 승인',
+                'Sample revision approved',
                 `${designId} · approved by USR-KAI`,
               );
             }}
@@ -1446,7 +1445,7 @@ export function ProjectDetailView({
               setDesigns(updatedDesigns);
               importProjectParts(updatedDesigns, project.product);
               addActivity(
-                'Revision 반영 검증',
+                'Revision verification',
                 `${itemId} · ${verdict} · ${note}`,
               );
             }}
@@ -1571,10 +1570,10 @@ export function ProjectDetailView({
               }
               addActivity(
                 visit.type === 'FITTING'
-                  ? `FITTING Visit 완료 · ${result ?? 'PASS'}`
-                  : `${visit.type} Visit 완료`,
+                  ? `FITTING visit completed · ${result ?? 'PASS'}`
+                  : `${visit.type} Visit completed`,
                 result === 'FAIL'
-                  ? `${visit.vehicleProjectIds.join(', ')} · ${visit.dealer} · Design 단계로 되돌림 (Revision 재작업)`
+                  ? `${visit.vehicleProjectIds.join(', ')} · ${visit.dealer} · Returned to Design (revision rework)`
                   : `${visit.vehicleProjectIds.join(', ')} · ${visit.dealer}`,
               );
             }}
@@ -1684,7 +1683,7 @@ export function ProjectDetailView({
           };
           setDesigns((current) => [...current, design]);
           addActivity(
-            'Design 생성',
+            'Design created',
             `${input.name} · ${input.vehicleProjectId} · Revision 1`,
           );
           closeDialog();
@@ -1719,8 +1718,8 @@ export function ProjectDetailView({
             ),
           );
           addActivity(
-            'Revision 수정 요청 확정',
-            `${design.name} · Rev ${String(revisionNumber)} · ${changeRequest.issueArea} · 공장 지시서 생성`,
+            'Revision change request confirmed',
+            `${design.name} · Rev ${String(revisionNumber)} · ${changeRequest.issueArea} · Factory instructions created`,
           );
           importProjectParts(
             designs.map((item) =>
@@ -1760,7 +1759,7 @@ export function ProjectDetailView({
           const visit = createProjectVisit(input);
           setVisits((current) => [...current, visit]);
           addActivity(
-            `${input.type} Visit 예약`,
+            `${input.type} Visit scheduled`,
             `${input.dealer} · ${input.date} ${input.time} · ${input.vehicleProjectIds.join(', ')}`,
           );
           closeDialog();
@@ -1807,12 +1806,12 @@ export function ProjectDetailView({
             date: '2026-08-31',
           };
           setAssets((current) => [...current, asset]);
-          addActivity('Asset 등록', `${name} · ${type}`);
+          addActivity('Asset added', `${name} · ${type}`);
           closeDialog();
         }}
         onConfiguration={(title, value, mode, note) => {
           addActivity(
-            mode === 'NEW' ? 'New Configuration 발견' : 'Research 정보 수정',
+            mode === 'NEW' ? 'New configuration found' : 'Research updated',
             `${title}: ${value}${note ? ` · ${note}` : ''}`,
           );
           closeDialog();
@@ -1852,7 +1851,7 @@ export function ProjectDetailView({
                 : zone,
             ),
           );
-          addActivity('Handoff 완료 · 개발 완료', reference);
+          addActivity('Handoff complete · Development complete', reference);
           closeDialog();
         }}
       />
@@ -1961,7 +1960,7 @@ function ProjectHeader({
           <div
             className="project-zone-switcher"
             role="group"
-            aria-label="같은 Project Group의 Zone Project"
+            aria-label="Zone projects in this project group"
           >
             <span>Zone Projects in {project.id}</span>
             {zones.map((item) => (
@@ -2003,8 +2002,8 @@ const SEAT_COVER_STAGE_LABELS: Partial<Record<ProjectStage, string>> = {
   Scan: 'Scan / Measure',
   Design: 'Pattern',
   Sample: 'Sample',
-  Fitting: 'Fitting / 인계 준비',
-  Approved: 'Handoff · 개발 완료',
+  Fitting: 'Fitting / Handoff preparation',
+  Approved: 'Handoff · Development complete',
 };
 
 const FLOOR_MAT_STAGE_LABELS: Partial<Record<ProjectStage, string>> = {
@@ -2024,7 +2023,10 @@ function ProjectProgressRail({
       ? SEAT_COVER_STAGE_LABELS
       : product === 'Floor Mat'
         ? FLOOR_MAT_STAGE_LABELS
-        : { Fitting: 'Fitting / 인계 준비', Approved: 'Handoff · 개발 완료' };
+        : {
+            Fitting: 'Fitting / Handoff preparation',
+            Approved: 'Handoff · Development complete',
+          };
   const stageIndex = Math.max(0, pipeline.indexOf(stage));
   const isRework =
     reworkSamples.length > 0 && stageIndex < pipeline.indexOf('Sample');
@@ -2048,7 +2050,7 @@ function ProjectProgressRail({
         </div>
         <div
           className="project-progress-rail zone-progress-rail circular-progress-rail"
-          aria-label="프로젝트 진행 단계"
+          aria-label="Project stages"
         >
           {pipeline.map((item, index) => (
             <div
@@ -2096,10 +2098,10 @@ function ProjectProgressRail({
       <CardContent>
         {isRework && (
           <p className="project-rework-note">
-            이미 진행된 샘플이 있어 Sample 단계를 거친 뒤 되돌아온 Revision
-            재작업 상태입니다
+            This revision rework has returned after passing through the Sample
+            stage
             {reworkRevision > 1 &&
-              ` (현재 Revision ${String(reworkRevision)})`}{' '}
+              ` (Current revision ${String(reworkRevision)})`}{' '}
             ·{' '}
             {reworkSamples
               .map((sample) => `${sample.id} ${sample.status}`)
@@ -2236,66 +2238,70 @@ function ProjectNextActionGuide({
   switch (stage) {
     case 'Research':
       guide = {
-        title: 'Research Configuration을 확인하세요',
+        title: 'Review the research configuration',
         description:
-          '차량과 옵션 조합이 개발 대상과 일치하는지 확인한 뒤 Research 단계를 완료합니다.',
+          'Confirm the vehicle and option combination matches the development target, then complete Research.',
         steps: [
-          '차량 및 연식 확인',
-          'Configuration 옵션 확인',
-          'Research 단계 완료',
+          'Confirm vehicle and model year',
+          'Confirm configuration options',
+          'Complete Research',
         ],
-        linkLabel: 'Overview에서 Configuration 확인',
+        linkLabel: 'Review configuration in Overview',
         targetTab: 'overview',
-        primaryLabel: 'Research 단계 완료',
+        primaryLabel: 'Complete Research',
         primaryAction: onAdvance,
       };
       break;
     case 'Vehicle Hunt':
       guide = {
-        title: '차량 확보처를 정하고 Scan Visit을 준비하세요',
+        title: 'Secure a vehicle and prepare a scan visit',
         description:
-          '딜러·렌터카·협력사 중 차량 확보 경로를 확인한 뒤 Vehicle Hunt 단계를 완료하세요. 다음으로 Visits 탭에서 스캔 날짜, 담당자와 대상 Zone을 등록합니다.',
+          'Choose a dealer, rental company, or partner vehicle source and complete Vehicle Hunt. Then add the scan date, assignee, and target zones in Visits.',
         steps: [
-          '차량 확보 경로 결정',
-          'Vehicle Hunt 단계 완료',
-          'SCAN Visit 일정 등록',
+          'Choose vehicle source',
+          'Complete Vehicle Hunt',
+          'Schedule SCAN visit',
         ],
-        linkLabel: 'Visits 탭으로 이동해 SCAN Visit 등록',
+        linkLabel: 'Go to Visits to schedule a SCAN visit',
         targetTab: 'visits',
-        primaryLabel: 'Vehicle Hunt 단계 완료',
+        primaryLabel: 'Complete Vehicle Hunt',
         primaryAction: onAdvance,
       };
       break;
     case 'Scan':
       guide = allScanned
         ? {
-            title: '현재 Zone / Bundle의 스캔이 완료되었습니다',
+            title: 'Scanning is complete for this zone / bundle',
             description:
-              '완료된 Scan Visit과 결과를 확인한 뒤 다음 개발 단계로 이동하세요.',
-            steps: ['SCAN Visit 완료', '대상 Zone 결과 확인', 'Scan 단계 완료'],
-            linkLabel: 'Visits 탭에서 완료 결과 확인',
+              'Review the completed scan visit and results, then move to the next stage.',
+            steps: [
+              'SCAN visit completed',
+              'Review target zone results',
+              'Complete Scan',
+            ],
+            linkLabel: 'Review completed results in Visits',
             targetTab: 'visits',
-            primaryLabel: 'Scan 단계 완료',
+            primaryLabel: 'Complete Scan',
             primaryAction: onAdvance,
           }
         : {
             title:
               scanVisits.length > 0
-                ? '예약된 Scan Visit을 진행하세요'
-                : 'Scan Visit 일정을 먼저 등록하세요',
+                ? 'Complete the scheduled scan visit'
+                : 'Schedule a scan visit first',
             description:
-              'Visits 탭에서 차량 방문 일정과 대상 Zone을 확인하고, 현장 스캔 후 Visit을 완료 처리합니다.',
+              'Check the visit schedule and target zones in Visits, then mark the visit complete after scanning on site.',
             steps: [
-              'SCAN Visit 일정 등록',
-              '현장 스캔 진행',
-              'Visit 완료 처리',
+              'Schedule SCAN visit',
+              'Perform on-site scan',
+              'Complete visit',
             ],
-            linkLabel: 'Visits 탭에서 SCAN Visit 확인',
+            linkLabel: 'Check SCAN visit in Visits',
             targetTab: 'visits',
             primaryLabel:
               scanVisits.length > 0
-                ? '예약된 Scan Visit 열기'
-                : 'Scan Visit 일정 등록하기',
+                ? 'Open scheduled scan visit'
+                : 'Schedule scan visit',
             primaryAction: () => {
               onOpenTab('visits');
             },
@@ -2306,19 +2312,23 @@ function ProjectNextActionGuide({
       guide = {
         title: modelAsset
           ? stage === '3D Model'
-            ? '3D 모델 자료를 확인하세요'
-            : '패턴 작업 전 모델 적합성을 검토하세요'
-          : '3D Model 파일을 등록하세요',
+            ? 'Review the 3D model'
+            : 'Review model suitability before pattern work'
+          : 'Add a 3D model file',
         description:
-          'Files에서 확보한 모델을 확인하고 다음 단계로 진행하세요. 최종 Shape 검토·발급은 샘플 피팅 이후에 진행합니다.',
-        steps: ['3D 모델 확보', '모델 자료 검토', '패턴 작업 진행'],
-        linkLabel: '모델 자료 확인',
+          'Check the model in Files and continue to the next stage. Final Shape review and issuance follow sample fitting.',
+        steps: [
+          'Obtain 3D model',
+          'Review model files',
+          'Proceed with pattern work',
+        ],
+        linkLabel: 'Check model files',
         targetTab: 'files',
         primaryLabel: modelAsset
           ? stage === '3D Model'
-            ? '3D Model 단계 완료'
-            : '모델 검토 완료 · Design으로 이동'
-          : '모델 파일 등록',
+            ? 'Complete 3D Model'
+            : 'Complete model review · Go to Design'
+          : 'Add model file',
         primaryAction: modelAsset
           ? onAdvance
           : () => {
@@ -2329,19 +2339,19 @@ function ProjectNextActionGuide({
     case 'Design':
       if (failedFitting) {
         guide = {
-          title: '피팅 실패 — Revision을 추가하고 샘플을 다시 진행하세요',
+          title: 'Fitting failed — add a revision and repeat sampling',
           description:
-            '마지막 FITTING Visit이 FAIL로 끝나 이 프로젝트만 Design 단계로 돌아왔습니다. 실패 원인을 반영한 Revision을 추가한 뒤 Design 단계를 완료하면 새 Revision으로 Sample을 다시 요청할 수 있습니다.',
+            'The latest fitting visit failed, returning only this project to Design. Add a revision addressing the failure and complete Design to request samples for the new revision.',
           steps: [
-            '실패 원인을 반영한 Revision 추가',
-            'Design 단계 완료 후 Sample 재요청·입고·승인',
-            'Visits에서 새 피팅 일정을 등록해 재피팅',
+            'Add a revision addressing the failure',
+            'Complete Design, then request, receive, and approve a new sample',
+            'Schedule another fitting in Visits',
           ],
-          linkLabel: 'Design / Parts에서 Revision 추가',
+          linkLabel: 'Add a revision in Design / Parts',
           targetTab: 'designs',
           primaryLabel: revisionPending
-            ? 'Revision 추가하기'
-            : 'Design 단계 완료 (재작업)',
+            ? 'Add revision'
+            : 'Complete Design (rework)',
           primaryAction: revisionPending
             ? () => {
                 onOpenTab('designs');
@@ -2354,16 +2364,16 @@ function ProjectNextActionGuide({
         const label = designLabel(project.product);
         guide = {
           title: bomReady
-            ? `${label}이 등록되었습니다`
-            : `${label}을 등록하세요`,
+            ? `${label} has been registered`
+            : `${label} must be registered`,
           description:
             project.product === 'Car Cover'
-              ? '조사 차량의 전체 패턴과 최초 버전을 등록하고, 변경 사항은 기존 패턴의 새 버전으로 기록합니다.'
-              : '각 구역의 금형과 최초 버전을 등록하고, 금형 수정·재스캔은 기존 금형의 새 버전으로 기록합니다.',
-          steps: [`${label} 등록`, '버전 확인', 'Design 단계 완료'],
-          linkLabel: `${label} 확인`,
+              ? 'Register the complete pattern and initial revision for the research vehicle. Record later changes as new revisions of the existing pattern.'
+              : 'Register a mold and initial revision for each zone. Record mold changes and rescans as new revisions of the existing mold.',
+          steps: [`${label} Create`, 'Review revision', 'Complete Design'],
+          linkLabel: `${label} Confirm`,
           targetTab: 'designs',
-          primaryLabel: bomReady ? 'Design 단계 완료' : `${label} 등록하기`,
+          primaryLabel: bomReady ? 'Complete Design' : `${label} Register`,
           primaryAction: bomReady
             ? onAdvance
             : () => {
@@ -2374,23 +2384,26 @@ function ProjectNextActionGuide({
       }
       guide = bomReady
         ? {
-            title: '현재 Zone / Bundle의 Part 구성이 준비되었습니다',
-            description:
-              '등록된 Part 구성을 확인한 뒤 Sample 단계로 이동하세요.',
-            steps: ['기존 Part 선택', 'Part 연결', 'Design 단계 완료'],
-            linkLabel: 'Parts 최종 확인',
+            title: 'Part composition is ready for this zone / bundle',
+            description: 'Review the registered parts and proceed to Sample.',
+            steps: ['Select existing part', 'Part linked', 'Complete Design'],
+            linkLabel: 'Final parts review',
             targetTab: 'designs',
-            primaryLabel: 'Design 단계 완료',
+            primaryLabel: 'Complete Design',
             primaryAction: onAdvance,
           }
         : {
-            title: '현재 Zone / Bundle의 Part를 등록하세요',
+            title: 'Register parts for this zone / bundle',
             description:
-              'Parts 탭에서 각 Zone의 디자인, 부품과 Revision을 구성합니다.',
-            steps: ['기존 Part 선택', 'Part 연결', 'Zone 구성 확인'],
-            linkLabel: 'Parts 탭으로 이동',
+              "Configure each zone's designs, parts, and revisions in Parts.",
+            steps: [
+              'Select existing part',
+              'Part linked',
+              'Review zone composition',
+            ],
+            linkLabel: 'Go to Parts',
             targetTab: 'designs',
-            primaryLabel: 'Part 연결하기',
+            primaryLabel: 'Link part',
             primaryAction: () => {
               onOpenTab('designs');
             },
@@ -2399,38 +2412,38 @@ function ProjectNextActionGuide({
     case 'Sample':
       guide = sampleReady
         ? {
-            title: '샘플 입고와 Revision 승인이 완료되었습니다',
+            title: 'Sample receipt and revision approval are complete',
             description:
-              '승인된 샘플 결과를 확인한 뒤 Fitting 단계로 이동하세요.',
+              'Review the approved sample results and proceed to Fitting.',
             steps: [
-              'Sample Request 생성',
-              '배송 및 입고 처리',
-              'Sample 단계 완료',
+              'Create sample request',
+              'Process shipment and receipt',
+              'Complete Sample',
             ],
-            linkLabel: '승인된 Sample 확인',
+            linkLabel: 'Review approved sample',
             targetTab: 'samples',
-            primaryLabel: 'Sample 단계 완료',
+            primaryLabel: 'Complete Sample',
             primaryAction: onAdvance,
           }
         : {
-            title: 'Sample 단계를 완료할 수 없습니다',
+            title: 'Cannot complete Sample',
             description: sampleGate.blockers
               .map((blocker) => blocker.message)
               .join(' '),
             steps: [
-              'Sample Request 생성',
-              '배송 및 입고 처리',
-              '현재 Revision 승인',
+              'Create sample request',
+              'Process shipment and receipt',
+              'Approve current revision',
             ],
             linkLabel:
               sampleGate.blockers[0]?.tab === 'designs'
-                ? '패턴 / Design 확인'
-                : 'Samples 확인',
+                ? 'Review pattern / Design'
+                : 'Review samples',
             targetTab: sampleGate.blockers[0]?.tab ?? 'samples',
             primaryLabel:
               sampleGate.blockers[0]?.tab === 'designs'
-                ? '패턴 / Design 등록하기'
-                : '미완료 항목 확인하기',
+                ? 'Register pattern / Design'
+                : 'Review incomplete items',
             primaryAction: () => {
               onOpenTab(sampleGate.blockers[0]?.tab ?? 'samples');
             },
@@ -2440,17 +2453,21 @@ function ProjectNextActionGuide({
       guide = {
         title:
           fittingReady && sampleReady
-            ? 'Handoff를 완료하면 개발이 종료됩니다'
-            : '현재 샘플·피팅 결과를 확인하세요',
+            ? 'Handoff completes development'
+            : 'Review current sample and fitting results',
         description:
-          '최종 패턴, 피팅 결과와 생산 자료를 인계하고 완료를 기록하세요. Shape 검토·발급은 개발 완료 후 Shape 메뉴에서 별도로 진행합니다.',
-        steps: ['샘플·피팅 완료', 'Handoff', '개발 완료'],
-        linkLabel: '피팅 결과 확인',
+          'Hand over the final pattern, fitting results, and production materials, then record completion. Review and issue the Shape separately in Shapes after development is complete.',
+        steps: [
+          'Samples and fitting complete',
+          'Handoff',
+          'Development complete',
+        ],
+        linkLabel: 'Review fitting results',
         targetTab: 'visits',
         primaryLabel:
           fittingReady && sampleReady
-            ? 'Handoff 완료 기록'
-            : '미완료 작업 확인',
+            ? 'Record handoff completion'
+            : 'Review pending work',
         primaryAction:
           fittingReady && sampleReady
             ? onPromote
@@ -2467,16 +2484,20 @@ function ProjectNextActionGuide({
     case 'Approved':
       guide = {
         title: stageZones.every((zone) => zone.productionHandoff)
-          ? 'Handoff 완료 · 개발 완료'
-          : '이전 완료 프로젝트 · Handoff 확인 필요',
+          ? 'Handoff complete · Development complete'
+          : 'Legacy completed project · Handoff verification needed',
         description:
-          '후속 검토 회의, Shape 발급과 구성 등록은 Shape 메뉴에서 진행합니다. 기존 완료 데이터는 인계 기록을 확인한 후 검토할 수 있습니다.',
-        steps: ['개발 완료', 'Shape 검토·발급', 'Part 구성·Blueprint 등록'],
-        linkLabel: 'Handoff 이력 확인',
+          'Use Shapes for the follow-up review meeting, Shape issuance, and composition. Legacy completed records require handoff verification before review.',
+        steps: [
+          'Development complete',
+          'Review and issue Shape',
+          'Add parts composition and blueprint',
+        ],
+        linkLabel: 'Review handoff history',
         targetTab: 'activity',
         primaryLabel: stageZones.every((zone) => zone.productionHandoff)
-          ? 'Shape 메뉴에서 후속 작업 진행'
-          : 'Handoff 확인 기록',
+          ? 'Continue follow-up work in Shapes'
+          : 'Record handoff verification',
         primaryAction: stageZones.every((zone) => zone.productionHandoff)
           ? onOpenShape
           : onPromote,
@@ -2487,12 +2508,15 @@ function ProjectNextActionGuide({
       // degrade to a usable card instead of leaving `guide` unassigned and
       // blanking the whole screen (standards §3.15).
       guide = {
-        title: '이 단계의 안내를 찾을 수 없습니다',
-        description: `저장된 단계 값(${String(stage)})이 ${project.product} 파이프라인에 없습니다. 각 탭에서 직접 진행하세요.`,
-        steps: ['탭에서 현재 상태 확인', '필요한 작업 수행'],
-        linkLabel: 'Activity 탭으로 이동',
+        title: 'No guidance is available for this stage',
+        description: `Saved stage (${String(stage)}) is not in the ${project.product} pipeline. Continue using the individual tabs.`,
+        steps: [
+          'Check the current status in each tab',
+          'Complete required work',
+        ],
+        linkLabel: 'Go to Activity',
         targetTab: 'activity',
-        primaryLabel: 'Activity 확인하기',
+        primaryLabel: 'View Activity',
         primaryAction: () => {
           onOpenTab('activity');
         },
@@ -2501,13 +2525,13 @@ function ProjectNextActionGuide({
   }
 
   return (
-    <aside className="project-next-action" aria-label="다음 작업 안내">
+    <aside className="project-next-action" aria-label="Next action">
       <div className="project-next-action-copy">
         <div className="project-next-action-kicker">
           <StatusBadge label="NEXT ACTION" tone="progress" />
           <span>
-            단계 {stageIndex + 1}/{pipeline.length} ·{' '}
-            {stage === 'Approved' ? '개발 완료' : stage}
+            Stage {stageIndex + 1}/{pipeline.length} ·{' '}
+            {stage === 'Approved' ? 'Development complete' : stage}
           </span>
         </div>
         <h2>{guide.title}</h2>
@@ -2536,7 +2560,7 @@ function ProjectNextActionGuide({
         {stage === 'Approved' &&
           stageZones.every((zone) => zone.productionHandoff) && (
             <Button variant="outline" onClick={onPromote}>
-              인계 체크리스트 보기 / 재확인
+              View / Recheck handoff checklist
             </Button>
           )}
         <Button
@@ -2597,7 +2621,7 @@ function ZoneTab({
             <dt>Manager</dt>
             <dd>
               <UserPicker
-                label={`${zone.code} Zone Project 담당자`}
+                label={`${zone.code} Zone project assignee`}
                 value={findUser(users, zone.managerId)}
                 users={users}
                 onChange={onManagerChange}
@@ -2610,7 +2634,7 @@ function ZoneTab({
         <CardHeader>
           <CardTitle>
             {zone.label} — {designLabel(project.product)}{' '}
-            <small>{designs.length}건</small>
+            <small>{designs.length} items</small>
           </CardTitle>
           <Button
             size="sm"
@@ -2622,21 +2646,21 @@ function ZoneTab({
             title={
               canCreateDesign
                 ? undefined
-                : '이 Zone 또는 필수 Floor Mat Bundle이 Design Gate에 도달해야 합니다.'
+                : 'This zone or required Floor Mat bundle must reach the Design gate.'
             }
             onClick={onAddDesign}
           >
             <Plus />{' '}
             {project.product === 'Seat Cover'
-              ? '기존 Part 연결'
-              : `${designLabel(project.product)} 등록`}
+              ? 'Link existing part'
+              : `${designLabel(project.product)} Create`}
           </Button>
         </CardHeader>
         <CardContent className="design-list">
           {!canCreateDesign && (
             <div className="stage-gate-lock">
-              이 Zone의 이전 Gate가 완료되지 않았습니다. Floor Mat F/B는 두
-              Zone이 함께 Gate를 통과합니다.
+              Earlier gates are incomplete. Floor Mat front and rear zones pass
+              gates together.
             </div>
           )}
           {designs.length ? (
@@ -2656,8 +2680,8 @@ function ZoneTab({
           ) : (
             <div className="empty-inline">
               {project.product === 'Seat Cover'
-                ? '연결된 Part가 없습니다 — 기존 Part를 선택해 프로젝트에 연결하세요.'
-                : `등록된 ${designLabel(project.product)}이 없습니다. 설계와 최초 버전을 등록하세요.`}
+                ? 'No parts linked — select existing parts and link them to the project.'
+                : `Registered ${designLabel(project.product)} is missing. Register the design and its first revision.`}
             </div>
           )}
         </CardContent>
@@ -2680,9 +2704,7 @@ function ZoneTab({
               />
             ))
           ) : (
-            <div className="empty-inline">
-              이 Zone이 포함된 방문이 없습니다.
-            </div>
+            <div className="empty-inline">No visits include this zone.</div>
           )}
         </CardContent>
       </Card>
@@ -2717,17 +2739,18 @@ function DesignsTab({
     <div className="project-tab-stack">
       <div className="detail-help-text">
         {project.product === 'Seat Cover'
-          ? 'Part Management에서 개발된 Part와 사용할 버전을 선택해 연결합니다. 버전 변경은 Part Management에서 관리하며, Fitting 검증은 프로젝트별로 기록됩니다.'
+          ? 'Select developed parts and the revisions to use from Part Management. Manage revisions there; fitting verification is recorded separately for each project.'
           : project.product === 'Car Cover'
-            ? '조사 차량당 전체 패턴 하나를 등록합니다. 패턴 수정은 기존 설계의 새 버전으로 기록하고, Fitting 결과는 프로젝트에서 확인합니다.'
-            : '조사 차량의 구역별 금형을 하나씩 등록합니다. 금형 수정·재스캔은 기존 설계의 새 버전으로 기록합니다. 표면 디자인 라인은 금형을 나누는 기준이 아닙니다.'}
+            ? 'Register one complete pattern per research vehicle. Record pattern changes as new design revisions and check fitting results in the project.'
+            : 'Register one mold per zone of the research vehicle. Record mold changes and rescans as new revisions. Surface design lines do not define separate molds.'}
       </div>
       {!canCreateDesign && (
         <div className="stage-gate-lock">
-          <strong>Design Gate 잠김</strong>
-          작업 대상 Zone 또는 필수 Floor Mat Bundle의 선행 단계를 완료해야
-          {project.product === 'Seat Cover' ? 'Part를 연결' : '설계를 등록'}할
-          수 있습니다.
+          <strong>Design gate locked</strong>
+          Complete prerequisite stages for this zone or required Floor Mat
+          bundle before you can
+          {project.product === 'Seat Cover' ? 'link parts' : 'register designs'}
+          for this project.
         </div>
       )}
       {zones.map((zone) => {
@@ -2744,7 +2767,7 @@ function DesignsTab({
                 </span>{' '}
                 {zoneLabel(project.product, zone.code)} —{' '}
                 {designLabel(project.product)}{' '}
-                <small>{zoneDesigns.length}건</small>
+                <small>{zoneDesigns.length} items</small>
               </CardTitle>
               <Button
                 size="sm"
@@ -2756,7 +2779,7 @@ function DesignsTab({
                 title={
                   zoneCanCreateDesign
                     ? undefined
-                    : '이 Zone 또는 필수 Floor Mat Bundle의 선행 Gate를 먼저 완료하세요.'
+                    : 'Complete the prerequisite gates for this zone or required Floor Mat bundle first.'
                 }
                 onClick={() => {
                   onAddDesign(zone.id);
@@ -2764,8 +2787,8 @@ function DesignsTab({
               >
                 <Plus />{' '}
                 {project.product === 'Seat Cover'
-                  ? '기존 Part 연결'
-                  : `${designLabel(project.product)} 등록`}
+                  ? 'Link existing part'
+                  : `${designLabel(project.product)} Create`}
               </Button>
             </CardHeader>
             <CardContent className="design-list">
@@ -2790,8 +2813,8 @@ function DesignsTab({
               ) : (
                 <div className="empty-inline">
                   {project.product === 'Seat Cover'
-                    ? '연결된 Part가 없습니다 — 기존 Part를 선택해 프로젝트에 연결하세요.'
-                    : `등록된 ${designLabel(project.product)}이 없습니다. 설계와 최초 버전을 등록하세요.`}
+                    ? 'No parts linked — select existing parts and link them to the project.'
+                    : `Registered ${designLabel(project.product)} is missing. Register the design and its first revision.`}
                 </div>
               )}
             </CardContent>
@@ -2832,8 +2855,8 @@ function DesignCard({
           <StatusBadge
             label={
               isApproved
-                ? `Sample 승인 Rev ${String(revision.revisionNumber)}`
-                : 'Sample 승인 —'
+                ? `Sample approved rev ${String(revision.revisionNumber)}`
+                : 'Sample approved —'
             }
             tone={isApproved ? 'success' : 'neutral'}
           />
@@ -2887,7 +2910,7 @@ function DesignCard({
         )}
         {onRevision && (
           <Button size="sm" variant="outline" onClick={onRevision}>
-            새 Revision 추가
+            Add new revision
           </Button>
         )}
       </div>
@@ -2922,20 +2945,20 @@ function RevisionControlTab({
   return (
     <div className="project-tab-stack revision-control">
       <div className="detail-help-text">
-        부품별 수정 요청을 확정하고 공장 지시서를 생성한 뒤, 입고 시 지시 반영
-        여부를 장착 적합성과 별도로 검증합니다.
+        Confirm changes per part and generate factory instructions. On receipt,
+        verify instruction compliance separately from fitment.
       </div>
       <SummaryCard
-        label="수정 반영 정확도"
-        value={accuracy === undefined ? '측정 전' : `${String(accuracy)}%`}
-        description={`정확히 반영 ${String(exact)} / 검증된 수정 샘플 ${String(verified.length)} · ${accuracy !== undefined && accuracy >= 95 ? '목표 달성' : '목표'} · 95% 이상`}
+        label="Revision implementation accuracy"
+        value={accuracy === undefined ? 'Not measured' : `${String(accuracy)}%`}
+        description={`Fully implemented ${String(exact)} / verified revision samples ${String(verified.length)} · ${accuracy !== undefined && accuracy >= 95 ? 'Target met' : 'Target'} · At least 95%`}
         icon={<Wrench />}
         tone={accuracy !== undefined && accuracy >= 95 ? 'success' : 'warning'}
       />
       <Card className="detail-panel">
         <CardHeader>
           <CardTitle>
-            부품별 수정 요청 <small>{requests.length}</small>
+            Part change requests <small>{requests.length}</small>
           </CardTitle>
         </CardHeader>
         <CardContent className="revision-request-list">
@@ -2945,12 +2968,12 @@ function RevisionControlTab({
               <div className="revision-request-row" key={design.id}>
                 <div>
                   <strong>{design.name}</strong>
-                  <span>현재 Rev {revision.revisionNumber}</span>
+                  <span>Current rev {revision.revisionNumber}</span>
                 </div>
                 {revision.changeRequest ? (
-                  <StatusBadge label="지시서 준비 완료" tone="success" />
+                  <StatusBadge label="Instructions ready" tone="success" />
                 ) : (
-                  <span className="muted-text">등록된 수정 요청 없음</span>
+                  <span className="muted-text">No change requests</span>
                 )}
                 <Button
                   size="sm"
@@ -2959,7 +2982,7 @@ function RevisionControlTab({
                     onRevision(design.id);
                   }}
                 >
-                  수정 요청 작성
+                  Create change request
                 </Button>
               </div>
             );
@@ -2969,7 +2992,7 @@ function RevisionControlTab({
       <Card className="detail-panel">
         <CardHeader>
           <CardTitle>
-            공장 수정 지시서 <small>변경 부품만 표시</small>
+            Factory change instructions <small>Changed parts only</small>
           </CardTitle>
         </CardHeader>
         <CardContent className="factory-instruction-list">
@@ -2981,18 +3004,18 @@ function RevisionControlTab({
                     {design.name} · Rev {revision.revisionNumber}
                   </strong>
                   <div className="factory-instruction-actions">
-                    <StatusBadge label="발송용" tone="progress" />
+                    <StatusBadge label="For dispatch" tone="progress" />
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => {
                         const message = [
-                          `[수정 요청] ${design.name} · Rev ${String(revision.revisionNumber)}`,
-                          `문제 출처: ${request.issueSource}`,
-                          `문제 부위: ${request.issueArea}`,
-                          `수정 지시: ${request.instruction}`,
-                          `참고 이미지: ${request.referenceImageName}`,
-                          `도면: ${request.previousDxfFileName} → ${request.newDxfFileName}`,
+                          `[Change request] ${design.name} · Rev ${String(revision.revisionNumber)}`,
+                          `Issue source: ${request.issueSource}`,
+                          `Affected area: ${request.issueArea}`,
+                          `Change instructions: ${request.instruction}`,
+                          `Reference image: ${request.referenceImageName}`,
+                          `Drawing: ${request.previousDxfFileName} → ${request.newDxfFileName}`,
                         ].join('\n');
                         void navigator.clipboard.writeText(message).then(() => {
                           setCopiedRevisionId(revision.id);
@@ -3000,39 +3023,39 @@ function RevisionControlTab({
                       }}
                     >
                       {copiedRevisionId === revision.id
-                        ? '메시지 복사됨'
-                        : '지시 메시지 복사'}
+                        ? 'Message copied'
+                        : 'Copy instructions'}
                     </Button>
                   </div>
                 </header>
                 <dl>
                   <div>
-                    <dt>문제 출처</dt>
+                    <dt>Issue source</dt>
                     <dd>{request.issueSource}</dd>
                   </div>
                   <div>
-                    <dt>문제 부위</dt>
+                    <dt>Affected area</dt>
                     <dd>{request.issueArea}</dd>
                   </div>
                   <div>
-                    <dt>수정 지시</dt>
+                    <dt>Change instructions</dt>
                     <dd>{request.instruction}</dd>
                   </div>
                   <div>
-                    <dt>문제 이미지</dt>
+                    <dt>Issue image</dt>
                     <dd>
                       {request.referenceImageDataUrl && (
                         <img
                           className="revision-reference-image"
                           src={request.referenceImageDataUrl}
-                          alt={`${design.name} ${request.issueArea} 문제 참고`}
+                          alt={`${design.name} ${request.issueArea} Issue reference`}
                         />
                       )}
                       {request.referenceImageName}
                     </dd>
                   </div>
                   <div>
-                    <dt>도면</dt>
+                    <dt>Drawing</dt>
                     <dd>
                       {request.previousDxfFileName} → {request.newDxfFileName}
                     </dd>
@@ -3041,7 +3064,7 @@ function RevisionControlTab({
               </article>
             ))
           ) : (
-            <div className="empty-inline">완료된 수정 요청이 없습니다.</div>
+            <div className="empty-inline">No completed change requests.</div>
           )}
         </CardContent>
       </Card>
@@ -3066,12 +3089,14 @@ function RevisionVerification({
   return (
     <div className="revision-verification">
       <div>
-        <strong>{design.name} · 수정 반영 검증</strong>
-        <span>장착 테스트 전에 공장 지시대로 제작됐는지 확인하세요.</span>
+        <strong>{design.name} · Revision verification</strong>
+        <span>
+          Verify the factory followed the instructions before testing fitment.
+        </span>
       </div>
       <textarea
-        aria-label={`${design.name} 수정 반영 검증 메모`}
-        placeholder="확인한 치수, 미반영 항목 등 검증 메모"
+        aria-label={`${design.name} Revision verification notes`}
+        placeholder="Record measured dimensions, missing changes, and other verification notes"
         value={note}
         onChange={(event) => {
           setNote(event.target.value);
@@ -3089,10 +3114,10 @@ function RevisionVerification({
             }}
           >
             {verdict === 'CORRECT'
-              ? '정확히 반영'
+              ? 'Fully implemented'
               : verdict === 'PARTIAL'
-                ? '일부 반영'
-                : '전혀 미반영'}
+                ? 'Partially implemented'
+                : 'Not implemented'}
           </Button>
         ))}
       </div>
@@ -3100,8 +3125,8 @@ function RevisionVerification({
         <StatusBadge
           label={
             item.revisionReflected === 'CORRECT'
-              ? '장착 테스트 진행 가능'
-              : '공장 실행 문제 · 별도 추적'
+              ? 'Ready for fitment testing'
+              : 'Factory execution issue · Track separately'
           }
           tone={item.revisionReflected === 'CORRECT' ? 'success' : 'danger'}
         />
@@ -3146,25 +3171,25 @@ const SAMPLE_STATUS_GROUPS = [
     status: 'REQUESTED',
     emoji: '📤',
     label: 'Sent',
-    description: '요청 전송 · 공장 발송 대기',
+    description: 'Request sent · Awaiting factory dispatch',
   },
   {
     status: 'SHIPPED',
     emoji: '🚚',
     label: 'In Transit',
-    description: '배송 중 · 도착 확인 대기',
+    description: 'In transit · Awaiting arrival confirmation',
   },
   {
     status: 'ARRIVED',
     emoji: '📦',
     label: 'Arrived',
-    description: '도착 · 검증 및 요청 승인 대기',
+    description: 'Arrived · Awaiting inspection and approval',
   },
   {
     status: 'APPROVED',
     emoji: '✅',
     label: 'Approved',
-    description: '요청 승인 완료',
+    description: 'Request approved',
   },
 ] as const;
 
@@ -3265,36 +3290,36 @@ function SamplesTab({
             ? 'sample-progress-summary ready'
             : 'sample-progress-summary'
         }
-        aria-label="샘플 단계 요약"
+        aria-label="Sample stage summary"
       >
         <div className="sample-progress-heading">
           <div>
             <span className="project-visit-kicker">
-              현재 Revision 기준 · Sample
+              Current revision · Sample
             </span>
             <h3>
               {gatePassed
                 ? stageCompleted
-                  ? '샘플 단계 완료'
-                  : '검수·승인 완료 · Fitting 진행 가능'
+                  ? 'Sample stage complete'
+                  : 'Inspection and approval complete · Ready for Fitting'
                 : !canRequestSample
-                  ? '샘플 요청 준비'
-                  : '샘플 작업 진행 중'}
+                  ? 'Prepare sample request'
+                  : 'Sampling in progress'}
             </h3>
             <p>
               {gatePassed
                 ? stageCompleted
-                  ? '샘플 단계가 완료되었습니다. 아래에서 승인 결과와 지난 요청을 확인할 수 있습니다.'
-                  : '필요한 입고·검수·승인 조건을 충족했습니다. Sample 단계를 완료하고 피팅을 진행하세요.'
+                  ? 'The Sample stage is complete. Review approvals and previous requests below.'
+                  : 'Receipt, inspection, and approval requirements are met. Complete Sample and proceed to fitting.'
                 : !canRequestSample
-                  ? '먼저 현재 Zone 또는 필수 Bundle의 Design 단계를 완료하세요.'
+                  ? 'Complete Design for this zone or required bundle first.'
                   : (sampleGate.blockers[0]?.message ??
-                    '현재 Revision의 샘플 진행 상태를 확인하세요.')}
+                    'Check sample progress for the current revision.')}
             </p>
           </div>
           {gatePassed && stage === 'Sample' ? (
             <Button variant="primary" onClick={onCompleteStage}>
-              Sample 단계 완료 <ChevronRight />
+              Complete Sample <ChevronRight />
             </Button>
           ) : gatePassed && stageCompleted ? (
             <Button
@@ -3304,8 +3329,8 @@ function SamplesTab({
               }}
             >
               {stage === 'Fitting'
-                ? '피팅 일정·결과 보기'
-                : '개발 완료 내역 보기'}
+                ? 'View fitting schedule and results'
+                : 'View development completion'}
             </Button>
           ) : !canRequestSample || sampleGate.blockers[0]?.tab === 'designs' ? (
             <Button
@@ -3314,7 +3339,7 @@ function SamplesTab({
                 onResolveGate('designs');
               }}
             >
-              Part / Design 확인
+              Review Part / Design
             </Button>
           ) : pendingInspection ? (
             <Button
@@ -3324,13 +3349,15 @@ function SamplesTab({
                 setInspectionRequest(pendingInspection.sampleRequestId);
               }}
             >
-              입고·검수 확인
+              Review receipt and inspection
             </Button>
           ) : null}
         </div>
         {sampleGate.blockers.length > 1 && (
           <details className="sample-progress-blockers">
-            <summary>확인할 항목 {sampleGate.blockers.length}건</summary>
+            <summary>
+              Items to review {sampleGate.blockers.length} items
+            </summary>
             <ul>
               {sampleGate.blockers.map((blocker, i) => (
                 <li key={i}>{blocker.message}</li>
@@ -3348,7 +3375,7 @@ function SamplesTab({
         <Card className="detail-panel">
           <CardHeader>
             <CardTitle>
-              Sample Approval <small>현재 Revision 기준 승인</small>
+              Sample Approval <small>Approval for current revision</small>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -3361,7 +3388,7 @@ function SamplesTab({
                       label={
                         isSampleApproved(design)
                           ? `Approved Rev ${String(currentRevision(design).revisionNumber)}`
-                          : '미승인'
+                          : 'Not approved'
                       }
                       tone={isSampleApproved(design) ? 'success' : 'neutral'}
                     />
@@ -3379,7 +3406,7 @@ function SamplesTab({
                       title={
                         isRevisionArrived(design)
                           ? undefined
-                          : `Rev ${String(currentRevision(design).revisionNumber)}로 만든 샘플이 입고되어야 승인할 수 있습니다.`
+                          : `Rev ${String(currentRevision(design).revisionNumber)} samples must be received before approval.`
                       }
                       onClick={() => {
                         onApproveDesign(design.id);
@@ -3393,12 +3420,12 @@ function SamplesTab({
             ) : (
               <div className="stage-gate-lock" role="status">
                 <strong>
-                  연결된 패턴 / Design이 없어 Sample 단계를 완료할 수 없습니다.
+                  Cannot complete Sample without a linked pattern / Design.
                 </strong>
                 <span>
-                  샘플 요청의 APPROVED 표시만으로는 단계가 완료되지 않습니다.
-                  패턴 / Design을 등록하고 해당 Revision의 샘플 입고와 승인을
-                  진행하세요.
+                  An APPROVED sample request alone does not complete the stage.
+                  Register the pattern / Design, then receive and approve its
+                  revision sample.
                 </span>
                 <Button
                   size="sm"
@@ -3407,7 +3434,7 @@ function SamplesTab({
                     onResolveGate('designs');
                   }}
                 >
-                  패턴 / Design 등록하기
+                  Register pattern / Design
                 </Button>
               </div>
             )}
@@ -3426,9 +3453,9 @@ function SamplesTab({
             disabled={!requestableDesigns.length || !canRequestSample}
             title={
               !canRequestSample
-                ? '작업 대상 Zone 또는 Bundle의 Design Gate를 먼저 완료하세요.'
+                ? 'Complete the Design gate for the target zone or bundle first.'
                 : samples.length && !requestableDesigns.length
-                  ? '두 번째 이후 샘플은 수정 요청이 완료된 부품이 있어야 합니다.'
+                  ? 'Repeat samples require at least one part with a completed change request.'
                   : undefined
             }
           >
@@ -3438,8 +3465,8 @@ function SamplesTab({
         {!samples.length && (
           <CardContent>
             <div className="empty-inline">
-              요청이 없습니다 — {designLabel(product)} 설계를 선택해 공장에
-              요청하세요.
+              No requests — {designLabel(product)} select a design and send a
+              factory request.
             </div>
           </CardContent>
         )}
@@ -3472,7 +3499,7 @@ function SamplesTab({
               <div className="sample-status-content">
                 {!groupedSamples.length && (
                   <p className="sample-status-empty">
-                    이 상태의 샘플이 없습니다.
+                    No samples in this status.
                   </p>
                 )}
                 {groupedSamples.map((sample) => (
@@ -3483,8 +3510,8 @@ function SamplesTab({
                         {sample.factory}
                       </span>
                       <span>
-                        {sample.round}차 · {designsOfSample(sample).length}개
-                        항목
+                        Round {sample.round} · {designsOfSample(sample).length}{' '}
+                        items
                       </span>
                       <StatusBadge
                         label={group.label}
@@ -3506,10 +3533,10 @@ function SamplesTab({
                             (item) => item.sampleRequestId === sample.id,
                           ).length
                         }{' '}
-                        검수 통과
+                        Inspection passed
                       </span>
                       <span className="project-visit-expand">
-                        상세 <ChevronRight aria-hidden="true" />
+                        Details <ChevronRight aria-hidden="true" />
                       </span>
                     </summary>
                     <Card className="detail-panel">
@@ -3541,7 +3568,7 @@ function SamplesTab({
                             title={
                               sample.status === 'ARRIVED' &&
                               !canApproveRequest(sample)
-                                ? '항목별 입고·도면 일치·수정 반영 검수를 확인하세요. 요청 승인과 현재 Revision 승인은 별도입니다.'
+                                ? 'Review receipt, drawing match, and change implementation for each item. Request approval and current revision approval are separate.'
                                 : undefined
                             }
                             onClick={() => {
@@ -3567,7 +3594,7 @@ function SamplesTab({
                             setInspectionRequest(sample.id);
                           }}
                         >
-                          입고·검수 / 저장 결과 보기
+                          View receipt, inspection, and saved results
                         </Button>
                         <div className="sample-items">
                           {designsOfSample(sample).map((design) => {
@@ -3651,7 +3678,7 @@ function SamplesTab({
           }}
           onSaved={() => {
             setInspectionMessage(
-              '검수 결과가 저장되었습니다. 현재 Revision 승인 상태를 확인하세요.',
+              "Inspection results saved. Check the current revision's approval status.",
             );
           }}
         />
@@ -3690,8 +3717,10 @@ function FilesTab({ users, assets, onAdd }: FilesTabProps) {
   return (
     <div className="project-tab-stack">
       <div className="detail-help-text">
-        파일 자체는 NAS/Drive에 저장하고 DB에는 <strong>asset reference</strong>
-        만 관리합니다. SCAN은 그룹 공유, PATTERN FILE은 Revision에 연결됩니다.
+        Store files in NAS/Drive; the database keeps only{' '}
+        <strong>asset reference</strong>
+        as references. SCAN files are shared by the group; PATTERN FILE assets
+        link to a revision.
       </div>
       {types.map((type) => {
         const rows = assets.filter((asset) => asset.type === type);
@@ -3714,7 +3743,7 @@ function FilesTab({ users, assets, onAdd }: FilesTabProps) {
                   </div>
                 ))
               ) : (
-                <div className="empty-inline">파일 없음</div>
+                <div className="empty-inline">No files</div>
               )}
             </CardContent>
           </Card>
@@ -3778,11 +3807,11 @@ function VisitsTab({
   const canSchedule = type === 'SCAN' ? canScheduleScan : canScheduleFitting;
   const statusLabel = latest
     ? type === 'SCAN'
-      ? '측정 완료'
-      : (latest.result ?? '결과 미기록')
+      ? 'Measurement complete'
+      : (latest.result ?? 'No result recorded')
     : upcoming.length
-      ? '예정'
-      : '대기';
+      ? 'Scheduled'
+      : 'Pending';
   const tone = latest
     ? type === 'SCAN' || latest.result === 'PASS'
       ? 'success'
@@ -3795,12 +3824,12 @@ function VisitsTab({
     const scheduled = visit.status === 'SCHEDULED';
     const result =
       visit.status === 'CANCELLED'
-        ? '취소'
+        ? 'Cancelled'
         : scheduled
-          ? '예정'
+          ? 'Scheduled'
           : visit.type === 'FITTING'
-            ? (visit.result ?? '결과 미기록')
-            : '측정 완료';
+            ? (visit.result ?? 'No result recorded')
+            : 'Measurement complete';
     return (
       <details className="project-visit-entry" key={visit.id}>
         <summary>
@@ -3811,17 +3840,17 @@ function VisitsTab({
           <span className="project-visit-staff">
             {visit.staffIds?.length
               ? visit.staffIds.map((id) => userName(users, id)).join(', ')
-              : '담당자 미지정'}
+              : 'Unassigned'}
           </span>
           {type === 'FITTING' && rounds.has(visit.id) && (
             <span className="project-visit-round">
-              {rounds.get(visit.id)}차
+              Round {rounds.get(visit.id)}
             </span>
           )}
           <StatusBadge
             label={result}
             tone={
-              result === 'PASS' || result === '측정 완료'
+              result === 'PASS' || result === 'Measurement complete'
                 ? 'success'
                 : result === 'FAIL'
                   ? 'danger'
@@ -3831,7 +3860,7 @@ function VisitsTab({
             }
           />
           <span className="project-visit-expand">
-            상세 <ChevronRight aria-hidden="true" />
+            Details <ChevronRight aria-hidden="true" />
           </span>
         </summary>
         <VisitCard
@@ -3860,7 +3889,8 @@ function VisitsTab({
     <Card className="detail-panel project-visits">
       <CardHeader>
         <CardTitle>
-          Visits <small>이 프로젝트의 스캔·피팅 진행과 이력</small>
+          Visits{' '}
+          <small>Scan and fitting progress and history for this project</small>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -3872,7 +3902,7 @@ function VisitsTab({
             setUpcomingLimit(3);
           }}
         >
-          <TabsList variant="button" aria-label="방문 업무 구분">
+          <TabsList variant="button" aria-label="Visit type">
             {product !== 'Car Cover' && (
               <TabsTrigger value="SCAN">
                 <ScanLine aria-hidden="true" /> Scan
@@ -3885,32 +3915,34 @@ function VisitsTab({
           <TabsContent value={type} key={type}>
             {product === 'Car Cover' && (
               <p className="project-visit-hint">
-                Car Cover는 3D Model·Fit Review를 사용하므로 현장 Scan 탭을
-                표시하지 않습니다.
+                Car Cover uses 3D Model and Fit Review, so the on-site Scan tab
+                is hidden.
               </p>
             )}
             <div className="project-visit-current">
               <div>
-                <span className="project-visit-kicker">{name} 현재 상태</span>
+                <span className="project-visit-kicker">
+                  {name} Current status
+                </span>
                 <div className="project-visit-status">
                   <StatusBadge label={statusLabel} tone={tone} />
                   <strong>
                     {latest
-                      ? '최근 완료 방문 기준'
+                      ? 'Based on the latest completed visit'
                       : upcoming.length
-                        ? '방문 일정이 잡혀 있습니다'
-                        : '아직 완료된 방문이 없습니다'}
+                        ? 'A visit is scheduled'
+                        : 'No completed visits yet'}
                   </strong>
                 </div>
                 <p>
                   {latest
                     ? `${latest.date} · ${latest.dealer}`
-                    : '예약과 실제 작업 완료는 별도로 기록합니다.'}
+                    : 'Bookings and actual completion are recorded separately.'}
                 </p>
                 {latest && (
                   <small>
-                    현재 Revision의 적합성·다음 단계 가능 여부는 상단 NEXT
-                    ACTION에서 확인하세요.
+                    Check NEXT ACTION above for current revision eligibility and
+                    next-stage requirements.
                   </small>
                 )}
               </div>
@@ -3921,19 +3953,19 @@ function VisitsTab({
                 title={
                   canSchedule
                     ? undefined
-                    : `${name} 단계 조건을 먼저 완료하세요.`
+                    : `${name} Complete the stage requirements first.`
                 }
                 onClick={() => {
                   onAdd(type);
                 }}
               >
-                <Plus /> {name} 일정 등록
+                <Plus /> {name} Schedule visit
               </Button>
             </div>
             <section className="project-visit-section">
               <h3>
-                <CalendarClock aria-hidden="true" /> 다음 일정{' '}
-                <span>{upcoming.length}건</span>
+                <CalendarClock aria-hidden="true" /> Next visit{' '}
+                <span>{upcoming.length} items</span>
               </h3>
               {upcoming[0] ? (
                 <>
@@ -3956,20 +3988,22 @@ function VisitsTab({
                         setUpcomingLimit((n) => n + 10);
                       }}
                     >
-                      다른 예정 일정 더 보기 ({upcoming.length - upcomingLimit}
-                      건)
+                      More upcoming visits ({upcoming.length - upcomingLimit}
+                      items)
                     </Button>
                   )}
                 </>
               ) : (
-                <p className="empty-inline">예정된 {name} 방문이 없습니다.</p>
+                <p className="empty-inline">
+                  Upcoming {name} visits are not available.
+                </p>
               )}
             </section>
             <section className="project-visit-section">
               <div className="project-visit-history-heading">
                 <h3>
-                  <History aria-hidden="true" /> 지난 이력{' '}
-                  <span>{past.length}건 · 최근순</span>
+                  <History aria-hidden="true" /> Past visits{' '}
+                  <span>{past.length} items · Newest first</span>
                 </h3>
                 <label className="project-visit-cancelled">
                   <Checkbox
@@ -3979,19 +4013,21 @@ function VisitsTab({
                       setLimit(10);
                     }}
                   />{' '}
-                  취소 이력 포함 ({cancelled})
+                  Include cancelled ({cancelled})
                 </label>
               </div>
               <p className="project-visit-hint">
-                한 줄을 펼치면 상세 정보가 표시됩니다.
+                Expand a row to see details.
                 {type === 'FITTING'
-                  ? ' 피팅 차수는 완료 방문의 수행 순서이며, 샘플 차수와 별개입니다.'
+                  ? ' Fitting rounds follow the actual order of completed visits and are separate from sample rounds.'
                   : ''}
               </p>
               {past.length ? (
                 past.slice(0, limit).map(visitRow)
               ) : (
-                <p className="empty-inline">표시할 {name} 이력이 없습니다.</p>
+                <p className="empty-inline">
+                  Available {name} history is empty.
+                </p>
               )}
               {past.length > limit && (
                 <Button
@@ -4001,7 +4037,7 @@ function VisitsTab({
                     setLimit((n) => n + 10);
                   }}
                 >
-                  이력 10건 더 보기 ({past.length - limit}건 남음)
+                  Show 10 more records ({past.length - limit} remaining)
                 </Button>
               )}
             </section>
@@ -4070,7 +4106,7 @@ function VisitCard({
         {visit.performedAt && (
           <>
             <dt>Performed</dt>
-            <dd>{new Date(visit.performedAt).toLocaleString()}</dd>
+            <dd>{new Date(visit.performedAt).toLocaleString('en-US')}</dd>
           </>
         )}
         {visit.targetVehicleResearchId && (
@@ -4276,14 +4312,15 @@ function ProjectDialog({
     dialog === 'revision'
       ? ''
       : project.product === 'Floor Mat'
-        ? '최초 금형'
-        : '최초 패턴',
+        ? 'Initial mold'
+        : 'Initial pattern',
   );
   const [revisionCreatedBy, setRevisionCreatedBy] = useState('USR-JH');
   const [initialDxfName, setInitialDxfName] = useState('');
   const [initialDxfFingerprint, setInitialDxfFingerprint] = useState('');
-  const [revisionIssueSource, setRevisionIssueSource] =
-    useState('1차 샘플 장착 테스트');
+  const [revisionIssueSource, setRevisionIssueSource] = useState(
+    'First sample fitting test',
+  );
   const [revisionIssueArea, setRevisionIssueArea] = useState('');
   const [revisionInstruction, setRevisionInstruction] = useState('');
   const [revisionImageName, setRevisionImageName] = useState('');
@@ -4407,12 +4444,12 @@ function ProjectDialog({
   const visitGateUnlocked = visitEligibleProjectIds.length > 0;
   const dialogTitles: Record<DialogName, string> = {
     'new-configuration': 'New Configuration Found',
-    design: `${designLabel(project.product)} 등록 · Revision 1`,
-    revision: `${designLabel(project.product)} · 새 버전 추가`,
+    design: `${designLabel(project.product)} Registered · Revision 1`,
+    revision: `${designLabel(project.product)} · New revision added`,
     visit: 'Schedule Visit',
     sample: 'Sample Request',
     file: 'Add File Reference',
-    promote: 'Handoff 완료 기록',
+    promote: 'Record handoff completion',
   };
 
   function submit(): void {
@@ -4603,7 +4640,8 @@ function ProjectDialog({
                   <span>
                     <strong>Create another Configuration</strong>
                     <small>
-                      실제로 다른 조합인 경우 — 별도 Research Configuration 생성
+                      Different actual option combination — create a separate
+                      research configuration
                     </small>
                   </span>
                 </label>
@@ -4618,7 +4656,9 @@ function ProjectDialog({
                   />
                   <span>
                     <strong>Correct current Research information</strong>
-                    <small>조사 정보가 틀렸던 경우 — 감사 로그 기록</small>
+                    <small>
+                      Incorrect research information — record in audit history
+                    </small>
                   </span>
                 </label>
               </fieldset>
@@ -4629,7 +4669,7 @@ function ProjectDialog({
                   onChange={(event) => {
                     setConfigurationNote(event.target.value);
                   }}
-                  placeholder="예: 딜러 확인 결과 Storage 옵션 오기재"
+                  placeholder="Example: Dealer confirmed the storage option was recorded incorrectly"
                 />
               </label>
             </div>
@@ -4638,21 +4678,21 @@ function ProjectDialog({
             <div className="project-dialog-stack">
               <div className="dialog-note">
                 {project.product === 'Seat Cover'
-                  ? 'Part의 디자인, 수량과 상세 정보를 등록합니다.'
+                  ? 'Register the part design, quantity, and details.'
                   : project.product === 'Car Cover'
-                    ? '차량 전체 패턴을 등록합니다. 같은 조사 차량의 패턴 수정은 새 버전으로 관리합니다.'
-                    : '선택한 차량 구역의 금형을 등록합니다. 금형 수정·재스캔은 새 버전으로 관리합니다.'}{' '}
-                Revision 1이 함께 생성됩니다.
+                    ? 'Register the full vehicle pattern. Manage changes for the same research vehicle as new revisions.'
+                    : 'Register the mold for the selected vehicle zone. Manage mold changes and rescans as new revisions.'}{' '}
+                Revision 1 is created automatically.
               </div>
               {designIdentityExists && (
                 <p role="alert">
-                  동일한 조사 차량
-                  {project.product === 'Floor Mat' ? '·구역' : ''}의 설계가 이미
-                  있습니다. 기존 설계에서 새 버전을 추가하세요.
+                  The same research vehicle
+                  {project.product === 'Floor Mat' ? '/ zone' : ''} already has
+                  a design. Add a new revision to the existing design.
                 </p>
               )}
               {designNameExists && (
-                <p role="alert">이미 사용 중인 설계 이름입니다.</p>
+                <p role="alert">This design name is already in use.</p>
               )}
               <div className="dialog-form-grid">
                 <label>
@@ -4681,7 +4721,9 @@ function ProjectDialog({
                   </Select>
                 </label>
                 <label>
-                  {project.product === 'Floor Mat' ? '금형 이름' : '패턴 이름'}
+                  {project.product === 'Floor Mat'
+                    ? 'Mold name'
+                    : 'Pattern name'}
                   <Input
                     value={designName}
                     onChange={(event) => {
@@ -4910,42 +4952,42 @@ function ProjectDialog({
                     onChange={(event) => {
                       setRevisionNote(event.target.value);
                     }}
-                    placeholder="변경 사유를 입력하세요"
+                    placeholder="Enter a reason for the change"
                   />
                 </label>
                 <label>
-                  문제 출처
+                  Issue source
                   <Input
                     value={revisionIssueSource}
                     onChange={(event) => {
                       setRevisionIssueSource(event.target.value);
                     }}
-                    placeholder="예: 1차 샘플 장착 테스트"
+                    placeholder="Example: First sample fitting test"
                   />
                 </label>
                 <label>
-                  문제 부위
+                  Affected area
                   <Input
                     value={revisionIssueArea}
                     onChange={(event) => {
                       setRevisionIssueArea(event.target.value);
                     }}
-                    placeholder="예: 등받이 하단"
+                    placeholder="Example: Lower backrest"
                   />
                 </label>
                 <label className="full-width">
-                  수정 설명
+                  Change description
                   <textarea
                     className="revision-instruction-textarea"
                     value={revisionInstruction}
                     onChange={(event) => {
                       setRevisionInstruction(event.target.value);
                     }}
-                    placeholder="무엇을 어디에서 얼마나 변경할지 입력하세요. 예: 표시된 하단 패턴 길이를 10mm 늘림"
+                    placeholder="Describe what to change, where, and by how much. Example: Extend the marked lower pattern by 10 mm"
                   />
                 </label>
                 <label>
-                  참고 이미지
+                  Reference image
                   <Input
                     type="file"
                     accept="image/*"
@@ -4962,7 +5004,7 @@ function ProjectDialog({
                   />
                 </label>
                 <div className="revision-previous-reference">
-                  <span>이전 버전 · 자동 연결</span>
+                  <span>Previous revision · Linked automatically</span>
                   <strong>
                     {previousRevision
                       ? `Rev ${String(previousRevision.revisionNumber)}`
@@ -4970,12 +5012,12 @@ function ProjectDialog({
                   </strong>
                   <small>
                     {previousRevision?.dxfFileName ??
-                      '기준 DXF 정보가 없어 아래에서 한 번 등록해야 합니다.'}
+                      'No baseline DXF is available. Register it below once.'}
                   </small>
                 </div>
                 {previousRevision && !previousRevision.dxfFingerprint && (
                   <label>
-                    이전 버전 기준 DXF
+                    Previous revision baseline DXF
                     <Input
                       type="file"
                       accept=".dxf"
@@ -4995,7 +5037,7 @@ function ProjectDialog({
                   </label>
                 )}
                 <label>
-                  새 DXF 파일
+                  New DXF file
                   <Input
                     type="file"
                     accept=".dxf"
@@ -5013,8 +5055,8 @@ function ProjectDialog({
                 </label>
                 {revisionFilesAreSame && (
                   <p className="revision-file-error" role="alert">
-                    이전 버전과 동일한 DXF입니다. 실제로 수정한 새 파일을
-                    선택하세요.
+                    This is the same DXF as the previous revision. Select the
+                    actual revised file.
                   </p>
                 )}
                 <label className="revision-designer-confirmation full-width">
@@ -5024,14 +5066,14 @@ function ProjectDialog({
                       setDesignerConfirmed(Boolean(checked));
                     }}
                   />
-                  수정 설명, 참고 이미지와 새 DXF가 일치함을 디자이너가
-                  확인했습니다.
+                  The designer confirms the change description, reference image,
+                  and new DXF agree.
                 </label>
               </div>
               <div className="dialog-note">
-                필수 정보가 모두 확인되면 변경된 부품의 공장 수정 지시서가 자동
-                생성됩니다. 새 Revision은 Sample 입고 및 수정 반영 검증 전까지
-                미승인 상태입니다.
+                Once required information is confirmed, factory instructions are
+                generated for changed parts. The new revision remains unapproved
+                until sample receipt and implementation verification.
               </div>
             </div>
           )}
@@ -5178,10 +5220,10 @@ function ProjectDialog({
               </div>
               {!visitGateUnlocked && (
                 <div className="stage-gate-lock">
-                  <strong>{visitType} Visit Gate 잠김</strong>
-                  작업 대상 Zone 또는 필수 Floor Mat Bundle이{' '}
-                  {visitType === 'SCAN' ? 'Scan' : 'Fitting'} 단계에 도달해야
-                  일정을 등록할 수 있습니다.
+                  <strong>{visitType} Visit gate locked</strong>
+                  The target zone or required Floor Mat bundle must reach{' '}
+                  {visitType === 'SCAN' ? 'Scan' : 'Fitting'} before a visit can
+                  be scheduled.
                 </div>
               )}
               <fieldset className="visit-zone-picker">
@@ -5267,7 +5309,7 @@ function ProjectDialog({
                   Note
                   <Input
                     value={sampleNote}
-                    placeholder="Slack 게시글의 간단한 메모 · 상세 지시는 Checklist"
+                    placeholder="Brief Slack post note · Detailed instructions go in the checklist"
                     onChange={(event) => {
                       setSampleNote(event.target.value);
                     }}
@@ -5276,7 +5318,7 @@ function ProjectDialog({
               </div>
               <div className="sample-dialog-items">
                 <strong>
-                  Parts — 부품 1개 = Sample Tracking 1행 · Round{' '}
+                  Parts — One part = one sample tracking row · Round{' '}
                   {samples.length + 1}
                 </strong>
                 {sampleCandidates.map((design) => {
@@ -5318,8 +5360,8 @@ function ProjectDialog({
                 })}
                 {!sampleCandidates.length && (
                   <p className="empty-inline">
-                    요청할 수정 부품이 없습니다. 새 수정 요청을 작성하거나
-                    일부·미반영 판정된 부품을 확인하세요.
+                    No changed parts to request. Create a change request or
+                    check parts marked partially or not implemented.
                   </p>
                 )}
               </div>
@@ -5372,8 +5414,8 @@ function ProjectDialog({
                 </div>
               )}
               <div className="dialog-note">
-                생산 담당자에게 최종 자료를 인계한 뒤 개발 완료를 기록합니다.
-                Shape 발급은 후속 프로세스입니다.
+                Hand over final materials to production, then record development
+                completion. Shape issuance is a follow-up process.
               </div>
               <HandoffChecklistForm
                 users={users}
@@ -5409,7 +5451,7 @@ function ProjectDialog({
                   onHandoffDraft(next);
                 }}
               />
-              테스트용 일괄 입력
+              Fill test values
             </label>
           )}
           <Button variant="outline" onClick={onClose}>
@@ -5448,7 +5490,7 @@ function ProjectDialog({
             {dialog === 'new-configuration'
               ? 'Apply'
               : dialog === 'design'
-                ? `${designLabel(project.product)} 등록`
+                ? `${designLabel(project.product)} Create`
                 : dialog === 'revision'
                   ? 'Add Revision'
                   : dialog === 'visit'
@@ -5457,7 +5499,7 @@ function ProjectDialog({
                       ? 'Create Request'
                       : dialog === 'file'
                         ? 'Add Reference'
-                        : 'Handoff 완료 · 개발 완료'}
+                        : 'Handoff complete · Development complete'}
           </Button>
         </DialogFooter>
       </DialogContent>

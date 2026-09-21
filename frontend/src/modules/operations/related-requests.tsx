@@ -21,23 +21,23 @@ export function RelatedRequests() {
   return (
     <section className="ops mt-5">
       <div className="ops-panel">
-        <h2>연결된 팀 간 요청 · 활동 기록</h2>
+        <h2>Linked team requests & activity</h2>
         {requests.map((request) => (
           <div className="ops-row" key={request.id}>
             <Link to={requestLink(request.id, 'rd')}>{request.title}</Link>
             <span>
-              {STATUS_NAMES[request.status]} · {request.events.length}개 기록
+              {STATUS_NAMES[request.status]} · {request.events.length} records
             </span>
           </div>
         ))}
-        {requests.length === 0 && <p>이 업무에 연결된 요청이 없습니다.</p>}
+        {requests.length === 0 && <p>No requests are linked to this work.</p>}
         <Link
           to={
             '/work/requests?new=1&team=rd&reference=' +
             encodeURIComponent(reference)
           }
         >
-          이 업무에 팀 간 요청 등록 →
+          Create a team request for this work →
         </Link>
       </div>
     </section>

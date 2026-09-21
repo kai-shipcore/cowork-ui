@@ -43,12 +43,12 @@ await test('shared sample grid preserves cells, inspection actions and first-pag
   assert.doesNotMatch(html, /part-10/);
   assert.match(html, /Factory A/);
   assert.match(html, /Handle with care/);
-  assert.match(html, /입고·검수/);
-  assert.match(html, /프로젝트/);
+  assert.match(html, /Receipt &amp; inspection/);
+  assert.match(html, /Project/);
 });
 
 await test('empty sample rows retain the request-creation guidance', () => {
   const html = renderRows([]);
-  assert.match(html, /등록된 부품 행이 없습니다/);
-  assert.match(html, /Sample Request/);
+  assert.match(html, /No part lines registered/);
+  assert.match(html, /sample request/);
 });

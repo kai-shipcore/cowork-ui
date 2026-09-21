@@ -18,30 +18,32 @@ import {
 
 const TEMPLATES = [
   {
-    title: 'CS → R&D 품질 조사',
+    title: 'CS → R&D Quality investigation',
     team: 'rd',
-    category: '품질 조사',
+    category: 'Quality investigation',
     description:
-      '고객 증상:\n해당 차량/제품:\n발생 빈도:\n필요한 조사 및 회신:',
+      'Customer symptoms: Vehicle/product: Frequency: Investigation and response needed:',
   },
   {
-    title: 'R&D → eCommerce 출시 인계',
+    title: 'R&D → eCommerce Launch handoff',
     team: 'ecommerce',
-    category: '출시 인계',
+    category: 'Launch handoff',
     description:
-      '개발 완료 범위:\n적합 차량:\n상품 사진/승인 자료:\n출시 목표일:',
+      'Completed development scope: Fitment vehicles: Product photos/approval documents: Target launch date:',
   },
   {
-    title: 'Planning → R&D 개발 요청',
+    title: 'Planning → R&D Development request',
     team: 'rd',
-    category: '개발 요청',
-    description: '수요 근거:\n예상 수량:\n대상 차량/제품:\n목표 출시일:',
+    category: 'Development request',
+    description:
+      'Demand evidence: Estimated quantity: Vehicle/product: Target launch date:',
   },
   {
-    title: 'eCommerce → Planning 재고 확보',
+    title: 'eCommerce → Planning Inventory allocation',
     team: 'demand-planning',
-    category: '재고 확보',
-    description: '판매 채널:\n프로모션 일정:\n예상 판매량:\n필요 입고일:',
+    category: 'Inventory allocation',
+    description:
+      'Sales channel: Promotion schedule: Expected sales: Required receipt date:',
   },
 ] as const;
 
@@ -59,7 +61,7 @@ export function RequestForm({ team }: { team: TeamId }) {
     targetTeam,
   );
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('일반 요청');
+  const [category, setCategory] = useState('General request');
   const [referenceId, setReferenceId] = useState(params.get('reference') ?? '');
 
   function formText(data: FormData, key: string): string {
@@ -108,14 +110,14 @@ export function RequestForm({ team }: { team: TeamId }) {
         void submit(event);
       }}
     >
-      <h2>팀 간 업무 요청</h2>
+      <h2>Cross-team work request</h2>
       {personal.error && <p role="alert">{personal.error}</p>}
       <p>
-        요청 팀: {TEAM_NAMES[actor.team]} · 등록 후 수신 담당자가 접수하고 지정
-        검토자가 완료를 승인합니다.
+        Requesting team: {TEAM_NAMES[actor.team]} · The receiving assignee
+        accepts the request and the designated reviewer approves completion.
       </p>
       <label>
-        요청 템플릿
+        Request template
         <select
           defaultValue=""
           onChange={(event) => {
@@ -129,19 +131,19 @@ export function RequestForm({ team }: { team: TeamId }) {
             }
           }}
         >
-          <option value="">직접 작성</option>
+          <option value="">Write your own</option>
           {TEMPLATES.map((template) => (
             <option key={template.title}>{template.title}</option>
           ))}
         </select>
       </label>
       <label>
-        제목
+        Title
         <Input name="title" required maxLength={160} />
       </label>
       <div className="ops-two">
         <label>
-          수신 팀
+          Receiving team
           <select
             value={targetTeam}
             onChange={(event) => {
@@ -157,7 +159,7 @@ export function RequestForm({ team }: { team: TeamId }) {
           </select>
         </label>
         <label>
-          업무 유형
+          Work category
           <Input
             value={category}
             required
@@ -168,14 +170,14 @@ export function RequestForm({ team }: { team: TeamId }) {
           />
         </label>
         <label>
-          처리 담당자
+          Assignee
           <select
             key={'assignee-' + targetTeam}
             name="assignee"
             required
             defaultValue={approvalDefaults.assigneeId}
           >
-            <option value="">담당자 선택</option>
+            <option value="">Select assignee</option>
             {PEOPLE.filter(
               (person) =>
                 person.team === targetTeam && person.role === 'member',
@@ -187,14 +189,14 @@ export function RequestForm({ team }: { team: TeamId }) {
           </select>
         </label>
         <label>
-          완료 검토자
+          Completion reviewer
           <select
             key={'reviewer-' + targetTeam}
             name="reviewer"
             required
             defaultValue={approvalDefaults.reviewerId}
           >
-            <option value="">결재자 선택</option>
+            <option value="">Select approver</option>
             {PEOPLE.filter(
               (person) => person.team === targetTeam && person.role === 'lead',
             ).map((person) => (
@@ -205,35 +207,35 @@ export function RequestForm({ team }: { team: TeamId }) {
           </select>
         </label>
         <label>
-          마감일 (Los Angeles)
+          Due date (Los Angeles)
           <Input name="due" type="date" required />
         </label>
         <label>
-          우선순위
+          Priority
           <select name="priority" defaultValue={personal.settings.priority}>
-            <option value="normal">보통</option>
-            <option value="high">높음</option>
-            <option value="urgent">긴급</option>
+            <option value="normal">Normal</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
           </select>
         </label>
       </div>
       <label>
-        관련 프로젝트 / SKU
+        Related project / SKU
         <select
           value={referenceId}
           onChange={(event) => {
             setReferenceId(event.target.value);
           }}
         >
-          <option value="">직접 참조 입력</option>
-          <optgroup label="프로젝트">
+          <option value="">Enter reference manually</option>
+          <optgroup label="Project">
             {projects.map((project) => (
               <option key={project.id} value={project.id}>
                 {project.id} · {project.vehicle}
               </option>
             ))}
           </optgroup>
-          <optgroup label="상품 SKU">
+          <optgroup label="Product SKUs">
             {masterProducts.map((product) => (
               <option key={product.id} value={product.id}>
                 {product.sku} · {product.fNumber}
@@ -244,16 +246,12 @@ export function RequestForm({ team }: { team: TeamId }) {
       </label>
       {!referenceId && (
         <label>
-          관련 SKU / 샘플 / CS 케이스
-          <Input
-            name="reference"
-            maxLength={300}
-            placeholder="식별번호와 이름"
-          />
+          Related SKU / Sample / CS case
+          <Input name="reference" maxLength={300} placeholder="ID and name" />
         </label>
       )}
       <label>
-        요청 내용
+        Request details
         <textarea
           required
           maxLength={2000}
@@ -264,9 +262,11 @@ export function RequestForm({ team }: { team: TeamId }) {
           }}
         />
       </label>
-      <p>관련 문서와 첨부 링크는 요청 등록 후 추가할 수 있습니다.</p>
+      <p>
+        Add related documents and attachment links after creating the request.
+      </p>
       <Button type="submit" disabled={saving}>
-        {saving ? '저장 중…' : '요청 등록'}
+        {saving ? 'Saving…' : 'Create request'}
       </Button>
     </form>
   );

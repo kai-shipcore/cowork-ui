@@ -30,14 +30,14 @@ export function usePersonalSettings(actor: Person) {
       setDraft(next);
       setFeedback({
         error: '',
-        message: '개인 설정을 이 브라우저에 저장했습니다.',
+        message: 'Personal settings saved in this browser.',
       });
     } catch (error) {
       setFeedback({
         error:
           error instanceof z.ZodError
             ? error.issues.map((issue) => issue.message).join(' / ')
-            : '저장하지 못했습니다. 입력 내용은 유지됩니다. 브라우저 저장 공간을 확인해 주세요.',
+            : 'Save failed. Your input is preserved. Check browser storage.',
         message: '',
       });
     }
@@ -46,7 +46,7 @@ export function usePersonalSettings(actor: Person) {
     setDraft(saved);
     setFeedback({
       error: initial.error,
-      message: '저장된 설정으로 되돌렸습니다.',
+      message: 'Reverted to saved settings.',
     });
   }
   return {

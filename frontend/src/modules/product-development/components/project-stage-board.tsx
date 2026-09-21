@@ -36,10 +36,11 @@ export function ProjectStageBoard({
   return (
     <div className="rd-workspace">
       <p>
-        목록과 동일한 검색·제품·단계 조건을 사용합니다. 카드를 열어 기존
-        검증·승인 절차에 따라 단계를 변경하세요.
+        Uses the same search, product, and stage filters as the list. Open a
+        card to change stages through the existing verification and approval
+        process.
       </p>
-      <div className="rd-board" aria-label="프로젝트 단계별 보드">
+      <div className="rd-board" aria-label="Project stage board">
         {STAGES.map((stage) => {
           const entries = rows.filter(
             ({ zone }) => zone.currentStage === stage,
@@ -47,7 +48,7 @@ export function ProjectStageBoard({
           return (
             <section className="rd-lane" key={stage}>
               <h3>
-                {stage === 'Approved' ? '개발 완료' : stage}
+                {stage === 'Approved' ? 'Development complete' : stage}
                 <span>{entries.length}</span>
               </h3>
               {entries.map(({ project, zone }) => {
@@ -79,30 +80,32 @@ export function ProjectStageBoard({
                       {zone.status ?? 'ACTIVE'}
                     </small>
                     <span className={health.value === 'late' ? 'rd-error' : ''}>
-                      {timing?.targetDueAt ? '단계 목표 ' : '프로젝트 목표 '}
+                      {timing?.targetDueAt
+                        ? 'Stage target '
+                        : 'Project target '}
                       {(timing?.targetDueAt ?? zone.targetAt)?.slice(0, 10) ??
-                        '미지정'}
+                        'Unassigned'}
                     </span>
                     {timing?.targetDays !== undefined && (
                       <small>
-                        적용 표준 {timing.targetDays}일 · 시작{' '}
+                        Applied standard {timing.targetDays} days · Started{' '}
                         {timing.startedAt.slice(0, 10)}
                       </small>
                     )}
                     <small>{health.reason}</small>
                     <small>
-                      최근 활동{' '}
-                      {zone.lastActivityAt?.slice(0, 10) ?? '기록 없음'}
+                      Last activity{' '}
+                      {zone.lastActivityAt?.slice(0, 10) ?? 'No record'}
                     </small>
                   </button>
                 );
               })}
-              {!entries.length && <p className="rd-empty">프로젝트 없음</p>}
+              {!entries.length && <p className="rd-empty">No projects</p>}
             </section>
           );
         })}
       </div>
-      {!rows.length && <p role="status">조건에 맞는 프로젝트가 없습니다.</p>}
+      {!rows.length && <p role="status">No projects match these filters.</p>}
     </div>
   );
 }

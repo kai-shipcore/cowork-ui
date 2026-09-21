@@ -9,7 +9,7 @@ interface ConfigChipsProps {
 export function ConfigChips({ options }: ConfigChipsProps): JSX.Element {
   return (
     <MetadataChips
-      label="차량 옵션"
+      label="Vehicle options"
       items={options.map(([name, value]) => ({
         id: `${name}-${value}`,
         label: name,

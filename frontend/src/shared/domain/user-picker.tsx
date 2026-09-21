@@ -20,7 +20,7 @@ interface UserPickerProps {
 export function UserPicker({
   value,
   users,
-  placeholder = '담당자 지정',
+  placeholder = 'Assign owner',
   label,
   onChange,
 }: UserPickerProps): JSX.Element {
@@ -31,9 +31,9 @@ export function UserPicker({
       placeholder={placeholder}
       label={label}
       onChange={onChange}
-      searchPlaceholder="이름 또는 이메일 검색..."
-      emptyMessage="일치하는 사용자가 없습니다."
-      clearLabel="담당자 해제"
+      searchPlaceholder="Search name or email…"
+      emptyMessage="No matching users."
+      clearLabel="Assignee cleared"
     />
   );
 }

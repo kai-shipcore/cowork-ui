@@ -53,7 +53,7 @@ export function saveLibraryPart(part: LibraryPart) {
         item.name.toLowerCase() === part.name.toLowerCase(),
     )
   )
-    throw new Error('동일한 이름의 Part가 이미 있습니다.');
+    throw new Error('A part with this name already exists.');
   localStorage.setItem(
     KEY,
     JSON.stringify([...items.filter((item) => item.id !== part.id), part]),

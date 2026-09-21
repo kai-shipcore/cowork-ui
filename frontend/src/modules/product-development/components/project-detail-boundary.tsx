@@ -44,15 +44,14 @@ export class ProjectDetailBoundary extends Component<
     }
     return (
       <div className="project-detail-error">
-        <strong>이 프로젝트 화면을 표시하지 못했습니다.</strong>
+        <strong>Unable to display this project.</strong>
         <p>
-          저장된 로컬 데이터가 현재 데이터 모델과 맞지 않을 때 주로 발생합니다.
-          프로젝트 목록의 &quot;Reset Mock Data&quot;로 초기화하면 대부분
-          해결됩니다.
+          Saved local data may not match the current data model. Back up your
+          data before using &quot;Reset Mock Data&quot; on the project list.
         </p>
         <pre>{error.message}</pre>
         <Button variant="outline" onClick={this.props.onBack}>
-          프로젝트 목록으로
+          Back to projects
         </Button>
       </div>
     );
