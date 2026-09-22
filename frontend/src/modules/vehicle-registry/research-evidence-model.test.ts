@@ -22,6 +22,24 @@ const evidence: ResearchEvidenceRecord = {
   sources: ['https://example.com/listing'],
   photo: '',
   photoName: '',
+  categorization: 'Cabin type and trim',
+  summary: 'Two confirmed seat variations',
+  sections: [
+    {
+      id: 'row-1',
+      rowLabel: 'Front (1st row)',
+      keyNotes: 'Removable headrest',
+      seatTypes: [
+        {
+          id: 'seat-1',
+          name: 'Bucket seat',
+          sourceUrl: 'https://example.com/front-seat',
+          photo: '',
+          photoName: '',
+        },
+      ],
+    },
+  ],
   decision: 'Keep separate configuration',
   mergeTargetId: '',
   reason: 'Separate belt geometry',
@@ -53,6 +71,28 @@ await test('research evidence rejects unsafe URLs, executable images and invalid
   assert.equal(
     researchEvidenceSchema.safeParse({ ...evidence, reason: ' ' }).success,
     false,
+  );
+  assert.equal(
+    researchEvidenceSchema.safeParse({
+      ...evidence,
+      sections: [
+        ...evidence.sections,
+        {
+          ...evidence.sections[0],
+          id: 'row-2',
+          rowLabel: 'Rear (2nd row)',
+          seatTypes: [
+            ...evidence.sections[0].seatTypes,
+            {
+              ...evidence.sections[0].seatTypes[0],
+              id: 'seat-2',
+              name: 'Split bench',
+            },
+          ],
+        },
+      ],
+    }).success,
+    true,
   );
 });
 await test('merge suggestions require a different configuration of the same vehicle', () => {

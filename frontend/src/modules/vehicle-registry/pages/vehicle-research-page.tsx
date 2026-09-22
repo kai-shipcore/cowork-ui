@@ -238,7 +238,7 @@ export function VehicleResearchPage() {
             setEvidenceConfigurationId(configuration.id);
           }}
         >
-          Research evidence / Decision
+          Research evidence
         </Button>
       ),
     },
