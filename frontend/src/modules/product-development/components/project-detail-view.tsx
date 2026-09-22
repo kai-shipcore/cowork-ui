@@ -721,6 +721,7 @@ export function ProjectDetailView({
           return {
             ...zoneProject,
             currentStage: currentZone.currentStage,
+            stageTargetDays: currentZone.stageTargetDays,
             productShapeId,
             sizeReview: currentZone.sizeReview,
             productionHandoff: currentZone.productionHandoff,
@@ -730,6 +731,8 @@ export function ProjectDetailView({
         });
         const zonesChanged = zoneProjects.some(
           (zoneProject, index) =>
+            zoneProject.stageTargetDays !==
+              item.zoneProjects[index]?.stageTargetDays ||
             zoneProject.productShapeId !==
               item.zoneProjects[index]?.productShapeId ||
             zoneProject.sizeReview !== item.zoneProjects[index]?.sizeReview ||
@@ -1254,6 +1257,16 @@ export function ProjectDetailView({
             }}
           />
           <StageTimingSummary
+            key={focusedZone.id}
+            onSavePlan={(plan) => {
+              setZones((current) =>
+                current.map((zone) =>
+                  zone.id === focusedZone.id
+                    ? { ...zone, stageTargetDays: plan }
+                    : zone,
+                ),
+              );
+            }}
             zone={
               savedDetail?.zones.find((zone) => zone.id === focusedZone.id) ??
               focusedZone

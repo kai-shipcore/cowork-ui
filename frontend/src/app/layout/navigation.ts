@@ -132,6 +132,7 @@ export const MENU_SIDEBAR_MAIN: MenuConfig = [
         icon: FolderKanban,
       },
       { title: 'Part Management', path: '/parts', icon: Package },
+      { title: 'Fitment', path: '/fitments', icon: ClipboardList },
       { title: 'Shape', path: ROUTES.productShapes, icon: Grid },
       {
         title: 'Hunt Board',

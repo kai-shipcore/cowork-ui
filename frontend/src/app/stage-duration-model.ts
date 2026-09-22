@@ -5,6 +5,16 @@ import type { Person } from '@/modules/operations/operations-model';
 import { reportDate } from '@/modules/rd-workspace/report-date';
 
 export const STAGE_DURATION_KEY = 'coverland-stage-durations-v1';
+export const STAGE_PRIORITIES = ['URGENT', 'HIGH', 'NORMAL', 'LOW'] as const;
+export type StagePriority = (typeof STAGE_PRIORITIES)[number];
+const durationDaysSchema = z.number().int().min(1).max(365);
+export function suggestedStageDays(
+  normalDays: number,
+  priority: StagePriority,
+): number {
+  const multiplier = { URGENT: 0.5, HIGH: 0.75, NORMAL: 1, LOW: 1.5 };
+  return Math.max(1, Math.ceil(normalDays * multiplier[priority]));
+}
 export const STAGE_PRODUCTS = [
   { id: 'PT-SC', name: 'Seat Cover', example: [3, 7, 2, 5, 10, 3] },
   { id: 'PT-CC', name: 'Car Cover', example: [3, 4, 2, 5, 10, 3] },
@@ -20,7 +30,15 @@ const revisionSchema = z
     stages: z.array(
       z.object({
         stage: z.string(),
-        targetDays: z.number().int().min(1).max(365),
+        targetDays: durationDaysSchema,
+        priorityDays: z
+          .object({
+            URGENT: durationDaysSchema,
+            HIGH: durationDaysSchema,
+            NORMAL: durationDaysSchema,
+            LOW: durationDaysSchema,
+          })
+          .optional(),
       }),
     ),
   })
@@ -40,6 +58,28 @@ const revisionSchema = z
 export const stageDurationSchema = z.array(revisionSchema);
 export type StageDurationRevision = z.infer<typeof revisionSchema>;
 export const EMPTY_STAGE_DURATIONS: StageDurationRevision[] = [];
+
+export function projectStagePlan(
+  product: ProductType,
+  priority: StagePriority,
+) {
+  const preset = STAGE_PRODUCTS.find((entry) => entry.name === product);
+  if (!preset) return [];
+  const revision = readStageDurationRevisions()
+    .slice()
+    .reverse()
+    .find((entry) => entry.productTypeId === preset.id);
+  return durationStages(product).map((stage, index) => {
+    const saved = revision?.stages.find((entry) => entry.stage === stage);
+    return {
+      stage,
+      targetDays:
+        saved?.priorityDays?.[priority] ??
+        saved?.targetDays ??
+        suggestedStageDays(preset.example[index] ?? 1, priority),
+    };
+  });
+}
 
 /** Company standards are writable only by the prototype's R&D lead role. */
 export function canEditStageDurations(actor: Person): boolean {
@@ -82,25 +122,30 @@ export function stageTarget(
   productTypeId: string,
   stage: string,
   startedAt: string,
+  priority: StagePriority = 'NORMAL',
+  projectPlan?: readonly { stage: string; targetDays: number }[],
 ): { targetDays?: number; targetDueAt?: string; templateRevisionId?: string } {
   if (stage === 'Approved') return {};
   const revision = revisions
     .slice()
     .reverse()
     .find((entry) => entry.productTypeId === productTypeId);
-  if (!revision) return {};
-  const days = revision.stages.find(
-    (entry) => entry.stage === stage,
-  )?.targetDays;
+  const standard = revision?.stages.find((entry) => entry.stage === stage);
+  const override = projectPlan?.find((entry) => entry.stage === stage);
+  const days =
+    override?.targetDays ??
+    standard?.priorityDays?.[priority] ??
+    standard?.targetDays;
   const start = reportDate(startedAt);
-  if (!days || !start) return {};
+  if (!days || !Number.isInteger(days) || days < 1 || days > 365 || !start)
+    return {};
   const due = new Date(`${start}T00:00:00Z`);
   if (due.toISOString().slice(0, 10) !== start) return {};
   due.setUTCDate(due.getUTCDate() + days);
   return {
     targetDays: days,
     targetDueAt: due.toISOString().slice(0, 10),
-    templateRevisionId: revision.id,
+    ...(!override && revision ? { templateRevisionId: revision.id } : {}),
   };
 }
 

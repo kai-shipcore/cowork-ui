@@ -23,6 +23,7 @@ export interface FitmentQuality {
   note: string;
   evidenceKey: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface ProjectStageRecord {
