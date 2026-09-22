@@ -9,6 +9,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@coverland-engineering/ui/dialog';
+import {
+  FlatDataGrid,
+  type FlatDataGridColumn,
+} from '@coverland-engineering/ui/flat-data-grid';
 import { Input } from '@coverland-engineering/ui/input';
 import {
   Select,
@@ -17,12 +21,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@coverland-engineering/ui/select';
-import { Plus, Search, Trash2, X } from 'lucide-react';
-import { PageHeader } from '@/shared/components/page-header';
 import {
-  useWorkbenchPagination,
-  WorkbenchPagination,
-} from '@/shared/components/workbench-pagination';
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
+import { Plus, Trash2, X } from 'lucide-react';
+import { PageHeader } from '@/shared/components/page-header';
+import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import { PRODUCT_TYPES } from '@/shared/types/workbench';
 import type {
   ProductTypeId,
@@ -33,6 +39,13 @@ import { useWorkbenchStore } from '@/app/workbench-store';
 
 function slug(value: string): string {
   return value.replace(/[^A-Za-z0-9]+/g, '-').toUpperCase();
+}
+
+function productName(productTypeId: string): string {
+  return (
+    PRODUCT_TYPES.find((type) => type.id === productTypeId)?.product ??
+    productTypeId
+  );
 }
 
 /**
@@ -77,11 +90,6 @@ export function VehicleOptionsPage() {
     );
   });
   const hasActiveFilter = normalizedQuery.length > 0 || productType !== 'ALL';
-  const {
-    pageItems: pagedKeys,
-    pagination,
-    setPagination,
-  } = useWorkbenchPagination(visibleKeys, `${query}|${productType}`);
 
   /** Seat cover codes that reference this value — deleting it breaks them. */
   const codeLinkCount = (value: VehicleOptionValue) =>
@@ -90,7 +98,7 @@ export function VehicleOptionsPage() {
     ).length +
     [...configurations, ...uniqueVehicles].filter(
       (record) =>
-        record.optionValueIds?.includes(value.id) ||
+        (record.optionValueIds?.includes(value.id) ?? false) ||
         record.options.some(
           ([key, text]) =>
             key ===
@@ -156,6 +164,107 @@ export function VehicleOptionsPage() {
       (value) => value.value.toLowerCase() === valueText.trim().toLowerCase(),
     );
 
+  const columns: FlatDataGridColumn<VehicleOptionKey>[] = [
+    {
+      id: 'product',
+      header: 'Product Type',
+      width: 180,
+      sortValue: (optionKey) => productName(optionKey.productTypeId),
+      cell: (optionKey) => <>{productName(optionKey.productTypeId)}</>,
+    },
+    {
+      id: 'name',
+      header: 'Name',
+      width: 220,
+      sortValue: (optionKey) => optionKey.name,
+      cell: (optionKey) => (
+        <>
+          <div className="vehicle-name compact">{optionKey.name}</div>
+          <div className="vehicle-meta">{valuesOf(optionKey).length} Value</div>
+        </>
+      ),
+    },
+    {
+      id: 'options',
+      header: 'Options',
+      width: 420,
+      cell: (optionKey) => {
+        const values = valuesOf(optionKey);
+        return (
+          <div className="option-value-list">
+            {values.length ? (
+              values.map((value) => (
+                <span className="option-value-chip" key={value.id}>
+                  {value.value}
+                  {codeLinkCount(value) > 0 && (
+                    <em title="Referenced by Seat Cover codes">
+                      {codeLinkCount(value)}
+                    </em>
+                  )}
+                  <button
+                    type="button"
+                    aria-label={`${value.value} Delete`}
+                    onClick={() => {
+                      setPendingDelete(value);
+                    }}
+                  >
+                    <Trash2 />
+                  </button>
+                </span>
+              ))
+            ) : (
+              <span className="muted-text">
+                No values. This option cannot be selected in configurations.
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      width: 120,
+      hideable: false,
+      cell: (optionKey) => (
+        <div className="table-actions">
+          <Button
+            size="sm"
+            variant="outline"
+            mode="icon"
+            aria-label={`${optionKey.name} Add value`}
+            title="Add value"
+            onClick={() => {
+              setValueText('');
+              setValueDialogFor(optionKey);
+            }}
+          >
+            <Plus />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+  const gridTable = useReactTable({
+    // Paging is owned by the surrounding filters and the shared grid pager.
+    autoResetPageIndex: false,
+    data: visibleKeys,
+    columns: columns.map((column) => ({
+      id: column.id,
+      accessorFn: column.sortValue,
+      sortUndefined: 'last',
+    })),
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+  const sortedKeys = gridTable.getRowModel().rows.map((row) => row.original);
+  const activeSort = gridTable.getState().sorting.slice(0, 1).pop();
+  const {
+    pageItems: pagedKeys,
+    pagination,
+    setPagination,
+  } = useWorkbenchPagination(sortedKeys, `${query}|${productType}`);
+
   return (
     <section>
       <PageHeader
@@ -168,39 +277,37 @@ export function VehicleOptionsPage() {
       />
 
       <Card>
-        <div className="grid-toolbar">
-          <div className="grid-toolbar-filters">
-            <div className="search-field">
-              <Search aria-hidden="true" />
-              <Input
-                aria-label="Search option key or value"
-                placeholder="Search key / Value"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-            </div>
-            <Select
-              value={productType}
-              onValueChange={(value) =>
-                setProductType(value as 'ALL' | ProductTypeId)
-              }
-            >
-              <SelectTrigger
-                aria-label="Product type filter"
-                className="filter-select wide"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Product Type: All</SelectItem>
-                {PRODUCT_TYPES.map((type) => (
-                  <SelectItem value={type.id} key={type.id}>
-                    {type.product}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {hasActiveFilter && (
+        <FlatDataGrid
+          embedded
+          label="Vehicle Options"
+          columns={columns}
+          rows={pagedKeys}
+          getRowId={(optionKey) => optionKey.id}
+          search={{
+            label: 'Search option key or value',
+            placeholder: 'Search key / Value',
+            value: query,
+            onChange: setQuery,
+          }}
+          filters={[
+            {
+              id: 'productType',
+              label: 'Product type filter',
+              value: productType,
+              onChange: (value) => {
+                setProductType(value as 'ALL' | ProductTypeId);
+              },
+              options: [
+                { value: 'ALL', label: 'Product Type: All' },
+                ...PRODUCT_TYPES.map((type) => ({
+                  value: type.id,
+                  label: type.product,
+                })),
+              ],
+            },
+          ]}
+          toolbarContent={
+            hasActiveFilter && (
               <Button
                 size="sm"
                 variant="ghost"
@@ -211,9 +318,9 @@ export function VehicleOptionsPage() {
               >
                 <X /> Clear filters
               </Button>
-            )}
-          </div>
-          <div className="grid-toolbar-actions">
+            )
+          }
+          actions={
             <Button
               variant="primary"
               onClick={() => {
@@ -223,79 +330,35 @@ export function VehicleOptionsPage() {
             >
               <Plus /> Add option key
             </Button>
-          </div>
-        </div>
-
-        {visibleKeys.length ? (
-          <>
-            <div className="option-key-rows">
-              {pagedKeys.map((optionKey) => {
-                const values = valuesOf(optionKey);
-                const productName =
-                  PRODUCT_TYPES.find(
-                    (type) => type.id === optionKey.productTypeId,
-                  )?.product ?? optionKey.productTypeId;
-                return (
-                  <div className="option-key-row" key={optionKey.id}>
-                    <div className="option-key-name">
-                      <strong>{optionKey.name}</strong>
-                      <small>
-                        {productName} · {values.length} Value
-                      </small>
-                    </div>
-                    <div className="option-value-list">
-                      {values.length ? (
-                        values.map((value) => (
-                          <span className="option-value-chip" key={value.id}>
-                            {value.value}
-                            {codeLinkCount(value) > 0 && (
-                              <em title="Referenced by Seat Cover codes">
-                                {codeLinkCount(value)}
-                              </em>
-                            )}
-                            <button
-                              type="button"
-                              aria-label={`${value.value} Delete`}
-                              onClick={() => setPendingDelete(value)}
-                            >
-                              <Trash2 />
-                            </button>
-                          </span>
-                        ))
-                      ) : (
-                        <span className="muted-text">
-                          No values. This option cannot be selected in
-                          configurations.
-                        </span>
-                      )}
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setValueText('');
-                        setValueDialogFor(optionKey);
-                      }}
-                    >
-                      <Plus /> Add value
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-            <WorkbenchPagination
-              recordCount={visibleKeys.length}
-              pagination={pagination}
-              onPaginationChange={setPagination}
-            />
-          </>
-        ) : (
-          <div className="empty-state">
-            <div className="empty-icon">🔍</div>
-            <strong>No matching option keys.</strong>
-            <p>Try changing the search term or product type filter.</p>
-          </div>
-        )}
+          }
+          emptyMessage="No matching option keys. Try changing the search term or product type filter."
+          pagination={{
+            page: pagination.pageIndex + 1,
+            pageSize: pagination.pageSize,
+            totalCount: visibleKeys.length,
+            pageSizeOptions: [5, 10, 25],
+            onPageChange: (page) => {
+              setPagination((current) => ({ ...current, pageIndex: page - 1 }));
+            },
+            onPageSizeChange: (pageSize) => {
+              setPagination({ pageIndex: 0, pageSize });
+            },
+          }}
+          sorting={{
+            mode: 'manual',
+            value: activeSort
+              ? {
+                  id: activeSort.id,
+                  direction: activeSort.desc ? 'desc' : 'asc',
+                }
+              : null,
+            onChange: (sort) => {
+              gridTable.setSorting(
+                sort ? [{ id: sort.id, desc: sort.direction === 'desc' }] : [],
+              );
+            },
+          }}
+        />
       </Card>
 
       <Dialog open={keyDialogOpen} onOpenChange={setKeyDialogOpen}>
@@ -308,9 +371,9 @@ export function VehicleOptionsPage() {
               Product Type
               <Select
                 value={keyProductType}
-                onValueChange={(value) =>
-                  setKeyProductType(value as ProductTypeId)
-                }
+                onValueChange={(value) => {
+                  setKeyProductType(value as ProductTypeId);
+                }}
               >
                 <SelectTrigger aria-label="Product Type">
                   <SelectValue />
@@ -329,7 +392,9 @@ export function VehicleOptionsPage() {
               <Input
                 placeholder="Example: Front Seat"
                 value={keyName}
-                onChange={(event) => setKeyName(event.target.value)}
+                onChange={(event) => {
+                  setKeyName(event.target.value);
+                }}
               />
             </label>
             <div className="dialog-note">
@@ -343,7 +408,12 @@ export function VehicleOptionsPage() {
             )}
           </DialogBody>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setKeyDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setKeyDialogOpen(false);
+              }}
+            >
               Cancelled
             </Button>
             <Button
@@ -359,7 +429,9 @@ export function VehicleOptionsPage() {
 
       <Dialog
         open={valueDialogFor !== undefined}
-        onOpenChange={(open) => !open && setValueDialogFor(undefined)}
+        onOpenChange={(open) => {
+          if (!open) setValueDialogFor(undefined);
+        }}
       >
         <DialogContent>
           <DialogHeader>
@@ -371,7 +443,9 @@ export function VehicleOptionsPage() {
               <Input
                 placeholder="Example: Bucket"
                 value={valueText}
-                onChange={(event) => setValueText(event.target.value)}
+                onChange={(event) => {
+                  setValueText(event.target.value);
+                }}
               />
             </label>
             <div className="dialog-note">
@@ -387,14 +461,18 @@ export function VehicleOptionsPage() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setValueDialogFor(undefined)}
+              onClick={() => {
+                setValueDialogFor(undefined);
+              }}
             >
               Cancelled
             </Button>
             <Button
               variant="primary"
               disabled={!valueText.trim() || duplicateValue}
-              onClick={() => valueDialogFor && addValue(valueDialogFor)}
+              onClick={() => {
+                if (valueDialogFor) addValue(valueDialogFor);
+              }}
             >
               Add
             </Button>
@@ -404,7 +482,9 @@ export function VehicleOptionsPage() {
 
       <Dialog
         open={pendingDelete !== undefined}
-        onOpenChange={(open) => !open && setPendingDelete(undefined)}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(undefined);
+        }}
       >
         <DialogContent>
           <DialogHeader>
@@ -428,7 +508,9 @@ export function VehicleOptionsPage() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setPendingDelete(undefined)}
+              onClick={() => {
+                setPendingDelete(undefined);
+              }}
             >
               Cancelled
             </Button>

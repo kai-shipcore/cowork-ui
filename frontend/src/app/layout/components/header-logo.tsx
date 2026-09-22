@@ -27,6 +27,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { toAbsoluteUrl } from '@/shared/lib/helpers';
 import { cn } from '@/shared/lib/utils';
+import { teamFromLocation } from '@/modules/operations/operations-model';
+import { getWorkspaceHomePath } from '../navigation';
 import { useLayout } from './context';
 import { SidebarPrimary } from './sidebar-primary';
 import { SidebarSecondary } from './sidebar-secondary';
@@ -81,7 +83,11 @@ interface HeaderLogoProps {
 }
 
 export function HeaderLogo({ selectedTeam, onTeamChange }: HeaderLogoProps) {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const homePath = getWorkspaceHomePath(
+    teamFromLocation(pathname, search),
+    selectedTeam.dashboardPath,
+  );
   const { isMobile, sidebarToggle } = useLayout();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
@@ -96,7 +102,7 @@ export function HeaderLogo({ selectedTeam, onTeamChange }: HeaderLogoProps) {
       <div className="flex items-center w-full">
         {/* Logo */}
         <div className="flex items-center justify-center shrink-0 border-e border-zinc-200 w-(--sidebar-collapsed-width) h-(--header-height) bg-white dark:border-zinc-800 dark:bg-zinc-950">
-          <Link to={selectedTeam.dashboardPath}>
+          <Link to={homePath} aria-label="Home">
             <img
               src={toAbsoluteUrl('/media/app/mini-logo-gray.svg')}
               className="dark:hidden min-h-[25px]"

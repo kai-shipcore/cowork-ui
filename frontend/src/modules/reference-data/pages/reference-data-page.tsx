@@ -88,7 +88,7 @@ export function ReferenceDataPage() {
   const items = isMaterials ? productMaterials : productColors;
   const setItems = isMaterials ? setProductMaterials : setProductColors;
   const entityLabel =
-    kind === 'stages' ? 'Development Stage Standards' : KIND_LABELS[kind];
+    kind === 'stages' ? 'Project Stage Template' : KIND_LABELS[kind];
 
   const normalizedQuery = query.trim().toLowerCase();
   const visibleItems = items.filter(
@@ -202,7 +202,7 @@ export function ReferenceDataPage() {
             </TabsTrigger>
             <TabsTrigger value="stages">
               <Timer aria-hidden="true" />
-              Development Stage Standards
+              Project Stage Template
             </TabsTrigger>
           </TabsList>
 
