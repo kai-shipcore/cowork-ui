@@ -1,0 +1,1 @@
+import{j as e,P as r}from"./index-B0zikW6u.js";import{R as o}from"./rd-performance-DGFmHkX0.js";import"./use-rd-records-LdliY7TO.js";/* empty css                     */function n(){return e.jsxs("section",{children:[e.jsx(r,{description:"Cycle time, completions, and stage deviations against period targets."}),e.jsx(o,{})]})}export{n as PerformanceDashboardPage};

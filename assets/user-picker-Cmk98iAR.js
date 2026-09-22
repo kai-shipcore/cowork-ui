@@ -1,0 +1,1 @@
+import{j as c,bn as i}from"./index-B0zikW6u.js";function t({value:e,users:r,placeholder:s="Assign owner",label:a,onChange:n}){return c.jsx(i,{value:e,users:r,placeholder:s,label:a,onChange:n,searchPlaceholder:"Search name or email…",emptyMessage:"No matching users.",clearLabel:"Assignee cleared"})}export{t as U};
