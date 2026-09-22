@@ -14,6 +14,12 @@ const ProductShapesPage = lazy(() =>
   })),
 );
 
+const ShapeDetailPage = lazy(() =>
+  import('@/modules/product-shapes/shape-detail-page').then((module) => ({
+    default: module.ShapeDetailPage,
+  })),
+);
+
 const TeamDashboardPage = lazy(() =>
   import('@/modules/dashboard/pages/team-dashboard-page').then((module) => ({
     default: module.TeamDashboardPage,
@@ -165,6 +171,14 @@ export function AppRouter() {
           element={
             <Suspense fallback={<RouteFallback />}>
               <ProductShapesPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/product-shapes/:shapeId"
+          element={
+            <Suspense fallback={<RouteFallback />}>
+              <ShapeDetailPage />
             </Suspense>
           }
         />
