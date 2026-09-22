@@ -10,6 +10,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
+import { X } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import { useWorkbenchStore } from '@/app/workbench-store';
@@ -212,14 +213,27 @@ export function ShapeReviewWorkspace({
           onChange: onQueryChange,
         }}
         toolbarContent={
-          <label className="collapse-all-toggle">
-            <Switch
-              size="sm"
-              checked={showAll}
-              onCheckedChange={onShowAllChange}
-            />
-            Include completed items and review history
-          </label>
+          <>
+            <label className="collapse-all-toggle">
+              <Switch
+                size="sm"
+                checked={showAll}
+                onCheckedChange={onShowAllChange}
+              />
+              Include completed items and review history
+            </label>
+            {query && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  onQueryChange('');
+                }}
+              >
+                <X /> Clear filters
+              </Button>
+            )}
+          </>
         }
         actions={
           <Button
