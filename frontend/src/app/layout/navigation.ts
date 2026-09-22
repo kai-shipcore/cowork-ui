@@ -123,12 +123,11 @@ export function getWorkspaceLinks(
   dashboardPath?: string,
 ): MenuItem[] {
   const menu = getWorkspaceMenu(team, dashboardPath);
-  if (team !== 'rd') return [menu.home, menu.tasks, menu.notifications];
+  if (team !== 'rd') return [menu.home, menu.tasks];
   return [
     { title: 'Home', path: PERFORMANCE_DASHBOARD.path, icon: House },
     { title: 'Overview', path: menu.home.path, icon: LayoutDashboard },
     menu.tasks,
-    menu.notifications,
   ];
 }
 
@@ -157,7 +156,6 @@ export const MENU_SIDEBAR_MAIN: MenuConfig = [
       RD_WORKSPACE_MENU.home,
       PERFORMANCE_DASHBOARD,
       RD_WORKSPACE_MENU.tasks,
-      RD_WORKSPACE_MENU.notifications,
     ],
   },
   {

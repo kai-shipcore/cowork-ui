@@ -575,9 +575,11 @@ export function OperationsPage() {
               {TEAM_NAMES[team]} · {personName(actor.id)}
             </p>
           </div>
-          <Button asChild>
-            <Link to={'/work/requests?new=1&team=' + team}>New request</Link>
-          </Button>
+          {section !== 'tasks' && (
+            <Button asChild>
+              <Link to={'/work/requests?new=1&team=' + team}>New request</Link>
+            </Button>
+          )}
         </div>
       )}
       {section !== 'settings' && params.get('new') === '1' && (

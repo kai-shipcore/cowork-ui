@@ -143,7 +143,7 @@ await test('icon rail and labelled menus use identical names and icons for every
         ),
       ),
     );
-    assert.ok(labelled.size >= 3);
+    assert.ok(labelled.size >= 2);
     for (const [destination, expected] of labelled) {
       assert.deepEqual(rail.get(destination), expected, destination);
     }
@@ -176,7 +176,8 @@ await test('rail ends with the global search shortcut and the user menu', () => 
   ]) {
     const html = renderRail({ collapsed: false, dashboardPath: path }, path);
     const account = html.indexOf('aria-label="Account"');
-    assert.ok(account > html.indexOf('aria-label="Notifications'));
+    assert.ok(account > html.indexOf('aria-label="My Tasks"'));
+    assert.doesNotMatch(html, /href="\/work\/notifications/);
     assert.ok(html.includes('href="/work/search?team=' + team + '"'));
     assert.match(html, /aria-label="Global Search"/);
     assert.match(html, /aria-label="Kai Chung user menu"/);
