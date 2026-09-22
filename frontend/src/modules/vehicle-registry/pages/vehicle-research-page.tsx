@@ -403,9 +403,9 @@ export function VehicleResearchPage() {
         onCollapsedGroupIdsChange={setCollapsedVehicles}
         sorting={{ mode: 'client' }}
         colors={{
-          primary: '#2F80FF',
+          primary: 'var(--wb-blue)',
           primaryForeground: '#FFFFFF',
-          primarySoft: '#EFF6FF',
+          primarySoft: 'var(--wb-soft-blue)',
         }}
         search={{
           label: 'Search make or model',

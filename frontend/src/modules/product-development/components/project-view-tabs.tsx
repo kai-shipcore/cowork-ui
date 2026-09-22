@@ -38,7 +38,6 @@ export function ProjectViewTabs({
           { value: 'list', label: 'List', icon: <List /> },
           { value: 'board', label: 'Stage Board', icon: <Columns3 /> },
         ]}
-        className="[--primary:#2F80FF] [--color-primary:#2F80FF]"
       >
         {toolbar}
         <ContentTabsPanel value="list">{list}</ContentTabsPanel>
