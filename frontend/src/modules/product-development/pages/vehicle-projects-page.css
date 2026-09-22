@@ -1,14 +1,86 @@
 .vehicle-projects-page {
   --vp-ink: #172b3d;
+  --vp-ink-soft: #536774;
   --vp-muted: #687986;
+  --vp-muted-soft: #84919a;
   --vp-line: #dfe6e8;
+  --vp-row-line: #edf0f1;
+  --vp-input-line: #d4dddf;
+  --vp-focus: #7393aa;
+  --vp-hover-line: #a9bdc9;
   --vp-soft: #f6f8f8;
+  --vp-canvas: #f7f9f9;
+  --vp-card: #fff;
+  --vp-toolbar-bg: #fbfcfc;
+  --vp-group-head-bg: #f3f7f8;
+  --vp-row-hover: #fafcfc;
+  --vp-track: #dfe5e6;
+  --vp-track-current: #6c8ba0;
+  --vp-chip-ink: #61717c;
+  --vp-chip-bg: #eef2f3;
   --vp-navy: #315b7d;
+  --vp-info: #4e7089;
+  --vp-info-bg: #eaf1f6;
+  --vp-danger: #a94d41;
+  --vp-danger-bg: #fbe9e6;
+  --vp-warning: #a46f23;
+  --vp-warning-bg: #fff2d9;
+  --vp-success: #47735e;
+  --vp-success-bg: #e7f2eb;
+  --vp-purple: #735f91;
+  --vp-purple-bg: #eee9f5;
+  --vp-teal: #446b68;
+  --vp-teal-bg: #e6f0ed;
+  --vp-neutral: #65747c;
+  --vp-neutral-bg: #edf1f2;
   display: grid;
   gap: 18px;
   padding: 24px 28px 36px;
   color: var(--vp-ink);
-  background: #f7f9f9;
+  background: var(--vp-canvas);
+}
+
+/* Dark mode: the page's own palette above is light-only, so re-point every
+   token at the workspace theme, which already carries dark values. */
+.dark .vehicle-projects-page {
+  --vp-ink: var(--foreground);
+  --vp-ink-soft: var(--wb-ink-soft);
+  --vp-muted: var(--muted-foreground);
+  --vp-muted-soft: var(--muted-foreground);
+  --vp-line: var(--border);
+  --vp-row-line: var(--border);
+  --vp-input-line: var(--input);
+  --vp-focus: var(--ring);
+  --vp-hover-line: var(--ring);
+  --vp-soft: var(--muted);
+  --vp-canvas: var(--wb-canvas);
+  --vp-card: var(--card);
+  --vp-toolbar-bg: var(--muted);
+  --vp-group-head-bg: var(--muted);
+  --vp-row-hover: var(--accent);
+  --vp-track: var(--secondary);
+  --vp-track-current: var(--wb-ink-soft);
+  --vp-chip-ink: var(--muted-foreground);
+  --vp-chip-bg: var(--secondary);
+  --vp-navy: var(--primary);
+  --vp-info: var(--primary);
+  --vp-info-bg: var(--wb-soft-blue);
+  --vp-danger: var(--wb-danger);
+  --vp-danger-bg: var(--wb-danger-bg);
+  --vp-warning: var(--wb-warning);
+  --vp-warning-bg: var(--wb-warning-bg);
+  --vp-success: var(--wb-success);
+  --vp-success-bg: var(--wb-success-bg);
+  --vp-purple: var(--wb-purple);
+  --vp-purple-bg: var(--wb-purple-bg);
+  --vp-teal: var(--wb-cyan);
+  --vp-teal-bg: var(--wb-cyan-bg);
+  --vp-neutral: var(--muted-foreground);
+  --vp-neutral-bg: var(--secondary);
+}
+
+.dark .vp-page-header > button {
+  color: var(--primary-foreground);
 }
 
 .vp-page-header {
@@ -32,7 +104,7 @@
 }
 
 .vp-page-header .vp-eyebrow {
-  color: #6f8796;
+  color: var(--vp-muted-soft);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.13em;
@@ -60,7 +132,7 @@
   border-radius: 10px;
   color: var(--vp-ink);
   text-align: left;
-  background: #fff;
+  background: var(--vp-card);
   box-shadow: 0 1px 2px rgb(23 43 61 / 3%);
   cursor: pointer;
   transition: 150ms ease;
@@ -68,7 +140,7 @@
 
 .vp-summary-card:hover,
 .vp-summary-card[aria-pressed='true'] {
-  border-color: #a9bdc9;
+  border-color: var(--vp-hover-line);
   box-shadow: 0 4px 14px rgb(23 43 61 / 8%);
   transform: translateY(-1px);
 }
@@ -97,25 +169,25 @@
 
 .vp-summary-late > strong,
 .vp-summary-late svg {
-  color: #b95b48;
+  color: var(--vp-danger);
 }
 
 .vp-summary-at-risk > strong,
 .vp-summary-at-risk svg,
 .vp-summary-priority > strong,
 .vp-summary-priority svg {
-  color: #c2852c;
+  color: var(--vp-warning);
 }
 
 .vp-summary-watch > strong,
 .vp-summary-watch svg {
-  color: #846b9e;
+  color: var(--vp-purple);
 }
 
 .vehicle-projects-page > [class*='card'] {
   border-color: var(--vp-line);
   border-radius: 12px;
-  background: #fff;
+  background: var(--vp-card);
   box-shadow: 0 5px 18px rgb(23 43 61 / 5%);
 }
 
@@ -127,7 +199,7 @@
   padding: 14px 16px;
   border-top: 1px solid var(--vp-line);
   border-bottom: 1px solid var(--vp-line);
-  background: #fbfcfc;
+  background: var(--vp-toolbar-bg);
 }
 
 .vp-search {
@@ -142,7 +214,7 @@
   left: 11px;
   width: 15px;
   height: 15px;
-  color: #82909a;
+  color: var(--vp-muted-soft);
   transform: translateY(-50%);
 }
 
@@ -150,12 +222,12 @@
 .vp-select-field select {
   width: 100%;
   height: 36px;
-  border: 1px solid #d4dddf;
+  border: 1px solid var(--vp-input-line);
   border-radius: 7px;
   color: var(--vp-ink);
   font: inherit;
   font-size: 12px;
-  background: #fff;
+  background: var(--vp-card);
   outline: none;
 }
 
@@ -165,7 +237,7 @@
 
 .vp-search input:focus,
 .vp-select-field select:focus {
-  border-color: #7393aa;
+  border-color: var(--vp-focus);
   box-shadow: 0 0 0 3px rgb(49 91 125 / 9%);
 }
 
@@ -203,10 +275,10 @@
   padding: 0 9px;
   border: 1px solid transparent;
   border-radius: 999px;
-  color: #61717c;
+  color: var(--vp-chip-ink);
   font-size: 10px;
   font-weight: 800;
-  background: #eef2f3;
+  background: var(--vp-chip-bg);
 }
 
 .vp-priority-filter button {
@@ -219,28 +291,28 @@
 }
 
 .vp-priority-urgent {
-  color: #a94d41 !important;
-  background: #fbe9e6 !important;
+  color: var(--vp-danger) !important;
+  background: var(--vp-danger-bg) !important;
 }
 
 .vp-priority-high {
-  color: #a46f23 !important;
-  background: #fff2d9 !important;
+  color: var(--vp-warning) !important;
+  background: var(--vp-warning-bg) !important;
 }
 
 .vp-priority-normal {
-  color: #4e7089 !important;
-  background: #eaf1f6 !important;
+  color: var(--vp-info) !important;
+  background: var(--vp-info-bg) !important;
 }
 
 .vp-priority-low {
-  color: #65747c !important;
-  background: #edf1f2 !important;
+  color: var(--vp-neutral) !important;
+  background: var(--vp-neutral-bg) !important;
 }
 
 .vp-project-list {
   padding: 14px 16px 17px;
-  background: #f7f9f9;
+  background: var(--vp-canvas);
 }
 
 .vp-column-head,
@@ -255,7 +327,7 @@
 
 .vp-column-head {
   padding: 0 15px 8px;
-  color: #84919a;
+  color: var(--vp-muted-soft);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -267,7 +339,7 @@
   margin-bottom: 11px;
   border: 1px solid var(--vp-line);
   border-radius: 10px;
-  background: #fff;
+  background: var(--vp-card);
   box-shadow: 0 1px 2px rgb(23 43 61 / 3%);
 }
 
@@ -279,7 +351,7 @@
   min-height: 52px;
   padding: 8px 15px;
   border-bottom: 1px solid var(--vp-line);
-  background: #f3f7f8;
+  background: var(--vp-group-head-bg);
 }
 
 .vp-vehicle-title,
@@ -301,8 +373,8 @@
   flex: 0 0 auto;
   place-items: center;
   border-radius: 8px;
-  color: #466d87;
-  background: #e1ebef;
+  color: var(--vp-info);
+  background: var(--vp-info-bg);
 }
 
 .vp-vehicle-icon svg {
@@ -331,20 +403,20 @@
 .vp-product-badge {
   padding: 4px 8px;
   border-radius: 999px;
-  color: #446b68;
+  color: var(--vp-teal);
   font-size: 9px;
   font-weight: 800;
-  background: #e6f0ed;
+  background: var(--vp-teal-bg);
 }
 
 .vp-product-floor-mat {
-  color: #6a5b88;
-  background: #ede9f5;
+  color: var(--vp-purple);
+  background: var(--vp-purple-bg);
 }
 
 .vp-product-car-cover {
-  color: #78632c;
-  background: #f5efd9;
+  color: var(--vp-warning);
+  background: var(--vp-warning-bg);
 }
 
 .vp-option-summary {
@@ -355,9 +427,9 @@
 
 .vp-zone-count {
   padding: 4px 7px;
-  border: 1px solid #d7e0e2;
+  border: 1px solid var(--vp-line);
   border-radius: 6px;
-  background: #fff;
+  background: var(--vp-card);
 }
 
 .vp-zone-row {
@@ -365,10 +437,10 @@
   min-height: 68px;
   padding: 9px 15px;
   border: 0;
-  border-bottom: 1px solid #edf0f1;
+  border-bottom: 1px solid var(--vp-row-line);
   color: inherit;
   text-align: left;
-  background: #fff;
+  background: var(--vp-card);
   cursor: pointer;
   transition: background 120ms ease;
 }
@@ -378,7 +450,7 @@
 }
 
 .vp-zone-row:hover {
-  background: #fafcfc;
+  background: var(--vp-row-hover);
 }
 
 .vp-zone-identity {
@@ -406,7 +478,7 @@
 .vp-stage-cell small,
 .vp-shape-value small {
   margin-top: 2px;
-  color: #87939a;
+  color: var(--vp-muted-soft);
   font-size: 9px;
 }
 
@@ -424,7 +496,7 @@
   height: 3px;
   flex: 1;
   border-radius: 99px;
-  background: #dfe5e6;
+  background: var(--vp-track);
 }
 
 .vp-stage-track i.complete {
@@ -432,42 +504,42 @@
 }
 
 .vp-stage-track i.current {
-  background: #6c8ba0;
+  background: var(--vp-track-current);
 }
 
 .vp-stage-track i.health-late,
 .vp-stage-track i.health-at-risk {
-  background: #c06b56;
+  background: var(--vp-danger);
 }
 
 .vp-stage-track i.health-watch {
-  background: #d0a33d;
+  background: var(--vp-warning);
 }
 
 .vp-health-badge {
   width: fit-content;
   padding: 5px 8px;
   border-radius: 6px;
-  color: #47735e;
+  color: var(--vp-success);
   font-size: 9px;
   font-weight: 800;
-  background: #e7f2eb;
+  background: var(--vp-success-bg);
 }
 
 .vp-health-badge.health-late {
-  color: #a64c3c;
-  background: #fbe8e4;
+  color: var(--vp-danger);
+  background: var(--vp-danger-bg);
 }
 
 .vp-health-badge.health-at-risk {
-  color: #a36d24;
-  background: #fff0d5;
+  color: var(--vp-warning);
+  background: var(--vp-warning-bg);
 }
 
 .vp-health-badge.health-watch,
 .vp-health-badge.health-unknown {
-  color: #735f91;
-  background: #eee9f5;
+  color: var(--vp-purple);
+  background: var(--vp-purple-bg);
 }
 
 .vp-manager {
@@ -494,7 +566,7 @@
 }
 
 .vp-sample-value {
-  color: #536774;
+  color: var(--vp-ink-soft);
   font-size: 11px;
   font-weight: 800;
 }
@@ -552,7 +624,7 @@
   color: var(--vp-ink);
   font-size: 10px;
   font-weight: 700;
-  background: #fff;
+  background: var(--vp-card);
 }
 
 .vp-pagination button:disabled {
@@ -571,10 +643,9 @@
 
   .vp-column-head,
   .vp-zone-row {
-    grid-template-columns: minmax(180px, 1.2fr) minmax(
-        180px,
-        1fr
-      ) 105px 120px 80px;
+    grid-template-columns:
+      minmax(180px, 1.2fr) minmax(180px, 1fr)
+      105px 120px 80px;
   }
 
   .vp-column-head > :nth-child(6),

@@ -3152,14 +3152,14 @@
 
 .zone-progress-scope {
   overflow: hidden;
-  border: 1px solid #dbe3ef;
+  border: 1px solid var(--border);
   border-radius: 11px;
   background: var(--card);
 }
 
 .zone-progress-scope.bundle {
-  border-color: #c4b5fd;
-  background: #faf9ff;
+  border-color: color-mix(in srgb, var(--wb-purple) 45%, var(--card));
+  background: color-mix(in srgb, var(--wb-purple-bg) 35%, var(--card));
 }
 
 .zone-progress-scope > header {
@@ -3173,7 +3173,7 @@
 }
 
 .zone-progress-scope.bundle > header {
-  border-bottom-color: #ddd6fe;
+  border-bottom-color: color-mix(in srgb, var(--wb-purple) 25%, var(--card));
   background: var(--wb-purple-bg);
 }
 
@@ -3572,7 +3572,7 @@
 }
 
 .project-progress-step.done {
-  border-color: #a7f3d0;
+  border-color: color-mix(in srgb, var(--wb-success) 40%, var(--card));
   background: var(--wb-success-bg);
   color: var(--wb-success);
 }
@@ -3586,7 +3586,7 @@
 .circular-progress-rail {
   gap: 0;
   padding: 12px 0 8px;
-  background: linear-gradient(90deg, #fff 60%, #edf7f5);
+  background: linear-gradient(90deg, var(--card) 60%, var(--wb-success-bg));
 }
 
 .circular-progress-rail .project-progress-step {
@@ -3596,7 +3596,7 @@
   border-radius: 0;
   background: transparent;
   padding: 0 4px;
-  color: #718694;
+  color: var(--wb-muted);
   font-size: 12px;
   font-weight: 400;
 }
@@ -3607,7 +3607,7 @@
   right: 0;
   left: 0;
   height: 2px;
-  background: #d8e4e4;
+  background: var(--wb-line);
   content: '';
 }
 
@@ -3621,8 +3621,8 @@
   box-sizing: border-box;
   margin: 0 auto 9px;
   border-radius: 50%;
-  background: #e0e8e8;
-  color: #587580;
+  background: var(--secondary);
+  color: var(--wb-ink-soft);
   font-size: 13px;
   font-weight: 700;
 }
@@ -3634,7 +3634,7 @@
 }
 
 .circular-progress-rail .project-progress-step.active {
-  color: #111;
+  color: var(--foreground);
   font-weight: 700;
 }
 
