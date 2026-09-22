@@ -430,24 +430,43 @@ export function VehicleResearchPage() {
           },
         ]}
         toolbarContent={
-          <div className="stage-tabs" role="group" aria-label="Research status">
-            {RESEARCH_STATUS_FILTERS.map((filter) => (
-              <button
-                type="button"
-                key={filter.value}
-                className="stage-tab"
-                aria-pressed={status === filter.value}
+          <>
+            <div
+              className="stage-tabs"
+              role="group"
+              aria-label="Research status"
+            >
+              {RESEARCH_STATUS_FILTERS.map((filter) => (
+                <button
+                  type="button"
+                  key={filter.value}
+                  className="stage-tab"
+                  aria-pressed={status === filter.value}
+                  onClick={() => {
+                    setStatus(filter.value);
+                  }}
+                >
+                  {filter.label}
+                  <span className="stage-tab-count">
+                    {statusCounts.get(filter.value) ?? 0}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {(query || product !== 'ALL' || status !== 'ALL') && (
+              <Button
+                size="sm"
+                variant="ghost"
                 onClick={() => {
-                  setStatus(filter.value);
+                  setQuery('');
+                  setProduct('ALL');
+                  setStatus('ALL');
                 }}
               >
-                {filter.label}
-                <span className="stage-tab-count">
-                  {statusCounts.get(filter.value) ?? 0}
-                </span>
-              </button>
-            ))}
-          </div>
+                <X /> Clear filters
+              </Button>
+            )}
+          </>
         }
         actions={
           <>

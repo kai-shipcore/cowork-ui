@@ -26,7 +26,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { Plus } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { StatusBadge } from '@/shared/components/status-badge';
 import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import type { SeatCoverPart, VehicleZone } from '@/shared/types/workbench';
@@ -248,6 +248,19 @@ export function SeatCoverPartPanel({
           value: query,
           onChange: onQueryChange,
         }}
+        toolbarContent={
+          query && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                onQueryChange('');
+              }}
+            >
+              <X /> Clear filters
+            </Button>
+          )
+        }
         actions={
           <Button
             variant="primary"

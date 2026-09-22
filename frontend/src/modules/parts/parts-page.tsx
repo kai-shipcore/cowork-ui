@@ -22,6 +22,7 @@ import {
   Plus,
   RotateCcw,
   UserRound,
+  X,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { fileFingerprint } from '@/shared/domain/revision-control';
@@ -655,6 +656,19 @@ export function PartsPage() {
                 value: search,
                 onChange: setSearch,
               }}
+              toolbarContent={
+                search && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setSearch('');
+                    }}
+                  >
+                    <X /> Clear filters
+                  </Button>
+                )
+              }
               colors={{
                 primary: 'var(--wb-blue)',
                 primaryForeground: '#FFFFFF',

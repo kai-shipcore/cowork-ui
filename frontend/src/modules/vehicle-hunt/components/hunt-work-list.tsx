@@ -11,6 +11,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import type { PaginationState } from '@tanstack/react-table';
+import { X } from 'lucide-react';
 import { StatusBadge } from '@/shared/components/status-badge';
 import type { Visit } from '@/shared/types/workbench';
 import type { HuntRow } from '../hunt-rows';
@@ -392,17 +393,22 @@ export function HuntWorkList({
                 </button>
               ))}
             </div>
+            {(filter.query ||
+              filter.product ||
+              filter.scheduled ||
+              filter.from ||
+              filter.to) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  update(emptyFilter());
+                }}
+              >
+                <X /> Clear filters
+              </Button>
+            )}
           </>
-        }
-        actions={
-          <Button
-            variant="outline"
-            onClick={() => {
-              update(emptyFilter());
-            }}
-          >
-            Clear filters
-          </Button>
         }
 
         pagination={{

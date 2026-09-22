@@ -468,7 +468,7 @@ export function HuntBoardPage() {
                     setCalendarLegend(undefined);
                   }}
                 >
-                  <X /> Reset
+                  <X /> Clear filters
                 </Button>
               )}
             </div>
@@ -720,6 +720,18 @@ export function HuntBoardPage() {
                   </button>
                 ))}
               </div>
+              {(dealerQuery || dealerType !== 'ALL') && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setDealerQuery('');
+                    setDealerType('ALL');
+                  }}
+                >
+                  <X /> Clear filters
+                </Button>
+              )}
             </div>
             <div className="grid-toolbar-actions">
               <Button variant="primary" onClick={openDealerDialog}>
