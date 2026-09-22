@@ -1,0 +1,128 @@
+name: Deploy Workbench
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - frontend/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - turbo.json
+      - .github/workflows/deploy-workbench.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # The UI kit is a private package in this org. GITHUB_TOKEN can read it,
+  # so no personal access token has to be stored as a secret.
+  packages: read
+
+concurrency:
+  group: coverland-workbench-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      DEPLOY_HOST: 144.24.40.252
+      DEPLOY_USER: coverland
+      DEPLOY_ROOT: /var/www/coverland-workbench
+      PUBLIC_URL: https://cowork.coverland.com
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.22.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      # pnpm will not expand an environment variable in a credential read from
+      # a committed .npmrc, so the token is written to the runner-local one
+      # instead. ~/.npmrc never leaves the runner.
+      - name: Authenticate to GitHub Packages
+        run: |
+          set -eu
+          pnpm config set "//npm.pkg.github.com/:_authToken" "$GITHUB_TOKEN"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.WORKBENCH_DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.WORKBENCH_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -eu
+          ssh_directory="$RUNNER_TEMP/workbench-ssh"
+          install -d -m 700 "$ssh_directory"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$ssh_directory/id_ed25519"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$ssh_directory/known_hosts"
+          chmod 600 "$ssh_directory/id_ed25519" "$ssh_directory/known_hosts"
+
+      - name: Upload and activate release
+        id: deploy
+        run: |
+          set -eu
+          release_id="$(date -u +%Y%m%d%H%M%S)-${GITHUB_SHA::7}-run${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          staging_path="/home/$DEPLOY_USER/deploy-staging/$release_id"
+          release_path="$DEPLOY_ROOT/releases/$release_id"
+          remote="$DEPLOY_USER@$DEPLOY_HOST"
+          ssh_directory="$RUNNER_TEMP/workbench-ssh"
+          ssh_options=(
+            -i "$ssh_directory/id_ed25519"
+            -o BatchMode=yes
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes
+            -o "UserKnownHostsFile=$ssh_directory/known_hosts"
+            -o ConnectTimeout=15
+          )
+
+          ssh "${ssh_options[@]}" "$remote" \
+            "set -eu; test ! -e '$staging_path'; mkdir -p '$staging_path'"
+          scp "${ssh_options[@]}" -r frontend/dist/. "$remote:$staging_path/"
+
+          ssh "${ssh_options[@]}" "$remote" \
+            "set -eu; \
+             test -f '$staging_path/index.html'; \
+             test ! -e '$release_path'; \
+             mkdir -p '$release_path'; \
+             cp -a '$staging_path/.' '$release_path/'; \
+             test -f '$release_path/index.html'; \
+             ln -sfn '$release_path' '$DEPLOY_ROOT/current.next'; \
+             mv -Tf '$DEPLOY_ROOT/current.next' '$DEPLOY_ROOT/current'; \
+             case '$staging_path' in \
+               '/home/$DEPLOY_USER/deploy-staging/'*) rm -r -- '$staging_path' ;; \
+               *) exit 20 ;; \
+             esac"
+
+          printf 'release_id=%s\n' "$release_id" >> "$GITHUB_OUTPUT"
+
+      - name: Verify deployment
+        run: |
+          set -eu
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 \
+            --output /dev/null "$PUBLIC_URL/"
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 \
+            --output /dev/null "$PUBLIC_URL/component-gallery"
+          echo "Deployed ${{ steps.deploy.outputs.release_id }}"
