@@ -30,7 +30,6 @@ import { StatusBadge } from '@/shared/components/status-badge';
 import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import type { VehicleConfiguration } from '@/shared/types/workbench';
 import { useWorkbenchStore } from '@/app/workbench-store';
-import { ResearchEvidence } from '../research-evidence';
 import { groupVehicleResearch } from '../vehicle-research-grid-model';
 import './vehicle-research-page.css';
 
@@ -85,10 +84,6 @@ export function VehicleResearchPage() {
   const [status, setStatus] = useState<ResearchStatusFilter>('ALL');
   const [product, setProduct] = useState('ALL');
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [evidenceConfigurationId, setEvidenceConfigurationId] = useState('');
-  const evidenceConfiguration = configurations.find(
-    (entry) => entry.id === evidenceConfigurationId,
-  );
   const [manufacturer, setManufacturer] = useState('Toyota');
   const [vehicleClass, setVehicleClass] = useState('SUV');
   const [model, setModel] = useState('');
@@ -228,22 +223,6 @@ export function VehicleResearchPage() {
 
   const columns: GroupedDataGridColumn<VehicleConfiguration>[] = [
     {
-      id: 'evidence',
-      header: 'Evidence / Decision',
-      width: 220,
-      cell: (configuration) => (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setEvidenceConfigurationId(configuration.id);
-          }}
-        >
-          Evidence / Decision
-        </Button>
-      ),
-    },
-    {
       id: 'configuration',
       header: 'Configuration',
       width: 480,
@@ -252,7 +231,20 @@ export function VehicleResearchPage() {
         configuration.options
           .map(([name, value]) => `${name}: ${value}`)
           .join(' / '),
-      cell: (configuration) => <ConfigChips options={configuration.options} />,
+      cell: (configuration) => (
+        <button
+          type="button"
+          className="research-detail-link"
+          onClick={() => {
+            void navigate(
+              `/vehicle-research/${encodeURIComponent(configuration.id)}`,
+            );
+          }}
+        >
+          <ConfigChips options={configuration.options} />
+          <span>Open research detail</span>
+        </button>
+      ),
     },
     {
       id: 'status',
@@ -385,16 +377,6 @@ export function VehicleResearchPage() {
         }
       />
 
-      {evidenceConfiguration && (
-        <ResearchEvidence
-          key={evidenceConfiguration.id}
-          configuration={evidenceConfiguration}
-          configurations={configurations}
-          onClose={() => {
-            setEvidenceConfigurationId('');
-          }}
-        />
-      )}
       <GroupedDataGrid
         className="vehicle-research-grid"
         label="Vehicle Research"
