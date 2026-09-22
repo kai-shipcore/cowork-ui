@@ -73,10 +73,25 @@ export function DashboardPage() {
 
   return (
     <section className="dashboard">
+      <PageHeader
+        description="Start with overdue work and received revision samples."
+        tables={
+          import.meta.env.DEV
+            ? [
+                { name: 'vehicle_project' },
+                { name: 'field_visit' },
+                { name: 'field_visit_staff' },
+                { name: 'sample_request_item' },
+                { name: 'sample_shipment' },
+                { name: 'vehicle_product_registration' },
+              ]
+            : undefined
+        }
+      />
       <Card>
         <CardContent className="flex items-center justify-between p-5">
           <div>
-            <h1 className="font-semibold">R & D Team Dashboard</h1>
+            <h2 className="font-semibold">Team request inbox</h2>
             <p className="text-xs text-muted-foreground">
               Team Requests{' '}
               {
@@ -94,21 +109,6 @@ export function DashboardPage() {
           </Button>
         </CardContent>
       </Card>
-      <PageHeader
-        description="Start with overdue work and received revision samples."
-        tables={
-          import.meta.env.DEV
-            ? [
-                { name: 'vehicle_project' },
-                { name: 'field_visit' },
-                { name: 'field_visit_staff' },
-                { name: 'sample_request_item' },
-                { name: 'sample_shipment' },
-                { name: 'vehicle_product_registration' },
-              ]
-            : undefined
-        }
-      />
 
       {summary.warnings.length > 0 && (
         <section className="dashboard-alerts" role="alert">

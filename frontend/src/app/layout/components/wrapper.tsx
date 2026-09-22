@@ -19,6 +19,7 @@ import { ScreenHelp } from './screen-help';
 import { Sidebar } from './sidebar';
 import '../workbench-layout.css';
 import '../metronic-theme.css';
+import '../workspace-theme.css';
 
 export function Wrapper() {
   const { isMobile } = useLayout();

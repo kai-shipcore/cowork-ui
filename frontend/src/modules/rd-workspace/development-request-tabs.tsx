@@ -42,7 +42,6 @@ export function DevelopmentRequestTabs({
             icon: <Download />,
           },
         ]}
-        className="[--primary:#2F80FF] [--color-primary:#2F80FF]"
       >
         <ContentTabsPanel value="requests">{requests}</ContentTabsPanel>
         <ContentTabsPanel value="complaints">{complaints}</ContentTabsPanel>

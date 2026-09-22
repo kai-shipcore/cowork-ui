@@ -609,9 +609,9 @@ export function PartsPage() {
             onChange: setSearch,
           }}
           colors={{
-            primary: '#2F80FF',
+            primary: 'var(--wb-blue)',
             primaryForeground: '#FFFFFF',
-            primarySoft: '#EFF6FF',
+            primarySoft: 'var(--wb-soft-blue)',
           }}
           actions={
             <>

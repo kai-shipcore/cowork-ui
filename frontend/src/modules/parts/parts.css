@@ -1,11 +1,11 @@
 .parts-workspace {
-  --parts-action-blue: #4f6ef7;
-  --parts-action-blue-hover: #405ee7;
+  --parts-action-blue: var(--primary);
+  --parts-action-blue-hover: color-mix(in srgb, var(--primary) 90%, black);
   color: var(--foreground);
 }
 .parts-create-sheet {
-  --parts-action-blue: #4f6ef7;
-  --parts-action-blue-hover: #405ee7;
+  --parts-action-blue: var(--primary);
+  --parts-action-blue-hover: color-mix(in srgb, var(--primary) 90%, black);
 }
 .part-link-dialog {
   width: min(560px, calc(100vw - 32px));

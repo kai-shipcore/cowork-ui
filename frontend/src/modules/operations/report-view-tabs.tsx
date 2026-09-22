@@ -42,7 +42,6 @@ export function ReportViewTabs({
             icon: <ChartNoAxesCombined />,
           },
         ]}
-        className="[--primary:#2F80FF] [--color-primary:#2F80FF]"
       >
         <ContentTabsPanel value="operations" className="ops-report-panel">
           {operations}
