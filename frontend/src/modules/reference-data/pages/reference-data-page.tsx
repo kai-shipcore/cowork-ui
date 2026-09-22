@@ -211,61 +211,61 @@ export function ReferenceDataPage() {
               <StageDurationSettings />
             ) : isGeneric ? (
               <>
-                <div className="grid-toolbar">
-                  <div className="grid-toolbar-filters">
-                    <div className="search-field">
-                      <Search aria-hidden="true" />
-                      <Input
-                        aria-label="Search code or name"
-                        placeholder="Search code / Name"
-                        value={query}
-                        onChange={(event) => {
-                          setQuery(event.target.value);
-                        }}
-                      />
-                    </div>
-                    <Select
-                      value={productTypeFilter}
-                      onValueChange={setProductTypeFilter}
-                    >
-                      <SelectTrigger
-                        aria-label="Product type filter"
-                        className="filter-select wide"
+                <ReferenceItemTable
+                  toolbarContent={
+                    <>
+                      <div className="search-field">
+                        <Search aria-hidden="true" />
+                        <Input
+                          aria-label="Search code or name"
+                          placeholder="Search code / Name"
+                          value={query}
+                          onChange={(event) => {
+                            setQuery(event.target.value);
+                          }}
+                        />
+                      </div>
+                      <Select
+                        value={productTypeFilter}
+                        onValueChange={setProductTypeFilter}
                       >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ALL">Product Type: All</SelectItem>
-                        {PRODUCT_TYPES.map((productType) => (
-                          <SelectItem
-                            value={productType.id}
-                            key={productType.id}
-                          >
-                            {productType.product}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {hasActiveFilter && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setQuery('');
-                          setProductTypeFilter('ALL');
-                        }}
-                      >
-                        <X /> Clear filters
-                      </Button>
-                    )}
-                  </div>
-                  <div className="grid-toolbar-actions">
+                        <SelectTrigger
+                          aria-label="Product type filter"
+                          className="filter-select wide"
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ALL">Product Type: All</SelectItem>
+                          {PRODUCT_TYPES.map((productType) => (
+                            <SelectItem
+                              value={productType.id}
+                              key={productType.id}
+                            >
+                              {productType.product}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {hasActiveFilter && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setQuery('');
+                            setProductTypeFilter('ALL');
+                          }}
+                        >
+                          <X /> Clear filters
+                        </Button>
+                      )}
+                    </>
+                  }
+                  actions={
                     <Button variant="primary" onClick={openCreate}>
                       <Plus /> {entityLabel} Create
                     </Button>
-                  </div>
-                </div>
-                <ReferenceItemTable
+                  }
                   items={visibleItems}
                   entityLabel={entityLabel}
                   filterKey={`${kind}|${query}|${productTypeFilter}`}
