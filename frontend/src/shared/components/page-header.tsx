@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import type { DatabaseTable } from '@/shared/types/db-tables';
+import { pageTitle } from '@/app/layout/page-identity';
 
 /** A database table the screen reads or writes. */
 export type TableRef =
@@ -52,14 +54,15 @@ export function PageTables({ tables }: { tables: readonly TableRef[] }) {
 }
 
 /**
- * Keeps the page description and primary actions consistent across R&D
- * screens. The page name itself comes from the header breadcrumbs, so it is
- * deliberately not repeated here.
+ * Shared route heading, description and actions for workbench screens.
  */
 export function PageHeader({ description, tables, actions }: PageHeaderProps) {
+  const { pathname, search } = useLocation();
   return (
     <header className="workbench-page-header">
       <div>
+        <span className="workbench-page-eyebrow">Coverland workspace</span>
+        <h1>{pageTitle(pathname, search)}</h1>
         <p>{description}</p>
         {tables && <PageTables tables={tables} />}
       </div>

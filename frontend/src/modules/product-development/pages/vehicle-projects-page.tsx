@@ -9,11 +9,6 @@ import {
   DialogTitle,
 } from '@coverland-engineering/ui/dialog';
 import {
-  GroupedDataGrid,
-  type GroupedDataGridColumn,
-  type GroupedDataGridGroup,
-} from '@coverland-engineering/ui/grouped-data-grid';
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -26,15 +21,18 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  CircleAlert,
+  Clock3,
+  FolderKanban,
   Plus,
   RectangleHorizontal,
   Search,
+  Siren,
 } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { userName } from '@/shared/domain/app-user';
 import { ConfigChips } from '@/shared/domain/config-chips';
 import { PROJECT_PIPELINES } from '@/shared/domain/project-stage';
-import { PageHeader } from '@/shared/components/page-header';
 import { StatusBadge } from '@/shared/components/status-badge';
 import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import type {
@@ -62,8 +60,6 @@ import {
   ProjectDetailView,
   toDetailTab,
 } from '../components/project-detail-view';
-import { ProjectHealthBadge } from '../components/project-health-badge';
-import { ProjectHealthFilters } from '../components/project-health-filters';
 import { ProjectStageBoard } from '../components/project-stage-board';
 import { ProjectViewTabs } from '../components/project-view-tabs';
 import {
@@ -74,6 +70,7 @@ import {
   projectHealth,
 } from '../project-health';
 import '../project-health.css';
+import './vehicle-projects-page.css';
 
 const PROJECT_STAGE_FILTERS = [
   { label: 'All', value: 'ALL' },
@@ -88,11 +85,6 @@ const PROJECT_STAGE_FILTERS = [
   { label: 'Complete', value: 'Approved' },
 ] as const;
 type ProjectStageFilter = (typeof PROJECT_STAGE_FILTERS)[number]['value'];
-
-interface ZoneProjectGridRow {
-  project: VehicleProjectGroup;
-  zone: VehicleZoneProject;
-}
 
 function matchesStageFilter(
   project: VehicleProjectGroup,
@@ -134,17 +126,6 @@ const PROJECT_MANAGERS = [
   { id: 'USR-JH', name: 'JH' },
 ] as const;
 
-function shortDate(value?: string) {
-  if (!value) return '—';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : new Intl.DateTimeFormat('en-US', {
-        month: '2-digit',
-        day: '2-digit',
-      }).format(date);
-}
-
 function vehicleParts(vehicle: string) {
   const match = /^(\d{4}(?:–\d{4})?)\s+(.+)$/.exec(vehicle);
   return match
@@ -176,6 +157,51 @@ function zoneLabel(product: ProductType, zone: string) {
   return { F: 'Front Row', B: '2nd Row', E: '3rd Row' }[zone];
 }
 
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function stageDay(zone: VehicleZoneProject, currentDate: string) {
+  const timing = currentStageTiming(zone);
+  if (!timing?.startedAt) return undefined;
+  const started = Date.parse(timing.startedAt);
+  const current = Date.parse(`${currentDate}T00:00:00`);
+  if (!Number.isFinite(started) || !Number.isFinite(current)) return undefined;
+  return Math.max(1, Math.floor((current - started) / 86_400_000) + 1);
+}
+
+function stageDuration(zone: VehicleZoneProject) {
+  const timing = currentStageTiming(zone);
+  if (!timing?.startedAt || !timing.targetDueAt) return undefined;
+  const started = Date.parse(timing.startedAt);
+  const due = Date.parse(timing.targetDueAt);
+  if (!Number.isFinite(started) || !Number.isFinite(due)) return undefined;
+  return Math.max(1, Math.round((due - started) / 86_400_000));
+}
+
+function healthLabel(zone: VehicleZoneProject, currentDate: string) {
+  const health = projectHealth(zone, currentDate);
+  const days = /(\d+) days?/i.exec(health.reason)?.[1];
+  if (health.value === 'late') return days ? `Overdue +${days}d` : 'Overdue';
+  if (health.value === 'at-risk') {
+    return health.reason === 'On hold'
+      ? 'On hold'
+      : days
+        ? `Due in ${days}d`
+        : 'At risk';
+  }
+  if (health.value === 'watch') return days ? `Watch · ${days}d` : 'Watch';
+  if (health.value === 'complete') return 'Complete';
+  if (health.value === 'inactive') return 'Inactive';
+  if (health.value === 'unknown') return 'Needs data';
+  return 'On track';
+}
+
 /** Product-development project groups by vehicle configuration. */
 export function VehicleProjectsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -193,6 +219,8 @@ export function VehicleProjectsPage() {
     useWorkbenchStore();
   const [stageFilter, setStageFilter] = useState<ProjectStageFilter>('ALL');
   const [product, setProduct] = useState('ALL');
+  const [managerFilter, setManagerFilter] = useState('ALL');
+  const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [query, setQuery] = useState('');
   const selectedProject = searchParams.get('project') ?? undefined;
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -202,16 +230,32 @@ export function VehicleProjectsPage() {
   const [wizardManagerId, setWizardManagerId] = useState('USR-KAI');
 
   const [wizardMessage, setWizardMessage] = useState('');
-  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
-
-  const searchedProjects = projects.filter((project) => {
+  const searchedProjects = projects.flatMap((project) => {
     const matchesProduct = product === 'ALL' || project.product === product;
-    const matchesQuery = project.vehicle
-      .toLowerCase()
-      .includes(query.toLowerCase());
-    return matchesProduct && matchesQuery;
+    if (!matchesProduct) return [];
+    const normalizedQuery = query.trim().toLowerCase();
+    const vehicleMatches =
+      `${project.vehicle} ${project.id} ${project.fNumber ?? ''}`
+        .toLowerCase()
+        .includes(normalizedQuery);
+    const zoneProjects = project.zoneProjects.filter((zone) => {
+      const manager = userName(appUsers, zone.managerId);
+      const matchesManager =
+        managerFilter === 'ALL' || zone.managerId === managerFilter;
+      const matchesPriority =
+        priorityFilter === 'ALL' ||
+        (priorityFilter === 'CRITICAL' &&
+          (zone.priority === 'URGENT' || zone.priority === 'HIGH')) ||
+        (zone.priority ?? 'NORMAL') === priorityFilter;
+      const matchesQuery =
+        !normalizedQuery ||
+        vehicleMatches ||
+        `${zone.label} ${zone.id} ${manager}`
+          .toLowerCase()
+          .includes(normalizedQuery);
+      return matchesManager && matchesPriority && matchesQuery;
+    });
+    return zoneProjects.length ? [{ ...project, zoneProjects }] : [];
   });
   const stageCounts = new Map(
     PROJECT_STAGE_FILTERS.map((filter) => [
@@ -244,7 +288,7 @@ export function VehicleProjectsPage() {
     setPagination,
   } = useWorkbenchPagination(
     visibleProjects,
-    `${stageFilter}|${product}|${query}|${healthFilter}`,
+    `${stageFilter}|${product}|${managerFilter}|${priorityFilter}|${query}|${healthFilter}`,
   );
   const detailProject = projects.find(
     (project) => project.id === selectedProject,
@@ -323,6 +367,15 @@ export function VehicleProjectsPage() {
     setWizardManagerId('USR-KAI');
     setWizardMessage('');
     setWizardOpen(true);
+  };
+
+  const setHealthFilter = (value: string) => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (value === 'all') next.delete('health');
+      else next.set('health', value);
+      return next;
+    });
   };
 
   const chooseProduct = (nextProduct: ProductType) => {
@@ -452,132 +505,20 @@ export function VehicleProjectsPage() {
     setWizardStep((current) => Math.min(4, current + 1));
   };
 
-  const columns: GroupedDataGridColumn<ZoneProjectGridRow>[] = [
-    {
-      id: 'zone',
-      header: 'Zone Project',
-      width: 230,
-      sortValue: ({ zone }) => zone.label,
-      cell: ({ zone }) => (
-        <div className="zone-project-identity">
-          <span className={`zone zone-${zone.code.toLowerCase()}`}>
-            {zone.code}
-          </span>
-          <span>
-            <strong>{zone.label}</strong>
-            <code>{zone.id}</code>
-          </span>
-        </div>
+  const urgentAndHigh = stageProjects.reduce(
+    (count, project) =>
+      count +
+      project.zoneProjects.filter(
+        (zone) => zone.priority === 'URGENT' || zone.priority === 'HIGH',
+      ).length,
+    0,
+  );
+  const managerOptions = Array.from(
+    new Set(
+      projects.flatMap((project) =>
+        project.zoneProjects.map((zone) => zone.managerId),
       ),
-    },
-    {
-      id: 'stage',
-      header: 'Stage',
-      width: 175,
-      sortValue: ({ project, zone }) =>
-        PROJECT_PIPELINES[project.product].indexOf(zone.currentStage),
-      cell: ({ project, zone }) => {
-        const pipeline = PROJECT_PIPELINES[project.product];
-        const stageIndex = Math.max(0, pipeline.indexOf(zone.currentStage));
-        return (
-          <StatusBadge
-            label={`${String(stageIndex + 1)} / ${String(pipeline.length)} · ${zone.currentStage === 'Approved' ? 'Complete' : zone.currentStage}`}
-            tone={zone.currentStage === 'Approved' ? 'success' : 'progress'}
-          />
-        );
-      },
-    },
-    {
-      id: 'status',
-      header: 'Status',
-      width: 125,
-      sortValue: ({ zone }) => zone.status ?? 'ACTIVE',
-      cell: ({ zone }) => (
-        <StatusBadge
-          label={zone.status ?? 'ACTIVE'}
-          tone={zone.status === 'ON_HOLD' ? 'warning' : 'success'}
-        />
-      ),
-    },
-    {
-      id: 'owner',
-      header: 'Owner',
-      width: 110,
-      sortValue: ({ zone }) => userName(appUsers, zone.managerId),
-      cell: ({ zone }) => userName(appUsers, zone.managerId),
-    },
-    {
-      id: 'priority',
-      header: 'Priority',
-      width: 110,
-      sortValue: ({ zone }) =>
-        ({ LOW: 0, NORMAL: 1, HIGH: 2, URGENT: 3 })[zone.priority ?? 'NORMAL'],
-      cell: ({ zone }) => (
-        <StatusBadge
-          label={zone.priority ?? 'NORMAL'}
-          tone={
-            zone.priority === 'URGENT' || zone.priority === 'HIGH'
-              ? 'warning'
-              : 'neutral'
-          }
-        />
-      ),
-    },
-    {
-      id: 'delay',
-      header: 'Health',
-      width: 140,
-      sortValue: ({ zone }) => projectHealth(zone, currentDate).value,
-      cell: ({ zone }) => {
-        const health = projectHealth(zone, currentDate);
-        return (
-          <ProjectHealthBadge value={health.value} reason={health.reason} />
-        );
-      },
-    },
-    {
-      id: 'target',
-      header: 'Target (stage first)',
-      width: 100,
-      sortValue: ({ zone }) =>
-        currentStageTiming(zone)?.targetDueAt ?? zone.targetAt,
-      cell: ({ zone }) =>
-        shortDate(currentStageTiming(zone)?.targetDueAt ?? zone.targetAt),
-    },
-    {
-      id: 'updated',
-      header: 'Last Update',
-      width: 120,
-      sortValue: ({ project, zone }) => zone.lastActivityAt ?? project.created,
-      cell: ({ project, zone }) =>
-        shortDate(zone.lastActivityAt ?? project.created),
-    },
-  ];
-  const groups: GroupedDataGridGroup<ZoneProjectGridRow>[] = pagedProjects.map(
-    (project) => {
-      const approvedCount = project.zoneProjects.filter(
-        (zone) => zone.currentStage === 'Approved',
-      ).length;
-      return {
-        id: project.id,
-        title: project.vehicle,
-        description: `${project.product} · ${project.id} · ${String(project.zoneProjects.length)} Zone Projects`,
-        meta: (
-          <>
-            <ConfigChips options={project.options} />
-            <StatusBadge
-              label={`${String(approvedCount)} / ${String(project.zoneProjects.length)} APPROVED`}
-              tone={
-                approvedCount === project.zoneProjects.length
-                  ? 'success'
-                  : 'neutral'
-              }
-            />
-          </>
-        ),
-        rows: project.zoneProjects.map((zone) => ({ project, zone })),
-      };
-    },
+    ),
   );
 
   if (detailProject) {
@@ -597,47 +538,172 @@ export function VehicleProjectsPage() {
   }
 
   return (
-    <section>
-      <PageHeader
-        description="Zone development by vehicle and product · Pattern → Sample → Fitting → Handoff completes development · Review and issue in Shapes afterward"
-        tables={
-          import.meta.env.DEV
-            ? [
-                { name: 'vehicle_project_group' },
-                { name: 'vehicle_project' },
-                { name: 'vehicle_project_stage_template' },
-                { name: 'vehicle_project_stage' },
-                { name: 'vehicle_zone' },
-                { name: 'vehicle_product_shape' },
-                { name: 'project_x_product_design_item' },
-                { name: 'vehicle_product_design' },
-                { name: 'vehicle_product_design_revision' },
-                { name: 'activity' },
-                { name: 'asset' },
-              ]
-            : undefined
-        }
-      />
+    <section className="vehicle-projects-page">
+      <header className="vp-page-header">
+        <div>
+          <p className="vp-eyebrow">Product development</p>
+          <h1>Vehicle Projects</h1>
+          <p>
+            Seat Cover · Floor Mat · Car Cover — sorted by schedule risk and
+            priority
+          </p>
+        </div>
+        <Button variant="primary" onClick={openWizard}>
+          <Plus /> New Project
+        </Button>
+      </header>
+
+      <div className="vp-summary-grid" aria-label="Project summary">
+        {[
+          {
+            key: 'all',
+            label: 'Active projects',
+            value: stageProjects.filter((project) =>
+              project.zoneProjects.some(
+                (zone) =>
+                  !['Approved'].includes(zone.currentStage) &&
+                  !['CANCELLED', 'MERGED'].includes(zone.status ?? 'ACTIVE'),
+              ),
+            ).length,
+            icon: FolderKanban,
+          },
+          {
+            key: 'late',
+            label: 'Overdue',
+            value: healthCounts.late,
+            icon: Siren,
+          },
+          {
+            key: 'at-risk',
+            label: 'Due soon (≤2d)',
+            value: healthCounts['at-risk'],
+            icon: Clock3,
+          },
+          {
+            key: 'watch',
+            label: 'Needs attention',
+            value: healthCounts.watch + healthCounts.unknown,
+            icon: CircleAlert,
+          },
+        ].map((metric) => {
+          const Icon = metric.icon;
+          return (
+            <button
+              type="button"
+              className={`vp-summary-card vp-summary-${metric.key}`}
+              aria-pressed={healthFilter === metric.key}
+              key={metric.key}
+              onClick={() => {
+                setHealthFilter(
+                  healthFilter === metric.key ? 'all' : metric.key,
+                );
+              }}
+            >
+              <span>
+                <Icon aria-hidden="true" />
+                {metric.label}
+              </span>
+              <strong>{metric.value}</strong>
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          className="vp-summary-card vp-summary-priority"
+          aria-pressed={priorityFilter === 'CRITICAL'}
+          onClick={() => {
+            setPriorityFilter(
+              priorityFilter === 'CRITICAL' ? 'ALL' : 'CRITICAL',
+            );
+          }}
+        >
+          <span>
+            <Siren aria-hidden="true" /> Urgent &amp; High
+          </span>
+          <strong>{urgentAndHigh}</strong>
+        </button>
+      </div>
 
       <ProjectViewTabs
         toolbar={
-          <ProjectHealthFilters
-            value={healthFilter}
-            counts={healthCounts}
-            onChange={(value) => {
-              setSearchParams((current) => {
-                const next = new URLSearchParams(current);
-                if (value === 'all') next.delete('health');
-                else next.set('health', value);
-                return next;
-              });
-            }}
-            actions={
-              <Button asChild variant="outline" size="sm">
-                <Link to="/reference-data?tab=stages">Stage Standards</Link>
-              </Button>
-            }
-          />
+          <div className="vp-toolbar">
+            <label className="vp-search">
+              <Search aria-hidden="true" />
+              <input
+                aria-label="Search projects"
+                placeholder="Search vehicle, project, manager"
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                }}
+              />
+            </label>
+            <label className="vp-select-field">
+              <span>Category</span>
+              <select
+                value={product}
+                onChange={(event) => {
+                  setProduct(event.target.value);
+                }}
+              >
+                <option value="ALL">All products</option>
+                {PRODUCT_CHOICES.map((choice) => (
+                  <option key={choice.id}>{choice.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="vp-select-field">
+              <span>Stage</span>
+              <select
+                value={stageFilter}
+                onChange={(event) => {
+                  const filter = PROJECT_STAGE_FILTERS.find(
+                    (entry) => entry.value === event.target.value,
+                  );
+                  if (filter) setStageFilter(filter.value);
+                }}
+              >
+                {PROJECT_STAGE_FILTERS.map((filter) => (
+                  <option key={filter.value} value={filter.value}>
+                    {filter.label} ({stageCounts.get(filter.value) ?? 0})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="vp-select-field">
+              <span>Manager</span>
+              <select
+                value={managerFilter}
+                onChange={(event) => {
+                  setManagerFilter(event.target.value);
+                }}
+              >
+                <option value="ALL">All managers</option>
+                {managerOptions.map((managerId) => (
+                  <option value={managerId} key={managerId}>
+                    {userName(appUsers, managerId)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="vp-priority-filter" aria-label="Priority filter">
+              {['URGENT', 'HIGH', 'NORMAL', 'LOW'].map((priority) => (
+                <button
+                  type="button"
+                  className={`vp-priority vp-priority-${priority.toLowerCase()}`}
+                  aria-pressed={priorityFilter === priority}
+                  key={priority}
+                  onClick={() => {
+                    setPriorityFilter(
+                      priorityFilter === priority ? 'ALL' : priority,
+                    );
+                  }}
+                >
+                  {priority[0] + priority.slice(1).toLowerCase()}
+                </button>
+              ))}
+            </div>
+          </div>
         }
         board={
           <div className="rd-workspace p-5">
@@ -700,91 +766,197 @@ export function VehicleProjectsPage() {
           </div>
         }
         list={
-          <GroupedDataGrid
-            embedded
-            label="Vehicle Projects"
-            columns={columns}
-            groups={groups}
-            getRowId={({ zone }) => zone.id}
-            onRowClick={({ project, zone }) => {
-              openProject(project.id, zone.code);
-            }}
-            rowActionLabel={({ zone }) => `Open ${zone.id}`}
-            collapsedGroupIds={collapsedGroups}
-            onCollapsedGroupIdsChange={setCollapsedGroups}
-            sorting={{ mode: 'client' }}
-            colors={{
-              primary: '#2F80FF',
-              primaryForeground: '#FFFFFF',
-              primarySoft: '#EFF6FF',
-            }}
-            search={{
-              label: 'Search make or model',
-              placeholder: 'Search make / model',
-              value: query,
-              onChange: setQuery,
-            }}
-            filters={[
-              {
-                id: 'product',
-                label: 'Product filter',
-                value: product,
-                onChange: setProduct,
-                options: [
-                  { value: 'ALL', label: 'All' },
-                  ...PRODUCT_CHOICES.map((choice) => ({
-                    value: choice.name,
-                    label: choice.name,
-                  })),
-                ],
-              },
-            ]}
-            toolbarContent={
-              <div
-                className="stage-tabs"
-                role="group"
-                aria-label="Project stage"
-              >
-                {PROJECT_STAGE_FILTERS.map((filter) => (
+          <div className="vp-project-list">
+            <div className="vp-column-head" aria-hidden="true">
+              <span>Zone project</span>
+              <span>Current stage</span>
+              <span>Schedule</span>
+              <span>Manager</span>
+              <span>Priority</span>
+              <span>Sample</span>
+              <span>Shape</span>
+            </div>
+            {pagedProjects.length === 0 && (
+              <div className="vp-empty-state">
+                <Search aria-hidden="true" />
+                <strong>No projects match these filters</strong>
+                <span>Try changing the search, stage, or priority.</span>
+              </div>
+            )}
+            {pagedProjects.map((project) => {
+              const vehicle = vehicleParts(project.vehicle);
+              const optionSummary = project.options
+                .map(([label, value]) => `${label}: ${value}`)
+                .join(' · ');
+              return (
+                <article className="vp-vehicle-group" key={project.id}>
+                  <header className="vp-vehicle-header">
+                    <div className="vp-vehicle-title">
+                      <span className="vp-vehicle-icon">
+                        <CarFront aria-hidden="true" />
+                      </span>
+                      <div>
+                        <strong>{vehicle.name}</strong>
+                        <span>
+                          {vehicle.years
+                            ? vehicle.years
+                            : (project.fNumber ?? project.id)}
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      className={`vp-product-badge vp-product-${project.product.toLowerCase().replace(/ /g, '-')}`}
+                    >
+                      {project.product}
+                    </span>
+                    <span className="vp-option-summary" title={optionSummary}>
+                      {optionSummary}
+                    </span>
+                    <span className="vp-zone-count">
+                      {project.zoneProjects.length} zones
+                    </span>
+                  </header>
+                  <div className="vp-zone-rows">
+                    {project.zoneProjects.map((zone) => {
+                      const pipeline = PROJECT_PIPELINES[project.product];
+                      const stageIndex = Math.max(
+                        0,
+                        pipeline.indexOf(zone.currentStage),
+                      );
+                      const health = projectHealth(zone, currentDate);
+                      const day = stageDay(zone, currentDate);
+                      const duration = stageDuration(zone);
+                      const manager = userName(appUsers, zone.managerId);
+                      const sampleRound =
+                        zone.stageHistory?.filter(
+                          (entry) => entry.stage === 'Sample',
+                        ).length ?? 0;
+                      return (
+                        <button
+                          type="button"
+                          className="vp-zone-row"
+                          key={zone.id}
+                          onClick={() => {
+                            openProject(project.id, zone.code);
+                          }}
+                        >
+                          <span className="vp-zone-identity">
+                            <span
+                              className={`zone zone-${zone.code.toLowerCase()}`}
+                            >
+                              {zone.code}
+                            </span>
+                            <span>
+                              <strong>{zone.label}</strong>
+                              <small>{zone.id}</small>
+                            </span>
+                          </span>
+                          <span className="vp-stage-cell">
+                            <span>
+                              <strong>
+                                {zone.currentStage === 'Approved'
+                                  ? 'Complete'
+                                  : zone.currentStage}
+                              </strong>
+                              <small>
+                                {zone.currentStage === 'Approved'
+                                  ? `${String(pipeline.length)} stages complete`
+                                  : day && duration
+                                    ? `Day ${String(day)} of ${String(duration)}`
+                                    : `Stage ${String(stageIndex + 1)} of ${String(pipeline.length)}`}
+                              </small>
+                            </span>
+                            <span className="vp-stage-track" aria-hidden="true">
+                              {pipeline.map((stageName, index) => (
+                                <i
+                                  key={stageName}
+                                  className={
+                                    index < stageIndex
+                                      ? 'complete'
+                                      : index === stageIndex
+                                        ? `current health-${health.value}`
+                                        : undefined
+                                  }
+                                />
+                              ))}
+                            </span>
+                          </span>
+                          <span
+                            className={`vp-health-badge health-${health.value}`}
+                            title={health.reason}
+                          >
+                            {healthLabel(zone, currentDate)}
+                          </span>
+                          <span className="vp-manager">
+                            <span className="vp-avatar">
+                              {initials(manager)}
+                            </span>
+                            <strong>{manager}</strong>
+                          </span>
+                          <span
+                            className={`vp-priority-badge vp-priority-${(zone.priority ?? 'NORMAL').toLowerCase()}`}
+                          >
+                            {(zone.priority ?? 'NORMAL')[0] +
+                              (zone.priority ?? 'NORMAL')
+                                .slice(1)
+                                .toLowerCase()}
+                          </span>
+                          <span className="vp-sample-value">
+                            {sampleRound ? `R${String(sampleRound)}` : '—'}
+                          </span>
+                          <span className="vp-shape-value">
+                            <strong>{zone.productShapeId ?? '—'}</strong>
+                            <small>
+                              {zone.productShapeId
+                                ? 'In development'
+                                : 'Not issued'}
+                            </small>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </article>
+              );
+            })}
+            {visibleProjects.length > 0 && (
+              <footer className="vp-pagination">
+                <span>
+                  {visibleProjects.length} vehicle groups · page{' '}
+                  {pagination.pageIndex + 1}
+                </span>
+                <div>
                   <button
                     type="button"
-                    key={filter.value}
-                    className="stage-tab"
-                    aria-pressed={stageFilter === filter.value}
+                    disabled={pagination.pageIndex === 0}
                     onClick={() => {
-                      setStageFilter(filter.value);
+                      setPagination((current) => ({
+                        ...current,
+                        pageIndex: Math.max(0, current.pageIndex - 1),
+                      }));
                     }}
                   >
-                    {filter.label}
-                    <span className="stage-tab-count">
-                      {stageCounts.get(filter.value) ?? 0}
-                    </span>
+                    <ChevronLeft /> Previous
                   </button>
-                ))}
-              </div>
-            }
-            actions={
-              <Button variant="primary" onClick={openWizard}>
-                <Plus /> New Project
-              </Button>
-            }
-            emptyMessage="No projects match these filters."
-            pagination={{
-              page: pagination.pageIndex + 1,
-              pageSize: pagination.pageSize,
-              totalCount: visibleProjects.length,
-              pageSizeOptions: [5, 10, 25],
-              onPageChange: (page) => {
-                setPagination((current) => ({
-                  ...current,
-                  pageIndex: page - 1,
-                }));
-              },
-              onPageSizeChange: (pageSize) => {
-                setPagination({ pageIndex: 0, pageSize });
-              },
-            }}
-          />
+                  <button
+                    type="button"
+                    disabled={
+                      (pagination.pageIndex + 1) * pagination.pageSize >=
+                      visibleProjects.length
+                    }
+                    onClick={() => {
+                      setPagination((current) => ({
+                        ...current,
+                        pageIndex: current.pageIndex + 1,
+                      }));
+                    }}
+                  >
+                    Next <ChevronRight />
+                  </button>
+                </div>
+              </footer>
+            )}
+          </div>
         }
       />
       <Dialog open={wizardOpen} onOpenChange={setWizardOpen}>
