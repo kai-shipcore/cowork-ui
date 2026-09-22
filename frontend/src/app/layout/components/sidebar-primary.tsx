@@ -4,11 +4,13 @@ import { useLocation } from 'react-router-dom';
 import { teamFromLocation } from '@/modules/operations/operations-model';
 import {
   getResourcesMenu,
+  getWorkspaceLinks,
   getWorkspaceMenu,
   MENU_SIDEBAR_MAIN,
   MENU_SIDEBAR_TEAM_TOOLS,
 } from '../navigation';
 import { SidebarIconLink } from './sidebar-icon-link';
+import { SidebarUserMenu } from './sidebar-user-menu';
 
 export function SidebarPrimary({
   dashboardPath,
@@ -22,7 +24,7 @@ export function SidebarPrimary({
   const { pathname, search } = useLocation();
   const team = teamFromLocation(pathname, search);
   const menu = getWorkspaceMenu(team, dashboardPath);
-  const links = [menu.home, menu.tasks, menu.notifications, menu.settings];
+  const links = getWorkspaceLinks(team, dashboardPath);
   const toolItems =
     MENU_SIDEBAR_TEAM_TOOLS[toolsMenuTitle] ??
     MENU_SIDEBAR_MAIN.find((item) => item.title === toolsMenuTitle)?.children ??
@@ -30,10 +32,6 @@ export function SidebarPrimary({
   const groups = [
     { title: toolsMenuTitle, items: toolItems },
     { title: 'Resources', items: getResourcesMenu(team) },
-    {
-      title: 'Common Workspace',
-      items: [menu.requests, menu.reports],
-    },
   ];
   return (
     <nav
@@ -75,6 +73,14 @@ export function SidebarPrimary({
               </div>
             </Fragment>
           ))}
+      <div
+        role="group"
+        aria-label="Account"
+        className="mt-auto flex shrink-0 flex-col items-center gap-2 pt-2"
+      >
+        <SidebarIconLink item={menu.search} pathname={pathname} />
+        <SidebarUserMenu team={team} />
+      </div>
     </nav>
   );
 }

@@ -86,9 +86,10 @@ export function PartsPage() {
   } = useWorkbenchStore();
   const parts = usePartLibrary();
   const [params, setParams] = useSearchParams();
+  const requestedTab = params.get('tab');
   const activeTab =
-    params.get('tab') === 'parts' || params.get('tab') === 'codes'
-      ? (params.get('tab') ?? 'library')
+    requestedTab === 'parts' || requestedTab === 'codes'
+      ? requestedTab
       : 'library';
   const [partQuery, setPartQuery] = useState('');
   const [codeQuery, setCodeQuery] = useState('');

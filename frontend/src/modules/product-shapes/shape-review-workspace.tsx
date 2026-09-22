@@ -4,6 +4,7 @@ import {
   FlatDataGrid,
   type FlatDataGridColumn,
 } from '@coverland-engineering/ui/flat-data-grid';
+import { Switch } from '@coverland-engineering/ui/switch';
 import {
   getCoreRowModel,
   getSortedRowModel,
@@ -25,6 +26,8 @@ interface ShapeReviewWorkspaceProps {
   showAll: boolean;
   /** Make / Model text to match against the project vehicle. */
   query: string;
+  onShowAllChange: (showAll: boolean) => void;
+  onQueryChange: (query: string) => void;
 }
 
 /**
@@ -34,6 +37,8 @@ interface ShapeReviewWorkspaceProps {
 export function ShapeReviewWorkspace({
   showAll,
   query,
+  onShowAllChange,
+  onQueryChange,
 }: ShapeReviewWorkspaceProps) {
   const {
     projects,
@@ -200,6 +205,32 @@ export function ShapeReviewWorkspace({
         label="Shape review"
         columns={columns}
         rows={pagedRows}
+        search={{
+          label: 'Search make or model',
+          placeholder: 'Search make / model',
+          value: query,
+          onChange: onQueryChange,
+        }}
+        toolbarContent={
+          <label className="collapse-all-toggle">
+            <Switch
+              size="sm"
+              checked={showAll}
+              onCheckedChange={onShowAllChange}
+            />
+            Include completed items and review history
+          </label>
+        }
+        actions={
+          <Button
+            variant="outline"
+            onClick={() => {
+              void navigate('/vehicle-projects');
+            }}
+          >
+            Development projects
+          </Button>
+        }
         getRowId={({ zone }) => zone.id}
         emptyMessage="No items awaiting review or issuance. Review new development projects after fitting and quality verification."
 

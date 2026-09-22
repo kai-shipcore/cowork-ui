@@ -15,7 +15,6 @@ import { HeaderBreadcrumbs } from './header-breadcrumbs';
 import { teams } from './header-logo';
 import { PageContent } from './page-content';
 import { ResetMockDataButton } from './reset-mock-data-button';
-import { ScreenHelp } from './screen-help';
 import { Sidebar } from './sidebar';
 import '../workbench-layout.css';
 import '../metronic-theme.css';
@@ -93,7 +92,6 @@ export function Wrapper() {
               </Button>
             </div>
           )}
-          <ScreenHelp />
           <Outlet />
           <RelatedRequests />
         </PageContent>

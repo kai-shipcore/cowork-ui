@@ -43,8 +43,7 @@ export function PersonalSettings({
   return (
     <div className="personal-settings">
       <div className="prefs-heading">
-        <div>
-          <span className="prefs-eyebrow">MY WORKSPACE</span>
+        <div className="workbench-heading">
           <h1>Personal Settings</h1>
           <p>
             Personalize your workspace, from your profile to your approval

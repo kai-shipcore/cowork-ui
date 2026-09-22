@@ -13,7 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@coverland-engineering/ui/select';
-import { Switch } from '@coverland-engineering/ui/switch';
 import {
   getCoreRowModel,
   getSortedRowModel,
@@ -251,31 +250,9 @@ export function ProductShapesPage() {
             ))}
           </div>
         </div>
-        <div className="grid-toolbar">
-          <div className="grid-toolbar-filters">
-            {view === 'review' ? (
-              <>
-                <div className="search-field">
-                  <Search aria-hidden="true" />
-                  <Input
-                    aria-label="Search make or model"
-                    placeholder="Search make / model"
-                    value={reviewQuery}
-                    onChange={(event) => {
-                      setReviewQuery(event.target.value);
-                    }}
-                  />
-                </div>
-                <label className="collapse-all-toggle">
-                  <Switch
-                    size="sm"
-                    checked={showAll}
-                    onCheckedChange={setShowAll}
-                  />
-                  Include completed items and review history
-                </label>
-              </>
-            ) : (
+        {view !== 'review' && (
+          <div className="grid-toolbar">
+            <div className="grid-toolbar-filters">
               <>
                 <div className="search-field">
                   <Search aria-hidden="true" />
@@ -321,22 +298,27 @@ export function ProductShapesPage() {
                   </SelectContent>
                 </Select>
               </>
-            )}
+            </div>
+            <div className="grid-toolbar-actions">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  // React Router handles route errors; the click does not await navigation.
+                  void navigate('/vehicle-projects');
+                }}
+              >
+                Development projects
+              </Button>
+            </div>
           </div>
-          <div className="grid-toolbar-actions">
-            <Button
-              variant="outline"
-              onClick={() => {
-                // React Router handles route errors; the click does not await navigation.
-                void navigate('/vehicle-projects');
-              }}
-            >
-              Development projects
-            </Button>
-          </div>
-        </div>
+        )}
         {view === 'review' ? (
-          <ShapeReviewWorkspace showAll={showAll} query={reviewQuery} />
+          <ShapeReviewWorkspace
+            showAll={showAll}
+            query={reviewQuery}
+            onShowAllChange={setShowAll}
+            onQueryChange={setReviewQuery}
+          />
         ) : (
           <>
             <div className="shape-info">

@@ -569,7 +569,7 @@ export function OperationsPage() {
     <section className="ops">
       {section !== 'settings' && (
         <div className="ops-heading">
-          <div>
+          <div className="workbench-heading">
             <h1>{titles[section] ?? 'Inbox'}</h1>
             <p>
               {TEAM_NAMES[team]} · {personName(actor.id)}

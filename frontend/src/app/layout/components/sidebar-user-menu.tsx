@@ -12,21 +12,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@coverland-engineering/ui/dropdown-menu';
-import { LogOut, Moon, Settings, Sun } from 'lucide-react';
-import { useTheme } from 'next-themes';
+import { LogOut, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import type { TeamId } from '@/modules/operations/operations-model';
 
-interface HeaderUserMenuProps {
+interface SidebarUserMenuProps {
   team: TeamId;
 }
 
 /** Restores the original demo identity; this display is not an authenticated session. */
-export function HeaderUserMenu({ team }: HeaderUserMenuProps): ReactElement {
-  const { resolvedTheme, setTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
-
+export function SidebarUserMenu({ team }: SidebarUserMenuProps): ReactElement {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -47,7 +43,7 @@ export function HeaderUserMenu({ team }: HeaderUserMenuProps): ReactElement {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         className="w-56"
-        side="bottom"
+        side="right"
         align="end"
         sideOffset={11}
       >
@@ -70,15 +66,6 @@ export function HeaderUserMenu({ team }: HeaderUserMenuProps): ReactElement {
             <Settings aria-hidden="true" />
             <span>Settings</span>
           </Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onSelect={() => {
-            setTheme(isDark ? 'light' : 'dark');
-          }}
-        >
-          {isDark ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
-          <span>{isDark ? 'Light mode' : 'Dark mode'}</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>

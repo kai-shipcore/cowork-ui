@@ -15,6 +15,7 @@ import { useWorkbenchPagination } from '@/shared/components/workbench-pagination
 import type { SampleTrackingRow } from './sample-tracking';
 
 interface SampleTrackingTableProps {
+  toolbarContent?: ReactNode;
   rows: readonly SampleTrackingRow[];
   /** Resets the page when the surrounding filters change. */
   filterKey: string;
@@ -28,6 +29,7 @@ interface SampleTrackingTableProps {
  * Renders the table and its pagination; the caller supplies the grid card.
  */
 export function SampleTrackingTable({
+  toolbarContent,
   rows,
   filterKey,
   onOpenProject,
@@ -171,24 +173,13 @@ export function SampleTrackingTable({
     filterKey,
   );
 
-  if (!rows.length) {
-    return (
-      <div className="empty-state">
-        <div className="empty-icon">📋</div>
-        <strong>No part lines registered.</strong>
-        <p>
-          Create a sample request in the project's Samples tab to generate one
-          row per part.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <>
       <FlatDataGrid
         embedded
         label="Sample Part Lines"
+        toolbarContent={toolbarContent}
+        emptyMessage="No part lines registered. Try changing the filters or create a sample request in the project's Samples tab."
         columns={columns}
         rows={pageItems}
         getRowId={(row) => row.id}

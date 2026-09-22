@@ -3,6 +3,7 @@ export const ROUTES = {
   planningDashboard: '/dashboard/demand-planning',
   customerServicesDashboard: '/dashboard/customer-services',
   ecommerceDashboard: '/dashboard/ecommerce',
+  performanceDashboard: '/performance-dashboard',
   vehicleResearch: '/vehicle-research',
   vehicleProjects: '/vehicle-projects',
   productShapes: '/product-shapes',

@@ -6,21 +6,13 @@ import {
   FlatDataGrid,
   type FlatDataGridColumn,
 } from '@coverland-engineering/ui/flat-data-grid';
-import { Input } from '@coverland-engineering/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@coverland-engineering/ui/select';
 import { SummaryCard } from '@coverland-engineering/ui/summary-card';
 import {
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { PackageCheck, Search, X } from 'lucide-react';
+import { PackageCheck, X } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import {
   businessDateInstant,
@@ -394,36 +386,34 @@ export function ProductCatalogPage() {
       </div>
 
       <Card>
-        <div className="grid-toolbar">
-          <div className="grid-toolbar-filters">
-            <div className="search-field">
-              <Search aria-hidden="true" />
-              <Input
-                aria-label="Search SKU or F#"
-                placeholder="Search SKU / F#"
-                value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value);
-                }}
-              />
-            </div>
-            <Select value={productType} onValueChange={setProductType}>
-              <SelectTrigger
-                aria-label="Product type filter"
-                className="filter-select wide"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Product Type: All</SelectItem>
-                {PRODUCT_TYPES.map((type) => (
-                  <SelectItem value={type.id} key={type.id}>
-                    {type.product}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {hasActiveFilter && (
+        <FlatDataGrid
+          embedded
+          label="Products"
+          columns={columns}
+          rows={pagedProducts}
+          search={{
+            label: 'Search SKU or F#',
+            placeholder: 'Search SKU / F#',
+            value: query,
+            onChange: setQuery,
+          }}
+          filters={[
+            {
+              id: 'productType',
+              label: 'Product type filter',
+              value: productType,
+              onChange: setProductType,
+              options: [
+                { value: 'ALL', label: 'Product Type: All' },
+                ...PRODUCT_TYPES.map((type) => ({
+                  value: type.id,
+                  label: type.product,
+                })),
+              ],
+            },
+          ]}
+          toolbarContent={
+            hasActiveFilter && (
               <Button
                 size="sm"
                 variant="ghost"
@@ -435,64 +425,45 @@ export function ProductCatalogPage() {
               >
                 <X /> Clear filters
               </Button>
-            )}
-          </div>
-        </div>
-        {visible.length ? (
-          <>
-            <FlatDataGrid
-              embedded
-              label="Products"
-              columns={columns}
-              rows={pagedProducts}
-              getRowId={(product) => product.id}
-              onRowClick={(product) => {
-                openProduct(product.id);
-              }}
-              rowActionLabel={(product) => `${product.sku} Open details`}
-              pagination={{
-                page: pagination.pageIndex + 1,
-                pageSize: pagination.pageSize,
-                totalCount: visible.length,
-                pageSizeOptions: [5, 10, 25],
-                onPageChange: (page) => {
-                  setPagination((current) => ({
-                    ...current,
-                    pageIndex: page - 1,
-                  }));
-                },
-                onPageSizeChange: (pageSize) => {
-                  setPagination({ pageIndex: 0, pageSize });
-                },
-              }}
-              sorting={{
-                mode: 'manual',
-                value: activeSort
-                  ? {
-                      id: activeSort.id,
-                      direction: activeSort.desc ? 'desc' : 'asc',
-                    }
-                  : null,
-                onChange: (sort) => {
-                  gridTable.setSorting(
-                    sort
-                      ? [{ id: sort.id, desc: sort.direction === 'desc' }]
-                      : [],
-                  );
-                },
-              }}
-            />
-          </>
-        ) : (
-          <div className="empty-state">
-            <div className="empty-icon">📦</div>
-            <strong>No products.</strong>
-            <p>
-              Request registration in Unique Vehicles / F#, then approve it in
-              Product Registrations to see it here.
-            </p>
-          </div>
-        )}
+            )
+          }
+          emptyMessage="No products. Approve registrations in Product Registrations to list them here."
+
+          getRowId={(product) => product.id}
+          onRowClick={(product) => {
+            openProduct(product.id);
+          }}
+          rowActionLabel={(product) => `${product.sku} Open details`}
+          pagination={{
+            page: pagination.pageIndex + 1,
+            pageSize: pagination.pageSize,
+            totalCount: visible.length,
+            pageSizeOptions: [5, 10, 25],
+            onPageChange: (page) => {
+              setPagination((current) => ({
+                ...current,
+                pageIndex: page - 1,
+              }));
+            },
+            onPageSizeChange: (pageSize) => {
+              setPagination({ pageIndex: 0, pageSize });
+            },
+          }}
+          sorting={{
+            mode: 'manual',
+            value: activeSort
+              ? {
+                  id: activeSort.id,
+                  direction: activeSort.desc ? 'desc' : 'asc',
+                }
+              : null,
+            onChange: (sort) => {
+              gridTable.setSorting(
+                sort ? [{ id: sort.id, desc: sort.direction === 'desc' }] : [],
+              );
+            },
+          }}
+        />
       </Card>
 
       <DetailSheet

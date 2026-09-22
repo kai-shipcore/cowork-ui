@@ -1,3 +1,4 @@
+import { ROUTES } from '@/constants/routes';
 import {
   TEAM_NAMES,
   teamFromLocation,
@@ -8,6 +9,8 @@ import { MENU_SIDEBAR_ALL, type MenuItem } from './navigation';
 export function pageTitle(pathname: string, search: string): string {
   if (pathname.startsWith('/fitments/')) return 'Fitment Detail';
   const team = teamFromLocation(pathname, search);
+  if (pathname === ROUTES.profileDefault) return 'Profile';
+  if (pathname === ROUTES.dashboard) return 'Team Overview';
   if (pathname.startsWith('/dashboard')) return TEAM_NAMES[team] + ' Dashboard';
   const pages: Record<string, string> = {
     tasks: 'My Tasks',

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
 import {
   FlatDataGrid,
@@ -23,6 +24,8 @@ function productName(productTypeId: string): string {
 }
 
 interface ReferenceItemTableProps {
+  toolbarContent?: ReactNode;
+  actions?: ReactNode;
   items: readonly ProductReferenceItem[];
   /** "Color" or "Material" — used in the empty state and action labels. */
   entityLabel: string;
@@ -34,6 +37,8 @@ interface ReferenceItemTableProps {
 
 /** Read-out of one reference table, with per-row edit and delete. */
 export function ReferenceItemTable({
+  toolbarContent,
+  actions,
   items,
   entityLabel,
   filterKey,
@@ -135,21 +140,14 @@ export function ReferenceItemTable({
     filterKey,
   );
 
-  if (!items.length) {
-    return (
-      <div className="empty-state">
-        <div className="empty-icon">🔍</div>
-        <strong>No matching {entityLabel} items found.</strong>
-        <p>Try changing the search term or product type filter.</p>
-      </div>
-    );
-  }
-
   return (
     <>
       <FlatDataGrid
         embedded
         label="Reference Data"
+        toolbarContent={toolbarContent}
+        actions={actions}
+        emptyMessage={`No matching ${entityLabel} items found. Try changing the search term or product type filter.`}
         columns={columns}
         rows={pageItems}
         getRowId={(item) => item.id}

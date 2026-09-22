@@ -458,6 +458,43 @@ export function SamplesPage() {
     setStatus('ALL');
   }
 
+  const filterControls = (
+    <>
+      <div className="search-field">
+        <Search aria-hidden="true" />
+        <Input
+          aria-label="Search request, project, vehicle, factory, or tracking number"
+          placeholder="Request / Project / Vehicle / Tracking number"
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+          }}
+        />
+      </div>
+      <Select value={factory} onValueChange={setFactory}>
+        <SelectTrigger
+          aria-label="Factory filter"
+          className="filter-select wide"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">Factory: All</SelectItem>
+          {factories.map((name) => (
+            <SelectItem value={name} key={name}>
+              {name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {(query || factory !== 'ALL' || status !== 'ALL') && (
+        <Button size="sm" variant="ghost" onClick={resetFilters}>
+          <X /> Clear filters
+        </Button>
+      )}
+    </>
+  );
+
   return (
     <section>
       <PageHeader
@@ -557,42 +594,6 @@ export function SamplesPage() {
             </button>
           </div>
         </div>
-        <div className="grid-toolbar">
-          <div className="grid-toolbar-filters">
-            <div className="search-field">
-              <Search aria-hidden="true" />
-              <Input
-                aria-label="Search request, project, vehicle, factory, or tracking number"
-                placeholder="Request / Project / Vehicle / Tracking number"
-                value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value);
-                }}
-              />
-            </div>
-            <Select value={factory} onValueChange={setFactory}>
-              <SelectTrigger
-                aria-label="Factory filter"
-                className="filter-select wide"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Factory: All</SelectItem>
-                {factories.map((name) => (
-                  <SelectItem value={name} key={name}>
-                    {name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {(query || factory !== 'ALL' || status !== 'ALL') && (
-              <Button size="sm" variant="ghost" onClick={resetFilters}>
-                <X /> Clear filters
-              </Button>
-            )}
-          </div>
-        </div>
         {view === 'PARTS' && (
           <p className="sample-view-note">
             Part Lines = Sample Tracking (SeatCover-Sample-Request) format · One
@@ -601,6 +602,7 @@ export function SamplesPage() {
         )}
         {view === 'PARTS' ? (
           <SampleTrackingTable
+            toolbarContent={filterControls}
             rows={trackingRows}
             filterKey={`${query}|${factory}|${status}`}
             onOpenProject={openProjectSamples}
@@ -614,11 +616,13 @@ export function SamplesPage() {
               return item ? <InspectionResult item={item} compact /> : null;
             }}
           />
-        ) : visibleRequests.length ? (
+        ) : (
           <>
             <FlatDataGrid
               embedded
               label="Sample Requests"
+              toolbarContent={filterControls}
+              emptyMessage="No matching sample requests. Try changing the search, factory, or status filters."
               columns={columns}
               rows={pagedRequests}
               getRowId={(request) => request.id}
@@ -661,12 +665,6 @@ export function SamplesPage() {
               }}
             />
           </>
-        ) : (
-          <div className="empty-state">
-            <div className="empty-icon">🔍</div>
-            <strong>No matching sample requests.</strong>
-            <p>Try changing the search, factory, or status filters.</p>
-          </div>
         )}
       </Card>
       {shippingRequest && (

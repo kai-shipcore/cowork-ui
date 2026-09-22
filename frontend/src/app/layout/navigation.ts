@@ -8,6 +8,7 @@ import {
   CalendarDays,
   CarFront,
   ChartLine,
+  ChartNoAxesCombined,
   ClipboardList,
   Cog,
   FolderKanban,
@@ -16,9 +17,9 @@ import {
   Handshake,
   Headphones,
   House,
+  LayoutDashboard,
   MessageSquare,
   Package,
-  PackageCheck,
   Palette,
   RotateCcw,
   Search,
@@ -54,7 +55,13 @@ export interface MenuItem {
 export type MenuConfig = MenuItem[];
 
 type WorkspaceMenu = Record<
-  'home' | 'tasks' | 'requests' | 'notifications' | 'reports' | 'settings',
+  | 'home'
+  | 'tasks'
+  | 'requests'
+  | 'notifications'
+  | 'reports'
+  | 'settings'
+  | 'search',
   Required<Pick<MenuItem, 'title' | 'path' | 'icon'>>
 >;
 
@@ -90,7 +97,39 @@ export function getWorkspaceMenu(
       path: '/work/settings?team=' + team,
       icon: Settings,
     },
+    search: {
+      title: 'Global Search',
+      path: '/work/search?team=' + team,
+      icon: Search,
+    },
   };
+}
+
+/** R&D performance report as its own screen; other teams have no report yet. */
+const PERFORMANCE_DASHBOARD: Required<
+  Pick<MenuItem, 'title' | 'path' | 'icon'>
+> = {
+  title: 'Performance Dashboard',
+  path: ROUTES.performanceDashboard,
+  icon: ChartNoAxesCombined,
+};
+
+/**
+ * Top shortcuts shared by the icon rail and the labelled sidebar, in display order.
+ * R&D opens on its performance report; the team dashboard sits beside it as Overview.
+ */
+export function getWorkspaceLinks(
+  team: TeamId,
+  dashboardPath?: string,
+): MenuItem[] {
+  const menu = getWorkspaceMenu(team, dashboardPath);
+  if (team !== 'rd') return [menu.home, menu.tasks, menu.notifications];
+  return [
+    { title: 'Home', path: PERFORMANCE_DASHBOARD.path, icon: House },
+    { title: 'Overview', path: menu.home.path, icon: LayoutDashboard },
+    menu.tasks,
+    menu.notifications,
+  ];
 }
 
 /** Match a destination and its detail routes without matching unrelated prefixes. */
@@ -108,8 +147,8 @@ export const MENU_SIDEBAR_MAIN: MenuConfig = [
   {
     children: [
       RD_WORKSPACE_MENU.home,
+      PERFORMANCE_DASHBOARD,
       RD_WORKSPACE_MENU.tasks,
-      RD_WORKSPACE_MENU.requests,
       RD_WORKSPACE_MENU.notifications,
     ],
   },
@@ -117,14 +156,9 @@ export const MENU_SIDEBAR_MAIN: MenuConfig = [
     title: 'R&D Tools',
     children: [
       {
-        title: 'Development Requests',
-        path: '/development-requests',
-        icon: GitPullRequest,
-      },
-      {
         title: 'Vehicle Research',
         path: ROUTES.vehicleResearch,
-        icon: Search,
+        icon: CarFront,
       },
       {
         title: 'Vehicle Projects',
@@ -143,16 +177,6 @@ export const MENU_SIDEBAR_MAIN: MenuConfig = [
         title: 'Sample Tracker',
         path: ROUTES.samples,
         icon: Package,
-      },
-      {
-        title: 'Unique Vehicles / F#',
-        path: ROUTES.uniqueVehicles,
-        icon: CarFront,
-      },
-      {
-        title: 'Product Registrations',
-        path: ROUTES.productRegistrations,
-        icon: PackageCheck,
       },
       {
         title: 'Product Catalog',

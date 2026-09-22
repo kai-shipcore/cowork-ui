@@ -32,6 +32,11 @@ const DevelopmentRequestsPage = lazy(() =>
   })),
 );
 
+const PerformanceDashboardPage = lazy(() =>
+  import('@/modules/rd-workspace/performance-dashboard-page').then(
+    (module) => ({ default: module.PerformanceDashboardPage }),
+  ),
+);
 const VehicleResearchPage = lazy(() =>
   import('@/modules/vehicle-registry/pages/vehicle-research-page').then(
     (module) => ({ default: module.VehicleResearchPage }),
@@ -173,6 +178,14 @@ export function AppRouter() {
           element={
             <Suspense fallback={<RouteFallback />}>
               <TeamDashboardPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path={ROUTES.performanceDashboard}
+          element={
+            <Suspense fallback={<RouteFallback />}>
+              <PerformanceDashboardPage />
             </Suspense>
           }
         />

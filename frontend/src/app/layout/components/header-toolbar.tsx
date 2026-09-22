@@ -1,36 +1,24 @@
 import { Button } from '@coverland-engineering/ui/button';
-import { Bell, Plus } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
-import { teamFromLocation } from '@/modules/operations/operations-model';
-import { HeaderUserMenu } from './header-user-menu';
+import { Moon, Sun } from 'lucide-react';
+import { useTheme } from 'next-themes';
 
 export function HeaderToolbar() {
-  const { pathname, search } = useLocation();
-  const team = teamFromLocation(pathname, search);
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
   return (
     <nav aria-label="Workspace actions" className="flex items-center gap-2">
-      <Button asChild variant="outline" size="sm">
-        <Link to={'/work/search?team=' + team}>Search</Link>
-      </Button>
-      <Button asChild variant="outline" size="sm">
-        <Link to={'/work/reports?team=' + team}>Reports</Link>
-      </Button>
       <Button
-        asChild
+        type="button"
         mode="icon"
         variant="outline"
-        aria-label="My notifications"
+        aria-label="Change theme"
+        title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        onClick={() => {
+          setTheme(isDark ? 'light' : 'dark');
+        }}
       >
-        <Link to={'/work/notifications?team=' + team}>
-          <Bell />
-        </Link>
+        {isDark ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
       </Button>
-      <Button asChild size="sm">
-        <Link to={'/work/requests?new=1&team=' + team}>
-          <Plus /> Requests
-        </Link>
-      </Button>
-      <HeaderUserMenu team={team} />
     </nav>
   );
 }

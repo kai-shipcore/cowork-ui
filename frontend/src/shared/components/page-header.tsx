@@ -60,8 +60,7 @@ export function PageHeader({ description, tables, actions }: PageHeaderProps) {
   const { pathname, search } = useLocation();
   return (
     <header className="workbench-page-header">
-      <div>
-        <span className="workbench-page-eyebrow">Coverland workspace</span>
+      <div className="workbench-heading">
         <h1>{pageTitle(pathname, search)}</h1>
         <p>{description}</p>
         {tables && <PageTables tables={tables} />}
