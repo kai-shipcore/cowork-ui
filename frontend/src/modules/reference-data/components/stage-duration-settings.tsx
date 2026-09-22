@@ -32,7 +32,7 @@ export function StageDurationSettings(): ReactElement {
     <div className="stage-duration-settings">
       <div className="stage-duration-heading">
         <div>
-          <h2>Development Stage Standards</h2>
+          <h2>Project Stage Template</h2>
           <p>
             Standard duration by product and priority · Calendar days · Applies
             to newly started stages

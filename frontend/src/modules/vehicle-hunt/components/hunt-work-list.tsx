@@ -6,19 +6,11 @@ import {
 } from '@coverland-engineering/ui/flat-data-grid';
 import { Input } from '@coverland-engineering/ui/input';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@coverland-engineering/ui/select';
-import {
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
 import type { PaginationState } from '@tanstack/react-table';
-import { Search } from 'lucide-react';
 import { StatusBadge } from '@/shared/components/status-badge';
 import type { Visit } from '@/shared/types/workbench';
 import type { HuntRow } from '../hunt-rows';
@@ -291,120 +283,6 @@ export function HuntWorkList({
   ] as const;
   return (
     <div className="hunt-work-list">
-      <div className="grid-toolbar">
-        <div
-          className="grid-toolbar-filters"
-          aria-label={`${label} ${done ? 'Completed' : 'Pending'} Search & filters`}
-        >
-          <div className="search-field">
-            <Search aria-hidden="true" />
-            <Input
-              aria-label={`${label} ${done ? 'Completed' : 'Pending'} Search`}
-              placeholder="Search vehicle / Project ID"
-              value={filter.query}
-              onChange={(e) => {
-                update({ query: e.target.value });
-              }}
-            />
-          </div>
-          <Select
-            value={filter.product || ALL}
-            onValueChange={(value) => {
-              update({ product: value === ALL ? '' : value });
-            }}
-          >
-            <SelectTrigger
-              aria-label="Product family"
-              className="filter-select wide"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All product families</SelectItem>
-              {[
-                'Seat Cover',
-                'Floor Mat',
-                ...(kind === 'FITTING' ? ['Car Cover'] : []),
-              ].map((p) => (
-                <SelectItem key={p} value={p}>
-                  {p}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {done ? (
-            <>
-              <Input
-                className="hunt-date-input"
-                type="date"
-                aria-label="Completed visit date · From"
-                value={filter.from}
-                onChange={(e) => {
-                  update({ from: e.target.value });
-                }}
-              />
-              <Input
-                className="hunt-date-input"
-                type="date"
-                aria-label="Completed visit date · To"
-                value={filter.to}
-                onChange={(e) => {
-                  update({ to: e.target.value });
-                }}
-              />
-            </>
-          ) : (
-            <Select
-              value={filter.scheduled || ALL}
-              onValueChange={(value) => {
-                update({ scheduled: value === ALL ? '' : value });
-              }}
-            >
-              <SelectTrigger
-                aria-label="Schedule status"
-                className="filter-select"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>All schedules</SelectItem>
-                <SelectItem value="no">Not scheduled</SelectItem>
-                <SelectItem value="yes">Scheduled</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-          <div
-            className="stage-tabs"
-            role="group"
-            aria-label={`${label} Work status`}
-          >
-            {statusTabs.map((tab) => (
-              <button
-                type="button"
-                key={tab.value}
-                className="stage-tab"
-                aria-pressed={status === tab.value}
-                onClick={() => {
-                  setStatus(tab.value);
-                }}
-              >
-                {tab.label}
-                <span className="stage-tab-count">{tab.count.length}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="grid-toolbar-actions">
-          <Button
-            variant="outline"
-            onClick={() => {
-              update(emptyFilter());
-            }}
-          >
-            Clear filters
-          </Button>
-        </div>
-      </div>
       {invalidRange && (
         <p className="hunt-list-note" role="alert">
           The end date must be on or after the start date.
@@ -426,6 +304,105 @@ export function HuntWorkList({
           subset.length
             ? 'No matching items. Change your search or filters.'
             : `${label} ${done ? 'Completed' : 'Pending'} No projects.`
+        }
+        search={{
+          label: `${label} ${done ? 'Completed' : 'Pending'} Search`,
+          placeholder: 'Search vehicle / Project ID',
+          value: filter.query,
+          onChange: (query) => {
+            update({ query });
+          },
+        }}
+        filters={[
+          {
+            id: 'product',
+            label: 'Product family',
+            value: filter.product || ALL,
+            onChange: (value) => {
+              update({ product: value === ALL ? '' : value });
+            },
+            options: [
+              { value: ALL, label: 'All product families' },
+              ...[
+                'Seat Cover',
+                'Floor Mat',
+                ...(kind === 'FITTING' ? ['Car Cover'] : []),
+              ].map((p) => ({ value: p, label: p })),
+            ],
+          },
+          ...(done
+            ? []
+            : [
+                {
+                  id: 'scheduled',
+                  label: 'Schedule status',
+                  value: filter.scheduled || ALL,
+                  onChange: (value: string) => {
+                    update({ scheduled: value === ALL ? '' : value });
+                  },
+                  options: [
+                    { value: ALL, label: 'All schedules' },
+                    { value: 'no', label: 'Not scheduled' },
+                    { value: 'yes', label: 'Scheduled' },
+                  ],
+                },
+              ]),
+        ]}
+        toolbarContent={
+          <>
+            {done && (
+              <>
+                <Input
+                  className="hunt-date-input"
+                  type="date"
+                  aria-label="Completed visit date · From"
+                  value={filter.from}
+                  onChange={(e) => {
+                    update({ from: e.target.value });
+                  }}
+                />
+                <Input
+                  className="hunt-date-input"
+                  type="date"
+                  aria-label="Completed visit date · To"
+                  value={filter.to}
+                  onChange={(e) => {
+                    update({ to: e.target.value });
+                  }}
+                />
+              </>
+            )}
+            <div
+              className="stage-tabs"
+              role="group"
+              aria-label={`${label} Work status`}
+            >
+              {statusTabs.map((tab) => (
+                <button
+                  type="button"
+                  key={tab.value}
+                  className="stage-tab"
+                  aria-pressed={status === tab.value}
+                  onClick={() => {
+                    setStatus(tab.value);
+                  }}
+                >
+                  {tab.label}
+                  <span className="stage-tab-count">{tab.count.length}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        }
+        actions={
+          <Button
+            variant="outline"
+            onClick={() => {
+              update(emptyFilter());
+            }}
+          >
+            Clear filters
+          </Button>
         }
 
         pagination={{

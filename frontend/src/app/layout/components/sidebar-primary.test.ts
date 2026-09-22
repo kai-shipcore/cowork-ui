@@ -4,6 +4,7 @@ import { createElement, type ComponentProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import {
+  getWorkspaceHomePath,
   isSidebarLinkActive,
   MENU_SIDEBAR_MAIN,
   MENU_SIDEBAR_TEAM_TOOLS,
@@ -225,4 +226,19 @@ await test('R&D Home opens the performance dashboard and Overview follows it to 
     /href="\/performance-dashboard"|aria-label="Overview"/,
   );
   assert.equal(railHref(other, 'Home'), '/dashboard/ecommerce');
+});
+
+await test('brand logo destination matches the Home shortcut for every team', () => {
+  assert.equal(
+    getWorkspaceHomePath('rd', '/dashboard'),
+    '/performance-dashboard',
+  );
+  assert.equal(
+    getWorkspaceHomePath('ecommerce', '/dashboard/ecommerce'),
+    '/dashboard/ecommerce',
+  );
+  assert.equal(
+    getWorkspaceHomePath('demand-planning'),
+    '/dashboard/demand-planning',
+  );
 });

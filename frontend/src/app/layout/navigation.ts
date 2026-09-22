@@ -132,6 +132,14 @@ export function getWorkspaceLinks(
   ];
 }
 
+/** Where Home lands for this team; the brand logo follows the same destination. */
+export function getWorkspaceHomePath(
+  team: TeamId,
+  dashboardPath?: string,
+): string {
+  return getWorkspaceLinks(team, dashboardPath)[0]?.path ?? teamHome(team);
+}
+
 /** Match a destination and its detail routes without matching unrelated prefixes. */
 export function isSidebarLinkActive(pathname: string, path: string): boolean {
   const destination = path.split('?')[0];
