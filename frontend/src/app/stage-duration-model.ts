@@ -64,7 +64,7 @@ export function projectStagePlan(
   priority: StagePriority,
 ) {
   const preset = STAGE_PRODUCTS.find((entry) => entry.name === product);
-  if (!preset) throw new Error('Unknown product stage preset.');
+  if (!preset) return [];
   const revision = readStageDurationRevisions()
     .slice()
     .reverse()
