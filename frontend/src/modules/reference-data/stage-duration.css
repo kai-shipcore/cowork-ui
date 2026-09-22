@@ -61,7 +61,7 @@
   width: 76px;
   text-align: right;
 }
-.stage-duration-table td:nth-child(2) {
+.stage-duration-table td:not(:first-child):not(:last-child) {
   white-space: nowrap;
 }
 .stage-duration-total {

@@ -131,4 +131,23 @@ await test('new stages freeze template duration and later saves or template revi
   assert.equal(fitting.zones[0].stageHistory?.[1].targetDays, 10);
   assert.equal(fitting.zones[0].stageHistory[1].targetDueAt, '2026-10-04');
   assert.equal(fitting.zones[0].stageHistory[0].targetDueAt, '2026-09-26');
+  const planned = recordStageTransitions(
+    sample,
+    {
+      ...next,
+      zones: [
+        {
+          ...next.zones[0],
+          currentStage: 'Fitting',
+          stageTargetDays: [{ stage: 'Fitting', targetDays: 3 }],
+        },
+      ],
+    },
+    'u',
+    '2026-09-24T20:00:00Z',
+    [changed],
+  );
+  assert.equal(planned.zones[0].stageHistory?.[1].targetDays, 3);
+  assert.equal(planned.zones[0].stageHistory?.[1].targetDueAt, '2026-09-27');
+  assert.equal(planned.zones[0].stageHistory?.[0].targetDueAt, '2026-09-26');
 });

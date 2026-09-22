@@ -34,6 +34,7 @@ export interface VehicleZoneProject {
   status?: 'ACTIVE' | 'ON_HOLD' | 'CANCELLED' | 'MERGED';
   stageHistory?: readonly ProjectStageRecord[];
   priority?: 'URGENT' | 'HIGH' | 'NORMAL' | 'LOW';
+  stageTargetDays?: ReadonlyArray<{ stage: string; targetDays: number }>;
   targetAt?: string;
   lastActivityAt?: string;
   productShapeId?: string;

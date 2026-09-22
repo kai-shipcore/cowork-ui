@@ -4,8 +4,10 @@ import { PEOPLE } from '@/modules/operations/operations-model';
 import {
   appendStageDurationRevision,
   durationStages,
+  projectStagePlan,
   stageDurationSchema,
   stageTarget,
+  suggestedStageDays,
   type StageDurationRevision,
 } from './stage-duration-model';
 
@@ -20,6 +22,81 @@ const REVISION: StageDurationRevision = {
     targetDays: 5,
   })),
 };
+
+await test('project plans are independent copies and override standards for new stages', () => {
+  const plan = projectStagePlan('Seat Cover', 'HIGH');
+  assert.equal(plan.length, 6);
+  plan[0].targetDays = 12;
+  assert.notEqual(projectStagePlan('Seat Cover', 'HIGH')[0].targetDays, 12);
+  assert.equal(
+    stageTarget([], 'PT-SC', plan[0].stage, '2026-09-21', 'HIGH', plan)
+      .targetDays,
+    12,
+  );
+  assert.equal(
+    stageTarget([REVISION], 'PT-SC', plan[0].stage, '2026-09-21', 'HIGH', plan)
+      .targetDays,
+    12,
+  );
+});
+
+await test('priority standards select the matching days and preserve legacy standards', () => {
+  const revision: StageDurationRevision = {
+    ...REVISION,
+    stages: REVISION.stages.map((stage) => ({
+      ...stage,
+      priorityDays: { URGENT: 2, HIGH: 3, NORMAL: 5, LOW: 8 },
+    })),
+  };
+  for (const priority of ['URGENT', 'HIGH', 'NORMAL', 'LOW'] as const) {
+    assert.equal(
+      stageTarget([revision], 'PT-SC', 'Design', '2026-09-21', priority)
+        .targetDays,
+      revision.stages[0]?.priorityDays?.[priority],
+    );
+    assert.equal(
+      stageTarget([REVISION], 'PT-SC', 'Design', '2026-09-21', priority)
+        .targetDays,
+      5,
+    );
+  }
+  assert.equal(
+    stageTarget([revision], 'PT-SC', 'Design', '2026-09-21', 'URGENT')
+      .targetDueAt,
+    '2026-09-23',
+  );
+  assert.equal(suggestedStageDays(7, 'URGENT'), 4);
+  assert.equal(suggestedStageDays(7, 'HIGH'), 6);
+  assert.equal(suggestedStageDays(7, 'NORMAL'), 7);
+  assert.equal(suggestedStageDays(7, 'LOW'), 11);
+  assert.equal(suggestedStageDays(1, 'URGENT'), 1);
+  for (const invalid of [0, 366, 1.5]) {
+    assert.equal(
+      stageDurationSchema.safeParse([
+        {
+          ...revision,
+          stages: revision.stages.map((stage) => ({
+            ...stage,
+            priorityDays: { ...stage.priorityDays, HIGH: invalid },
+          })),
+        },
+      ]).success,
+      false,
+    );
+  }
+  assert.equal(
+    stageDurationSchema.safeParse([
+      {
+        ...revision,
+        stages: revision.stages.map((stage) => ({
+          ...stage,
+          priorityDays: { NORMAL: 5 },
+        })),
+      },
+    ]).success,
+    false,
+  );
+});
 
 await test('only the R&D lead can append standards and stale changes cannot replace history', () => {
   const records = appendStageDurationRevision([], REVISION, PEOPLE[0]);

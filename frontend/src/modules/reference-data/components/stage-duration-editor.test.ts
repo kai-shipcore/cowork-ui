@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { STAGE_PRODUCTS } from '@/app/stage-duration-model';
 import { StageDurationEditor } from './stage-duration-editor';
 
-await test('unset standards render blank inputs instead of silently applying example durations', () => {
+await test('unset standards show suggested values for all four priorities pending explicit save', () => {
   const html = renderToStaticMarkup(
     createElement(StageDurationEditor, {
       product: STAGE_PRODUCTS[0],
@@ -14,11 +14,12 @@ await test('unset standards render blank inputs instead of silently applying exa
       onSave: () => Promise.resolve(true),
     }),
   );
-  assert.match(html, /Standard durations not set/);
-  assert.equal((html.match(/type="number"/g) ?? []).length, 6);
-  assert.match(html, /Load example/);
+  assert.match(html, /Suggested durations/);
+  assert.equal((html.match(/type="number"/g) ?? []).length, 24);
+  assert.match(html, /Load suggested durations/);
+  for (const priority of ['URGENT', 'HIGH', 'NORMAL', 'LOW'])
+    assert.match(html, new RegExp(`${priority} Standard duration`));
   assert.match(html, /type="submit" disabled=""/);
-  assert.doesNotMatch(html, /30 days/);
 });
 
 await test('read-only viewers cannot edit any duration or submit standards', () => {
