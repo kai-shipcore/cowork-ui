@@ -6,15 +6,13 @@ import {
   CardTitle,
 } from '@coverland-engineering/ui/card';
 import { SummaryCard } from '@coverland-engineering/ui/summary-card';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { findUser } from '@/shared/domain/app-user';
 import { UserAvatar } from '@/shared/domain/user-picker';
 import { PageHeader } from '@/shared/components/page-header';
 import { StatusBadge } from '@/shared/components/status-badge';
 import type { AppUser } from '@/shared/types/workbench';
-import { isOpen } from '@/modules/operations/operations-model';
-import { useOperations } from '@/app/operations-store';
 import { useWorkbenchStore } from '@/app/workbench-store';
 import {
   SAMPLE_FITTING_WAIT_DAYS,
@@ -38,7 +36,6 @@ function todayKey(): string {
 /** R&D home: what needs attention today, derived from the live workbench state. */
 export function DashboardPage() {
   const navigate = useNavigate();
-  const { snapshot } = useOperations();
   const {
     projects,
     projectDetails,
@@ -88,28 +85,6 @@ export function DashboardPage() {
             : undefined
         }
       />
-      <Card>
-        <CardContent className="flex items-center justify-between p-5">
-          <div>
-            <h2 className="font-semibold">Team request inbox</h2>
-            <p className="text-xs text-muted-foreground">
-              Team Requests{' '}
-              {
-                snapshot.requests.filter(
-                  (request) => request.targetTeam === 'rd' && isOpen(request),
-                ).length
-              }
-              items · Demo work data in this browser
-            </p>
-          </div>
-          <Button asChild variant="outline">
-            <Link to="/work/requests?team=rd&target=rd&filter=open">
-              Process request
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
-
       {summary.warnings.length > 0 && (
         <section className="dashboard-alerts" role="alert">
           <h2>Alerts {summary.warnings.length} items</h2>

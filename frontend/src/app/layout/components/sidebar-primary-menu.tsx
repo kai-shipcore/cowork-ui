@@ -12,7 +12,7 @@ import { Badge } from '@coverland-engineering/ui/badge';
 import { Link, useLocation } from 'react-router';
 import { teamFromLocation } from '@/modules/operations/operations-model';
 import {
-  getWorkspaceMenu,
+  getWorkspaceLinks,
   isSidebarLinkActive,
   MENU_SIDEBAR_MAIN,
   MENU_SIDEBAR_TEAM_TOOLS,
@@ -68,7 +68,6 @@ export function SidebarPrimaryMenu({
 }: SidebarPrimaryMenuProps) {
   const { pathname, search } = useLocation();
   const team = teamFromLocation(pathname, search);
-  const menu = getWorkspaceMenu(team);
   const teamToolItems = MENU_SIDEBAR_TEAM_TOOLS[toolsMenuTitle];
 
   // Memoize matchPath to prevent unnecessary re-renders
@@ -111,12 +110,7 @@ export function SidebarPrimaryMenu({
           </AccordionMenuSub>
         ) : (
           <AccordionMenuGroup key={index}>
-            {renderItems([
-              menu.home,
-              menu.tasks,
-              menu.requests,
-              menu.notifications,
-            ])}
+            {renderItems(getWorkspaceLinks(team))}
           </AccordionMenuGroup>
         ),
       )}

@@ -6,7 +6,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { TEAM_IDS, teamHome } from '@/modules/operations/operations-model';
 import { HeaderToolbar } from './header-toolbar';
 
-await test('every team keeps the original accessible user avatar and existing workspace actions', () => {
+await test('header toolbar keeps only the theme toggle for every team', () => {
   for (const team of TEAM_IDS) {
     const html = renderToStaticMarkup(
       createElement(
@@ -15,12 +15,11 @@ await test('every team keeps the original accessible user avatar and existing wo
         createElement(HeaderToolbar),
       ),
     );
-    assert.match(html, /aria-label="Kai Chung user menu"/);
-    assert.match(html, /aria-haspopup="menu"/);
-    assert.match(html, /aria-expanded="false"/);
-    assert.match(html, />KC<\/span>/);
-    assert.ok(html.includes('href="/work/reports?team=' + team + '"'));
-    assert.ok(html.includes('href="/work/notifications?team=' + team + '"'));
-    assert.doesNotMatch(html, /aria-label="Change theme"/);
+    assert.match(html, /aria-label="Change theme"/);
+    assert.doesNotMatch(html, /aria-label="Kai Chung user menu"/);
+    assert.doesNotMatch(html, /href="\/work\/search/);
+    assert.doesNotMatch(html, /href="\/work\/reports/);
+    assert.doesNotMatch(html, /href="\/work\/notifications/);
+    assert.doesNotMatch(html, /href="\/work\/requests/);
   }
 });

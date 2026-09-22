@@ -30,14 +30,15 @@ await test('expanded rail keeps common shortcuts without duplicating team tools'
   assert.match(html, /aria-label="My Tasks"/);
   assert.doesNotMatch(html, /aria-label="R&amp;D Tools"/);
   assert.doesNotMatch(html, /href="\/vehicle-research"/);
+  assert.doesNotMatch(html, /href="\/development-requests"/);
 });
 
 await test('collapsed R&D rail exposes every tool and resource after a separator', () => {
   const html = renderRail({ collapsed: true });
   const groupPosition = html.indexOf('aria-label="R&amp;D Tools"');
   assert.ok(groupPosition > html.indexOf('role="separator"'));
-  assert.equal((html.match(/role="separator"/g) ?? []).length, 3);
-  assert.equal((html.match(/lucide-ellipsis/g) ?? []).length, 3);
+  assert.equal((html.match(/role="separator"/g) ?? []).length, 2);
+  assert.equal((html.match(/lucide-ellipsis/g) ?? []).length, 2);
   assert.match(html, /bg-white/);
   assert.doesNotMatch(html, /data-slot="separator"/);
   for (const item of MENU_SIDEBAR_MAIN.find(
@@ -48,8 +49,13 @@ await test('collapsed R&D rail exposes every tool and resource after a separator
   assert.match(html, /aria-label="Resources"/);
   assert.match(html, /href="\/vehicle-options"/);
   assert.match(html, /href="\/reference-data"/);
-  assert.match(html, /href="\/work\/requests\?team=rd"/);
-  assert.match(html, /href="\/work\/reports\?team=rd"/);
+  assert.doesNotMatch(html, /href="\/work\/requests\?team=rd"/);
+  assert.doesNotMatch(
+    html,
+    /href="\/unique-vehicles"|href="\/product-registrations"|href="\/products"/,
+  );
+  assert.doesNotMatch(html, /href="\/work\/reports\?team=rd"/);
+  assert.doesNotMatch(html, /aria-label="Common Workspace"/);
 });
 
 await test('switching teams selects their own icons without inventing placeholder links', () => {
@@ -80,7 +86,7 @@ await test('switching teams selects their own icons without inventing placeholde
     assert.match(html, /aria-label="Resources"/);
     assert.match(html, /href="https:\/\/www\.coverland\.com"/);
     assert.match(html, /href="https:\/\/www\.icarcover\.com"/);
-    assert.ok(html.includes('href="/work/requests?team=' + team + '"'));
+    assert.ok(!html.includes('href="/work/requests?team=' + team + '"'));
   }
 });
 
@@ -134,7 +140,7 @@ await test('icon rail and labelled menus use identical names and icons for every
         ),
       ),
     );
-    assert.ok(labelled.size >= 6);
+    assert.ok(labelled.size >= 3);
     for (const [destination, expected] of labelled) {
       assert.deepEqual(rail.get(destination), expected, destination);
     }
@@ -153,4 +159,47 @@ await test('shared active matching respects query filters and detail routes with
     false,
   );
   assert.equal(isSidebarLinkActive('/dashboard', '#'), false);
+});
+
+await test('rail ends with the global search shortcut and the user menu', () => {
+  for (const [team, path] of [
+    ['rd', '/dashboard'],
+    ['ecommerce', '/dashboard/ecommerce'],
+  ]) {
+    const html = renderRail({ collapsed: false, dashboardPath: path }, path);
+    const account = html.indexOf('aria-label="Account"');
+    assert.ok(account > html.indexOf('aria-label="Notifications'));
+    assert.ok(html.includes('href="/work/search?team=' + team + '"'));
+    assert.match(html, /aria-label="Global Search"/);
+    assert.match(html, /aria-label="Kai Chung user menu"/);
+    assert.match(html, /aria-haspopup="menu"/);
+    assert.match(html, />KC<\/span>/);
+    assert.match(html, /mt-auto/);
+  }
+});
+
+await test('settings is reachable only through the user menu, not as a rail shortcut', () => {
+  for (const collapsed of [false, true]) {
+    const html = renderRail({ collapsed });
+    assert.equal(
+      (html.match(/href="\/work\/settings\?team=rd"/g) ?? []).length,
+      0,
+    );
+  }
+});
+
+await test('Performance Dashboard sits directly under Home for R&D only', () => {
+  for (const collapsed of [false, true]) {
+    const html = renderRail({ collapsed });
+    const home = html.indexOf('aria-label="Home"');
+    const performance = html.indexOf('aria-label="Performance Dashboard"');
+    const tasks = html.indexOf('aria-label="My Tasks"');
+    assert.ok(home < performance && performance < tasks);
+    assert.match(html, /href="\/performance-dashboard"/);
+  }
+  const other = renderRail(
+    { collapsed: false, dashboardPath: '/dashboard/ecommerce' },
+    '/dashboard/ecommerce',
+  );
+  assert.doesNotMatch(other, /href="\/performance-dashboard"/);
 });
