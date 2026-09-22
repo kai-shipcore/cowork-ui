@@ -6,6 +6,7 @@ import {
   Briefcase,
   Calendar,
   CalendarDays,
+  CarFront,
   ChartLine,
   ChartNoAxesCombined,
   ClipboardList,
@@ -16,6 +17,7 @@ import {
   Handshake,
   Headphones,
   House,
+  LayoutDashboard,
   MessageSquare,
   Package,
   Palette,
@@ -112,15 +114,19 @@ const PERFORMANCE_DASHBOARD: Required<
   icon: ChartNoAxesCombined,
 };
 
-/** Top shortcuts shared by the icon rail and the labelled sidebar, in display order. */
+/**
+ * Top shortcuts shared by the icon rail and the labelled sidebar, in display order.
+ * R&D opens on its performance report; the team dashboard sits beside it as Overview.
+ */
 export function getWorkspaceLinks(
   team: TeamId,
   dashboardPath?: string,
 ): MenuItem[] {
   const menu = getWorkspaceMenu(team, dashboardPath);
+  if (team !== 'rd') return [menu.home, menu.tasks, menu.notifications];
   return [
-    menu.home,
-    ...(team === 'rd' ? [PERFORMANCE_DASHBOARD] : []),
+    { title: 'Home', path: PERFORMANCE_DASHBOARD.path, icon: House },
+    { title: 'Overview', path: menu.home.path, icon: LayoutDashboard },
     menu.tasks,
     menu.notifications,
   ];
@@ -152,7 +158,7 @@ export const MENU_SIDEBAR_MAIN: MenuConfig = [
       {
         title: 'Vehicle Research',
         path: ROUTES.vehicleResearch,
-        icon: Search,
+        icon: CarFront,
       },
       {
         title: 'Vehicle Projects',

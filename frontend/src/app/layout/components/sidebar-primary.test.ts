@@ -144,7 +144,12 @@ await test('icon rail and labelled menus use identical names and icons for every
     for (const [destination, expected] of labelled) {
       assert.deepEqual(rail.get(destination), expected, destination);
     }
-    assert.equal(rail.get(path)?.icon, 'lucide-house');
+    assert.equal(
+      rail.get(path)?.icon,
+      toolsMenuTitle === 'R&D Tools'
+        ? 'lucide-layout-dashboard'
+        : 'lucide-house',
+    );
   }
 });
 
@@ -188,18 +193,34 @@ await test('settings is reachable only through the user menu, not as a rail shor
   }
 });
 
-await test('Performance Dashboard sits directly under Home for R&D only', () => {
+/** href of the rail anchor carrying this exact accessible name. */
+function railHref(html: string, label: string): string | undefined {
+  for (const match of html.matchAll(/<a\b([^>]*)>/g)) {
+    if (match[1].includes('aria-label="' + label + '"')) {
+      return /href="([^"]+)"/.exec(match[1])?.[1];
+    }
+  }
+  return undefined;
+}
+
+await test('R&D Home opens the performance dashboard and Overview follows it to the team dashboard', () => {
   for (const collapsed of [false, true]) {
     const html = renderRail({ collapsed });
     const home = html.indexOf('aria-label="Home"');
-    const performance = html.indexOf('aria-label="Performance Dashboard"');
+    const overview = html.indexOf('aria-label="Overview"');
     const tasks = html.indexOf('aria-label="My Tasks"');
-    assert.ok(home < performance && performance < tasks);
-    assert.match(html, /href="\/performance-dashboard"/);
+    assert.ok(home < overview && overview < tasks);
+    assert.equal(railHref(html, 'Home'), '/performance-dashboard');
+    assert.equal(railHref(html, 'Overview'), '/dashboard');
+    assert.doesNotMatch(html, /aria-label="Performance Dashboard"/);
   }
   const other = renderRail(
     { collapsed: false, dashboardPath: '/dashboard/ecommerce' },
     '/dashboard/ecommerce',
   );
-  assert.doesNotMatch(other, /href="\/performance-dashboard"/);
+  assert.doesNotMatch(
+    other,
+    /href="\/performance-dashboard"|aria-label="Overview"/,
+  );
+  assert.equal(railHref(other, 'Home'), '/dashboard/ecommerce');
 });
