@@ -26,7 +26,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { Plus, Search } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { StatusBadge } from '@/shared/components/status-badge';
 import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import type { SeatCoverPart, VehicleZone } from '@/shared/types/workbench';
@@ -236,21 +236,19 @@ export function SeatCoverPartPanel({
 
   return (
     <>
-      <div className="grid-toolbar">
-        <div className="grid-toolbar-filters">
-          <div className="search-field">
-            <Search aria-hidden="true" />
-            <Input
-              aria-label="Search part name or description"
-              placeholder="Search parts"
-              value={query}
-              onChange={(event) => {
-                onQueryChange(event.target.value);
-              }}
-            />
-          </div>
-        </div>
-        <div className="grid-toolbar-actions">
+      <FlatDataGrid
+        embedded
+        label="Seat Cover Parts"
+        columns={columns}
+        rows={pagedParts}
+        getRowId={(part) => part.id}
+        search={{
+          label: 'Search part name or description',
+          placeholder: 'Search parts',
+          value: query,
+          onChange: onQueryChange,
+        }}
+        actions={
           <Button
             variant="primary"
             onClick={() => {
@@ -259,58 +257,39 @@ export function SeatCoverPartPanel({
           >
             <Plus /> Add part
           </Button>
-        </div>
-      </div>
+        }
+        emptyMessage="No matching parts. Try another search term."
 
-      {visible.length ? (
-        <>
-          <FlatDataGrid
-            embedded
-            label="Seat Cover Parts"
-            columns={columns}
-            rows={pagedParts}
-            getRowId={(part) => part.id}
-
-            pagination={{
-              page: pagination.pageIndex + 1,
-              pageSize: pagination.pageSize,
-              totalCount: visible.length,
-              pageSizeOptions: [5, 10, 25],
-              onPageChange: (page) => {
-                setPagination((current) => ({
-                  ...current,
-                  pageIndex: page - 1,
-                }));
-              },
-              onPageSizeChange: (pageSize) => {
-                setPagination({ pageIndex: 0, pageSize });
-              },
-            }}
-            sorting={{
-              mode: 'manual',
-              value: activeSort
-                ? {
-                    id: activeSort.id,
-                    direction: activeSort.desc ? 'desc' : 'asc',
-                  }
-                : null,
-              onChange: (sort) => {
-                gridTable.setSorting(
-                  sort
-                    ? [{ id: sort.id, desc: sort.direction === 'desc' }]
-                    : [],
-                );
-              },
-            }}
-          />
-        </>
-      ) : (
-        <div className="empty-state">
-          <div className="empty-icon">🔍</div>
-          <strong>No matching parts.</strong>
-          <p>Try another search term.</p>
-        </div>
-      )}
+        pagination={{
+          page: pagination.pageIndex + 1,
+          pageSize: pagination.pageSize,
+          totalCount: visible.length,
+          pageSizeOptions: [5, 10, 25],
+          onPageChange: (page) => {
+            setPagination((current) => ({
+              ...current,
+              pageIndex: page - 1,
+            }));
+          },
+          onPageSizeChange: (pageSize) => {
+            setPagination({ pageIndex: 0, pageSize });
+          },
+        }}
+        sorting={{
+          mode: 'manual',
+          value: activeSort
+            ? {
+                id: activeSort.id,
+                direction: activeSort.desc ? 'desc' : 'asc',
+              }
+            : null,
+          onChange: (sort) => {
+            gridTable.setSorting(
+              sort ? [{ id: sort.id, desc: sort.direction === 'desc' }] : [],
+            );
+          },
+        }}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
