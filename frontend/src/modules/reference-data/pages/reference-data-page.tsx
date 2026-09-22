@@ -23,17 +23,8 @@ import {
   TabsList,
   TabsTrigger,
 } from '@coverland-engineering/ui/tabs';
-import {
-  Armchair,
-  Layers,
-  Palette,
-  Plus,
-  Search,
-  Tag,
-  Timer,
-  X,
-} from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { Layers, Palette, Plus, Search, Timer, X } from 'lucide-react';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/shared/components/page-header';
 import { PRODUCT_TYPES } from '@/shared/types/workbench';
 import type { ProductReferenceItem } from '@/shared/types/workbench';
@@ -45,8 +36,6 @@ import {
   type ReferenceKind,
 } from '../components/reference-item-dialog';
 import { ReferenceItemTable } from '../components/reference-item-table';
-import { SeatCoverCodePanel } from '../components/seat-cover-code-panel';
-import { SeatCoverPartPanel } from '../components/seat-cover-part-panel';
 import { StageDurationSettings } from '../components/stage-duration-settings';
 import '../stage-duration.css';
 
@@ -76,8 +65,6 @@ export function ReferenceDataPage() {
     setProductColors,
     setProductMaterials,
     masterProducts,
-    seatCoverParts,
-    seatCoverCodes,
   } = useWorkbenchStore();
   const [params, setParams] = useSearchParams();
   const tab = params.get('tab');
@@ -170,6 +157,12 @@ export function ReferenceDataPage() {
 
   const isGeneric = kind === 'colors' || isMaterials;
 
+  if (tab === 'parts' || tab === 'codes') {
+    const destination = new URLSearchParams(params);
+    destination.set('tab', tab);
+    return <Navigate to={`/parts?${destination.toString()}`} replace />;
+  }
+
   return (
     <section>
       <PageHeader
@@ -179,9 +172,6 @@ export function ReferenceDataPage() {
             ? [
                 { name: 'product_color' },
                 { name: 'product_material' },
-                { name: 'seat_cover_part' },
-                { name: 'seat_cover_code' },
-                { name: 'seat_cover_code_x_option_value' },
                 { name: 'vehicle_project_stage_template' },
               ]
             : undefined
@@ -209,16 +199,6 @@ export function ReferenceDataPage() {
               <Layers aria-hidden="true" />
               Material
               <span className="stage-tab-count">{productMaterials.length}</span>
-            </TabsTrigger>
-            <TabsTrigger value="parts">
-              <Armchair aria-hidden="true" />
-              Seat Cover Part
-              <span className="stage-tab-count">{seatCoverParts.length}</span>
-            </TabsTrigger>
-            <TabsTrigger value="codes">
-              <Tag aria-hidden="true" />
-              Seat Cover Code
-              <span className="stage-tab-count">{seatCoverCodes.length}</span>
             </TabsTrigger>
             <TabsTrigger value="stages">
               <Timer aria-hidden="true" />
@@ -293,11 +273,7 @@ export function ReferenceDataPage() {
                   onDelete={setPendingDelete}
                 />
               </>
-            ) : kind === 'parts' ? (
-              <SeatCoverPartPanel query={query} onQueryChange={setQuery} />
-            ) : (
-              <SeatCoverCodePanel query={query} onQueryChange={setQuery} />
-            )}
+            ) : null}
           </TabsContent>
         </Tabs>
       </Card>
