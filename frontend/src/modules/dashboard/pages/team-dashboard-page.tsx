@@ -56,7 +56,7 @@ export function TeamDashboardPage() {
   return (
     <section className="ops">
       <div className="ops-heading">
-        <div>
+        <div className="workbench-heading">
           <h1>{TEAM_NAMES[team]}</h1>
           <p>{DESCRIPTIONS[team]}</p>
         </div>

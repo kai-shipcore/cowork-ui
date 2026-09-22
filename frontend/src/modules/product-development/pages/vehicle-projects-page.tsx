@@ -540,8 +540,7 @@ export function VehicleProjectsPage() {
   return (
     <section className="vehicle-projects-page">
       <header className="vp-page-header">
-        <div>
-          <p className="vp-eyebrow">Product development</p>
+        <div className="workbench-heading">
           <h1>Vehicle Projects</h1>
           <p>
             Seat Cover · Floor Mat · Car Cover — sorted by schedule risk and
@@ -707,56 +706,6 @@ export function VehicleProjectsPage() {
         }
         board={
           <div className="rd-workspace p-5">
-            <div className="board-toolbar">
-              <label>
-                Search vehicles
-                <span className="search-field">
-                  <Search aria-hidden="true" />
-                  <input
-                    placeholder="Search make / model"
-                    value={query}
-                    onChange={(event) => {
-                      setQuery(event.target.value);
-                    }}
-                  />
-                </span>
-              </label>
-              <label>
-                Product
-                <select
-                  value={product}
-                  onChange={(event) => {
-                    setProduct(event.target.value);
-                  }}
-                >
-                  <option value="ALL">All</option>
-                  {PRODUCT_CHOICES.map((choice) => (
-                    <option key={choice.id}>{choice.name}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Stage
-                <select
-                  value={stageFilter}
-                  onChange={(event) => {
-                    const filter = PROJECT_STAGE_FILTERS.find(
-                      (entry) => entry.value === event.target.value,
-                    );
-                    if (filter) setStageFilter(filter.value);
-                  }}
-                >
-                  {PROJECT_STAGE_FILTERS.map((filter) => (
-                    <option key={filter.value} value={filter.value}>
-                      {filter.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <Button className="board-toolbar-action" onClick={openWizard}>
-                <Plus /> New Project
-              </Button>
-            </div>
             <ProjectStageBoard
               currentDate={currentDate}
               projects={visibleProjects}

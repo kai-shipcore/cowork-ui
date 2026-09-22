@@ -21,13 +21,8 @@ export function LoginPage() {
           className="mt-login-card flex w-full max-w-sm flex-col gap-5"
           aria-labelledby="login-title"
         >
-          <div className="flex flex-col gap-2 text-center">
-            <h1
-              id="login-title"
-              className="text-3xl font-semibold tracking-tight"
-            >
-              Coverland Workbench
-            </h1>
+          <div className="workbench-heading">
+            <h1 id="login-title">Coverland Workbench</h1>
             <p className="text-muted-foreground text-sm">
               An internal portal connecting team workflows · Public prototype
             </p>

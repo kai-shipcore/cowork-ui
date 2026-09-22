@@ -1896,8 +1896,7 @@ function ProjectHeader({
     <Card className="project-group-header">
       <CardContent>
         <div className="project-group-heading">
-          <div>
-            <p className="project-detail-breadcrumb">Project / {zone.id}</p>
+          <div className="workbench-heading">
             <h1>
               {project.vehicle} · {zone.label}
             </h1>

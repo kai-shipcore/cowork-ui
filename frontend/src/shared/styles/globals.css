@@ -154,6 +154,26 @@ html {
   scroll-behavior: smooth;
 }
 
+/** Application zoom **/
+:root {
+  /* Module stylesheets are px-based, so a root font-size bump would scale only
+     Tailwind utilities. CSS zoom scales the whole document uniformly, matching
+     the 125% browser zoom operators found readable. */
+  --app-zoom: 1.25;
+}
+html {
+  zoom: var(--app-zoom);
+}
+/* Radix poppers position their wrapper with a translate() computed in viewport
+   pixels; inside a zoomed root that translate would be zoomed again and land
+   off-screen. Neutralize the zoom on the wrapper and restore it on the content. */
+[data-radix-popper-content-wrapper] {
+  zoom: calc(1 / var(--app-zoom));
+}
+[data-radix-popper-content-wrapper] > * {
+  zoom: var(--app-zoom);
+}
+
 /** Custom Containers **/
 @utility container {
   @apply mx-auto max-w-none px-4 lg:px-5;

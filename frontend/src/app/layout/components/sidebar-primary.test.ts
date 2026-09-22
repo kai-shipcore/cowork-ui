@@ -52,8 +52,10 @@ await test('collapsed R&D rail exposes every tool and resource after a separator
   assert.doesNotMatch(html, /href="\/work\/requests\?team=rd"/);
   assert.doesNotMatch(
     html,
-    /href="\/unique-vehicles"|href="\/product-registrations"|href="\/products"/,
+    /href="\/unique-vehicles"|href="\/product-registrations"/,
   );
+  assert.match(html, /href="\/products"/);
+  assert.match(html, /aria-label="Product Catalog"/);
   assert.doesNotMatch(html, /href="\/work\/reports\?team=rd"/);
   assert.doesNotMatch(html, /aria-label="Common Workspace"/);
 });

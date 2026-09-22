@@ -89,31 +89,27 @@
   margin-bottom: 20px;
 }
 
-.metronic-content .workbench-page-eyebrow {
-  display: block;
-  margin-bottom: 5px;
-  color: var(--wb-muted);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
+:is(.metronic-content, .mt-login) .workbench-heading {
+  min-width: 0;
+  text-align: left;
 }
 
-.metronic-content
-  :is(.workbench-page-header, .ops-heading, .prefs-heading, .rd-workspace)
-  h1 {
-  margin: 0 0 7px;
+:is(.metronic-content, .mt-login) .workbench-heading > h1 {
+  margin: 2px 0 5px;
   color: var(--foreground);
   font-size: clamp(25px, 2.3vw, 32px);
-  font-weight: 650;
-  line-height: 1.15;
+  font-weight: 400;
+  line-height: 1.1;
   letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
 }
 
-.metronic-content .workbench-page-header p {
-  max-width: 85ch;
-  font-size: 12px;
-  line-height: 1.6;
+:is(.metronic-content, .mt-login) .workbench-heading > p {
+  margin: 0;
+  color: var(--wb-muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
 }
 
 .metronic-content :is(.dashboard, .ops, .rd-workspace) {

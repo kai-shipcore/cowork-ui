@@ -177,6 +177,11 @@ export const MENU_SIDEBAR_MAIN: MenuConfig = [
         path: ROUTES.samples,
         icon: Package,
       },
+      {
+        title: 'Product Catalog',
+        path: ROUTES.products,
+        icon: Grid,
+      },
     ],
   },
 ];

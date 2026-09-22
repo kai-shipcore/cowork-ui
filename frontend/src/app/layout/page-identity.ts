@@ -8,6 +8,7 @@ import { MENU_SIDEBAR_ALL, type MenuItem } from './navigation';
 /** Route-aware headings shared by the browser title and breadcrumbs. */
 export function pageTitle(pathname: string, search: string): string {
   const team = teamFromLocation(pathname, search);
+  if (pathname === ROUTES.profileDefault) return 'Profile';
   if (pathname === ROUTES.dashboard) return 'Team Overview';
   if (pathname.startsWith('/dashboard')) return TEAM_NAMES[team] + ' Dashboard';
   const pages: Record<string, string> = {

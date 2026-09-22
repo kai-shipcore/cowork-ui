@@ -95,7 +95,7 @@ export function DevelopmentRequestsPage(): ReactElement {
   return (
     <section className="rd-workspace">
       <div className="rd-toolbar">
-        <div>
+        <div className="workbench-heading">
           <h1>Development Requests · Demand Review</h1>
           <p>
             Notify Me · Complaints · B2B · Vehicle Launches → Development

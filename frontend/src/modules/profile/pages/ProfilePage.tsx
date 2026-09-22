@@ -6,23 +6,13 @@ import {
   CardHeading,
   CardTitle,
 } from '@coverland-engineering/ui/card';
-import {
-  Toolbar,
-  ToolbarDescription,
-  ToolbarHeading,
-  ToolbarPageTitle,
-} from '@/app/layout/components/toolbar';
+import { PageHeader } from '@/shared/components/page-header';
 
 /** Displays the sample default profile page. */
 export function ProfilePage() {
   return (
     <div className="w-full min-w-0">
-      <Toolbar>
-        <ToolbarHeading>
-          <ToolbarPageTitle>Profiles-Default</ToolbarPageTitle>
-          <ToolbarDescription>Sample profile overview</ToolbarDescription>
-        </ToolbarHeading>
-      </Toolbar>
+      <PageHeader description="Sample profile overview" />
 
       <Card>
         <CardHeader>
