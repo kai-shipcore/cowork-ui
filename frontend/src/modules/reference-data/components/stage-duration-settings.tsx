@@ -44,10 +44,8 @@ export function StageDurationSettings(): ReactElement {
         </span>
       </div>
       <p className="stage-duration-notice">
-        Browser-local demo. Shared company storage and real permission checks
-        are not connected. Suggested durations do not apply until saved.
-        Suggestions use NORMAL as the baseline: URGENT 50%, HIGH 75%, LOW 150%,
-        rounded up to whole days.
+        NORMAL baseline: URGENT 50%, HIGH 75%, LOW 150%, rounded up to whole
+        days.
       </p>
       <div
         className="stage-duration-products"

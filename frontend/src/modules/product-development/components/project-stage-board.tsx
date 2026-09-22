@@ -1,13 +1,12 @@
-import type { ReactElement } from 'react';
-import { userName } from '@/shared/domain/app-user';
-import type { AppUser, VehicleProjectGroup } from '@/shared/types/workbench';
+import { useEffect, useState, type ReactElement, type UIEvent } from 'react';
+import { ChevronRight } from 'lucide-react';
+import type { VehicleProjectGroup } from '@/shared/types/workbench';
 import { today } from '@/modules/operations/operations-model';
-import { currentStageTiming, projectHealth } from '../project-health';
+import { projectHealth } from '../project-health';
 import { ProjectHealthBadge } from './project-health-badge';
 
 interface ProjectStageBoardProps {
   projects: readonly VehicleProjectGroup[];
-  users: readonly AppUser[];
   onOpen: (projectId: string, zoneCode: string) => void;
   currentDate?: string;
 }
@@ -22,11 +21,114 @@ const STAGES = [
   'Fitting',
   'Approved',
 ];
+const LANE_PAGE_SIZE = 8;
+
+interface BoardEntry {
+  project: VehicleProjectGroup;
+  zone: VehicleProjectGroup['zoneProjects'][number];
+}
+
+interface StageLaneProps {
+  stage: (typeof STAGES)[number];
+  entries: readonly BoardEntry[];
+  currentDate: string;
+  onOpen: (projectId: string, zoneCode: string) => void;
+}
+
+function StageLane({
+  stage,
+  entries,
+  currentDate,
+  onOpen,
+}: StageLaneProps): ReactElement {
+  const [page, setPage] = useState(1);
+  const entryKey = entries.map(({ zone }) => zone.id).join('|');
+
+  useEffect(() => {
+    setPage(1);
+  }, [entryKey]);
+
+  const visibleCount = Math.min(entries.length, page * LANE_PAGE_SIZE);
+  const visibleEntries = entries.slice(0, visibleCount);
+  const remaining = entries.length - visibleCount;
+  const totalPages = Math.max(1, Math.ceil(entries.length / LANE_PAGE_SIZE));
+  const loadNextPage = () => {
+    if (remaining > 0) setPage((current) => Math.min(current + 1, totalPages));
+  };
+  const handleScroll = (event: UIEvent<HTMLDivElement>) => {
+    const lane = event.currentTarget;
+    const distanceFromBottom =
+      lane.scrollHeight - lane.scrollTop - lane.clientHeight;
+    if (distanceFromBottom < 64) loadNextPage();
+  };
+
+  return (
+    <section className="rd-lane">
+      <h3>
+        {stage === 'Approved' ? 'Development complete' : stage}
+        <span>{entries.length}</span>
+      </h3>
+      <div
+        className="rd-lane-cards"
+        aria-label={`${stage} projects`}
+        onScroll={handleScroll}
+      >
+        {visibleEntries.map(({ project, zone }) => {
+          const health = projectHealth(zone, currentDate);
+          const priority = zone.priority ?? 'NORMAL';
+          return (
+            <button
+              type="button"
+              className="rd-board-card"
+              data-health={health.value}
+              key={zone.id}
+              aria-label={`Open ${project.vehicle} ${zone.label} details`}
+              onClick={() => {
+                onOpen(project.id, zone.code);
+              }}
+            >
+              <span className="rd-board-card-header">
+                <ProjectHealthBadge
+                  value={health.value}
+                  reason={health.reason}
+                />
+                <span
+                  className={`vp-priority-badge vp-priority-${priority.toLowerCase()}`}
+                >
+                  {priority[0] + priority.slice(1).toLowerCase()}
+                </span>
+              </span>
+              <strong>{project.vehicle}</strong>
+              <span>
+                {zone.label} · {project.product}
+              </span>
+              <span className="rd-board-card-footer">
+                <small>{zone.id}</small>
+                <span>
+                  Details
+                  <ChevronRight aria-hidden="true" />
+                </span>
+              </span>
+            </button>
+          );
+        })}
+        {!entries.length && <p className="rd-empty">No projects</p>}
+        {remaining > 0 && (
+          <button type="button" className="rd-lane-more" onClick={loadNextPage}>
+            Load next {Math.min(LANE_PAGE_SIZE, remaining)}
+            <small>
+              {visibleCount} of {entries.length}
+            </small>
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
 
 /** A board is a view of the same zone projects; it never bypasses stage approval gates. */
 export function ProjectStageBoard({
   projects,
-  users,
   onOpen,
   currentDate = today(),
 }: ProjectStageBoardProps): ReactElement {
@@ -35,73 +137,19 @@ export function ProjectStageBoard({
   );
   return (
     <div className="rd-workspace">
-      <p>
-        Uses the same search, product, and stage filters as the list. Open a
-        card to change stages through the existing verification and approval
-        process.
-      </p>
       <div className="rd-board" aria-label="Project stage board">
         {STAGES.map((stage) => {
           const entries = rows.filter(
             ({ zone }) => zone.currentStage === stage,
           );
           return (
-            <section className="rd-lane" key={stage}>
-              <h3>
-                {stage === 'Approved' ? 'Development complete' : stage}
-                <span>{entries.length}</span>
-              </h3>
-              {entries.map(({ project, zone }) => {
-                const health = projectHealth(zone, currentDate);
-                const timing = currentStageTiming(zone);
-                return (
-                  <button
-                    type="button"
-                    className="rd-board-card"
-                    data-health={health.value}
-                    key={zone.id}
-                    onClick={() => {
-                      onOpen(project.id, zone.code);
-                    }}
-                  >
-                    <ProjectHealthBadge
-                      value={health.value}
-                      reason={health.reason}
-                    />
-                    <strong>{project.vehicle}</strong>
-                    <span>
-                      {zone.label} · {project.product}
-                    </span>
-                    <span>
-                      {zone.id} · {zone.priority ?? 'NORMAL'}
-                    </span>
-                    <small>
-                      {userName(users, zone.managerId)} ·{' '}
-                      {zone.status ?? 'ACTIVE'}
-                    </small>
-                    <span className={health.value === 'late' ? 'rd-error' : ''}>
-                      {timing?.targetDueAt
-                        ? 'Stage target '
-                        : 'Project target '}
-                      {(timing?.targetDueAt ?? zone.targetAt)?.slice(0, 10) ??
-                        'Unassigned'}
-                    </span>
-                    {timing?.targetDays !== undefined && (
-                      <small>
-                        Applied standard {timing.targetDays} days · Started{' '}
-                        {timing.startedAt.slice(0, 10)}
-                      </small>
-                    )}
-                    <small>{health.reason}</small>
-                    <small>
-                      Last activity{' '}
-                      {zone.lastActivityAt?.slice(0, 10) ?? 'No record'}
-                    </small>
-                  </button>
-                );
-              })}
-              {!entries.length && <p className="rd-empty">No projects</p>}
-            </section>
+            <StageLane
+              currentDate={currentDate}
+              entries={entries}
+              key={stage}
+              stage={stage}
+              onOpen={onOpen}
+            />
           );
         })}
       </div>

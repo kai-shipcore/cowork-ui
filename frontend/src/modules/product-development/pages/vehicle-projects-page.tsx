@@ -8,6 +8,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@coverland-engineering/ui/dialog';
+import {
+  GroupedDataGrid,
+  type GroupedDataGridColumn,
+  type GroupedDataGridGroup,
+} from '@coverland-engineering/ui/grouped-data-grid';
 import { Input } from '@coverland-engineering/ui/input';
 import {
   Select,
@@ -140,6 +145,11 @@ const PROJECT_MANAGERS = [
   { id: 'USR-CHRISTIAN', name: 'Christian' },
   { id: 'USR-JH', name: 'JH' },
 ] as const;
+
+interface ProjectZoneGridRow {
+  project: VehicleProjectGroup;
+  zone: VehicleZoneProject;
+}
 
 function vehicleParts(vehicle: string) {
   const match = /^(\d{4}(?:–\d{4})?)\s+(.+)$/.exec(vehicle);
@@ -573,6 +583,201 @@ export function VehicleProjectsPage() {
       ),
     ),
   );
+  const projectGridColumns: GroupedDataGridColumn<ProjectZoneGridRow>[] = [
+    {
+      id: 'zone',
+      header: 'Zone project',
+      width: 250,
+      hideable: false,
+      sortValue: ({ project, zone }) =>
+        `${project.vehicle} ${zone.label} ${zone.id}`,
+      cell: ({ project, zone }) => (
+        <button
+          type="button"
+          className="vp-grid-zone-link"
+          onClick={() => {
+            openProject(project.id, zone.code);
+          }}
+        >
+          <span className={`zone zone-${zone.code.toLowerCase()}`}>
+            {zone.code}
+          </span>
+          <span>
+            <strong>{zone.label}</strong>
+            <small>{zone.id}</small>
+          </span>
+        </button>
+      ),
+    },
+    {
+      id: 'stage',
+      header: 'Current stage',
+      width: 260,
+      sortValue: ({ project, zone }) => {
+        const pipeline = PROJECT_PIPELINES[project.product];
+        return pipeline.indexOf(zone.currentStage);
+      },
+      cell: ({ project, zone }) => {
+        const pipeline = PROJECT_PIPELINES[project.product];
+        const stageIndex = Math.max(0, pipeline.indexOf(zone.currentStage));
+        const health = projectHealth(zone, currentDate);
+        const day = stageDay(zone, currentDate);
+        const duration = stageDuration(zone);
+        return (
+          <span className="vp-stage-cell">
+            <span>
+              <strong>
+                {zone.currentStage === 'Approved'
+                  ? 'Complete'
+                  : zone.currentStage}
+              </strong>
+              <small>
+                {zone.currentStage === 'Approved'
+                  ? `${String(pipeline.length)} stages complete`
+                  : day && duration
+                    ? `Day ${String(day)} of ${String(duration)}`
+                    : `Stage ${String(stageIndex + 1)} of ${String(pipeline.length)}`}
+              </small>
+            </span>
+            <span className="vp-stage-track" aria-hidden="true">
+              {pipeline.map((stageName, index) => (
+                <i
+                  key={stageName}
+                  className={
+                    index < stageIndex
+                      ? 'complete'
+                      : index === stageIndex
+                        ? `current health-${health.value}`
+                        : undefined
+                  }
+                />
+              ))}
+            </span>
+          </span>
+        );
+      },
+    },
+    {
+      id: 'schedule',
+      header: 'Schedule',
+      width: 145,
+      sortValue: ({ zone }) => {
+        const order = [
+          'late',
+          'at-risk',
+          'watch',
+          'unknown',
+          'on-track',
+          'complete',
+          'inactive',
+        ];
+        return order.indexOf(projectHealth(zone, currentDate).value);
+      },
+      cell: ({ zone }) => {
+        const health = projectHealth(zone, currentDate);
+        return (
+          <span
+            className={`vp-health-badge health-${health.value}`}
+            title={health.reason}
+          >
+            {healthLabel(zone, currentDate)}
+          </span>
+        );
+      },
+    },
+    {
+      id: 'manager',
+      header: 'Manager',
+      width: 145,
+      sortValue: ({ zone }) => userName(appUsers, zone.managerId),
+      cell: ({ zone }) => {
+        const manager = userName(appUsers, zone.managerId);
+        return (
+          <span className="vp-manager">
+            <span className="vp-avatar">{initials(manager)}</span>
+            <strong>{manager}</strong>
+          </span>
+        );
+      },
+    },
+    {
+      id: 'priority',
+      header: 'Priority',
+      width: 115,
+      sortValue: ({ zone }) => {
+        const order = ['URGENT', 'HIGH', 'NORMAL', 'LOW'];
+        return order.indexOf(zone.priority ?? 'NORMAL');
+      },
+      cell: ({ zone }) => {
+        const priority = zone.priority ?? 'NORMAL';
+        return (
+          <span
+            className={`vp-priority-badge vp-priority-${priority.toLowerCase()}`}
+          >
+            {priority[0] + priority.slice(1).toLowerCase()}
+          </span>
+        );
+      },
+    },
+    {
+      id: 'sample',
+      header: 'Sample',
+      width: 90,
+      sortValue: ({ zone }) =>
+        zone.stageHistory?.filter((entry) => entry.stage === 'Sample').length ??
+        0,
+      cell: ({ zone }) => {
+        const sampleRound =
+          zone.stageHistory?.filter((entry) => entry.stage === 'Sample')
+            .length ?? 0;
+        return (
+          <span className="vp-sample-value">
+            {sampleRound ? `R${String(sampleRound)}` : '—'}
+          </span>
+        );
+      },
+    },
+    {
+      id: 'shape',
+      header: 'Shape',
+      width: 180,
+      sortValue: ({ zone }) => zone.productShapeId ?? '',
+      cell: ({ zone }) => (
+        <span className="vp-shape-value">
+          <strong>{zone.productShapeId ?? '—'}</strong>
+          <small>{zone.productShapeId ? 'In development' : 'Not issued'}</small>
+        </span>
+      ),
+    },
+  ];
+  const projectGridGroups: GroupedDataGridGroup<ProjectZoneGridRow>[] =
+    pagedProjects.map((project) => {
+      const vehicle = vehicleParts(project.vehicle);
+      const optionSummary = project.options
+        .map(([label, value]) => `${label}: ${value}`)
+        .join(' · ');
+      return {
+        id: project.id,
+        title: vehicle.name,
+        description: [vehicle.years, project.id].filter(Boolean).join(' · '),
+        rows: project.zoneProjects.map((zone) => ({ project, zone })),
+        meta: (
+          <div className="vp-grid-group-meta">
+            <span
+              className={`vp-product-badge vp-product-${project.product.toLowerCase().replace(/ /g, '-')}`}
+            >
+              {project.product}
+            </span>
+            <span className="vp-option-summary" title={optionSummary}>
+              {optionSummary}
+            </span>
+            <span className="vp-zone-count">
+              {project.zoneProjects.length} zones
+            </span>
+          </div>
+        ),
+      };
+    });
 
   if (detailProject) {
     return (
@@ -677,7 +882,7 @@ export function VehicleProjectsPage() {
       </div>
 
       <ProjectViewTabs
-        toolbar={
+        boardToolbar={
           <div className="vp-toolbar">
             <label className="vp-search">
               <Search aria-hidden="true" />
@@ -762,203 +967,102 @@ export function VehicleProjectsPage() {
             <ProjectStageBoard
               currentDate={currentDate}
               projects={visibleProjects}
-              users={appUsers}
               onOpen={openProject}
             />
           </div>
         }
         list={
-          <div className="vp-project-list">
-            <div className="vp-column-head" aria-hidden="true">
-              <span>Zone project</span>
-              <span>Current stage</span>
-              <span>Schedule</span>
-              <span>Manager</span>
-              <span>Priority</span>
-              <span>Sample</span>
-              <span>Shape</span>
-            </div>
-            {pagedProjects.length === 0 && (
-              <div className="vp-empty-state">
-                <Search aria-hidden="true" />
-                <strong>No projects match these filters</strong>
-                <span>Try changing the search, stage, or priority.</span>
-              </div>
-            )}
-            {pagedProjects.map((project) => {
-              const vehicle = vehicleParts(project.vehicle);
-              const optionSummary = project.options
-                .map(([label, value]) => `${label}: ${value}`)
-                .join(' · ');
-              return (
-                <article className="vp-vehicle-group" key={project.id}>
-                  <header className="vp-vehicle-header">
-                    <div className="vp-vehicle-title">
-                      <span className="vp-vehicle-icon">
-                        <CarFront aria-hidden="true" />
-                      </span>
-                      <div>
-                        <strong>{vehicle.name}</strong>
-                        <span>
-                          {vehicle.years
-                            ? vehicle.years
-                            : (project.fNumber ?? project.id)}
-                        </span>
-                      </div>
-                    </div>
-                    <span
-                      className={`vp-product-badge vp-product-${project.product.toLowerCase().replace(/ /g, '-')}`}
-                    >
-                      {project.product}
-                    </span>
-                    <span className="vp-option-summary" title={optionSummary}>
-                      {optionSummary}
-                    </span>
-                    <span className="vp-zone-count">
-                      {project.zoneProjects.length} zones
-                    </span>
-                  </header>
-                  <div className="vp-zone-rows">
-                    {project.zoneProjects.map((zone) => {
-                      const pipeline = PROJECT_PIPELINES[project.product];
-                      const stageIndex = Math.max(
-                        0,
-                        pipeline.indexOf(zone.currentStage),
-                      );
-                      const health = projectHealth(zone, currentDate);
-                      const day = stageDay(zone, currentDate);
-                      const duration = stageDuration(zone);
-                      const manager = userName(appUsers, zone.managerId);
-                      const sampleRound =
-                        zone.stageHistory?.filter(
-                          (entry) => entry.stage === 'Sample',
-                        ).length ?? 0;
-                      return (
-                        <button
-                          type="button"
-                          className="vp-zone-row"
-                          key={zone.id}
-                          onClick={() => {
-                            openProject(project.id, zone.code);
-                          }}
-                        >
-                          <span className="vp-zone-identity">
-                            <span
-                              className={`zone zone-${zone.code.toLowerCase()}`}
-                            >
-                              {zone.code}
-                            </span>
-                            <span>
-                              <strong>{zone.label}</strong>
-                              <small>{zone.id}</small>
-                            </span>
-                          </span>
-                          <span className="vp-stage-cell">
-                            <span>
-                              <strong>
-                                {zone.currentStage === 'Approved'
-                                  ? 'Complete'
-                                  : zone.currentStage}
-                              </strong>
-                              <small>
-                                {zone.currentStage === 'Approved'
-                                  ? `${String(pipeline.length)} stages complete`
-                                  : day && duration
-                                    ? `Day ${String(day)} of ${String(duration)}`
-                                    : `Stage ${String(stageIndex + 1)} of ${String(pipeline.length)}`}
-                              </small>
-                            </span>
-                            <span className="vp-stage-track" aria-hidden="true">
-                              {pipeline.map((stageName, index) => (
-                                <i
-                                  key={stageName}
-                                  className={
-                                    index < stageIndex
-                                      ? 'complete'
-                                      : index === stageIndex
-                                        ? `current health-${health.value}`
-                                        : undefined
-                                  }
-                                />
-                              ))}
-                            </span>
-                          </span>
-                          <span
-                            className={`vp-health-badge health-${health.value}`}
-                            title={health.reason}
-                          >
-                            {healthLabel(zone, currentDate)}
-                          </span>
-                          <span className="vp-manager">
-                            <span className="vp-avatar">
-                              {initials(manager)}
-                            </span>
-                            <strong>{manager}</strong>
-                          </span>
-                          <span
-                            className={`vp-priority-badge vp-priority-${(zone.priority ?? 'NORMAL').toLowerCase()}`}
-                          >
-                            {(zone.priority ?? 'NORMAL')[0] +
-                              (zone.priority ?? 'NORMAL')
-                                .slice(1)
-                                .toLowerCase()}
-                          </span>
-                          <span className="vp-sample-value">
-                            {sampleRound ? `R${String(sampleRound)}` : '—'}
-                          </span>
-                          <span className="vp-shape-value">
-                            <strong>{zone.productShapeId ?? '—'}</strong>
-                            <small>
-                              {zone.productShapeId
-                                ? 'In development'
-                                : 'Not issued'}
-                            </small>
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </article>
-              );
-            })}
-            {visibleProjects.length > 0 && (
-              <footer className="vp-pagination">
-                <span>
-                  {visibleProjects.length} vehicle groups · page{' '}
-                  {pagination.pageIndex + 1}
-                </span>
-                <div>
-                  <button
-                    type="button"
-                    disabled={pagination.pageIndex === 0}
-                    onClick={() => {
-                      setPagination((current) => ({
-                        ...current,
-                        pageIndex: Math.max(0, current.pageIndex - 1),
-                      }));
-                    }}
-                  >
-                    <ChevronLeft /> Previous
-                  </button>
-                  <button
-                    type="button"
-                    disabled={
-                      (pagination.pageIndex + 1) * pagination.pageSize >=
-                      visibleProjects.length
-                    }
-                    onClick={() => {
-                      setPagination((current) => ({
-                        ...current,
-                        pageIndex: current.pageIndex + 1,
-                      }));
-                    }}
-                  >
-                    Next <ChevronRight />
-                  </button>
-                </div>
-              </footer>
-            )}
-          </div>
+          <GroupedDataGrid
+            label="Vehicle Projects"
+            columns={projectGridColumns}
+            groups={projectGridGroups}
+            getRowId={({ zone }) => zone.id}
+            sorting={{ mode: 'client' }}
+            colors={{
+              primary: 'var(--wb-blue)',
+              primaryForeground: '#FFFFFF',
+              primarySoft: 'var(--wb-soft-blue)',
+            }}
+            search={{
+              label: 'Search projects',
+              placeholder: 'Search vehicle, project, manager',
+              value: query,
+              onChange: setQuery,
+            }}
+            filters={[
+              {
+                id: 'product',
+                label: 'Product filter',
+                value: product,
+                onChange: setProduct,
+                options: [
+                  { value: 'ALL', label: 'All products' },
+                  ...PRODUCT_CHOICES.map((choice) => ({
+                    value: choice.name,
+                    label: choice.name,
+                  })),
+                ],
+              },
+              {
+                id: 'stage',
+                label: 'Stage filter',
+                value: stageFilter,
+                onChange: (value) => {
+                  const filter = PROJECT_STAGE_FILTERS.find(
+                    (entry) => entry.value === value,
+                  );
+                  if (filter) setStageFilter(filter.value);
+                },
+                options: PROJECT_STAGE_FILTERS.map((filter) => ({
+                  value: filter.value,
+                  label: `${filter.label} (${String(stageCounts.get(filter.value) ?? 0)})`,
+                })),
+              },
+              {
+                id: 'manager',
+                label: 'Manager filter',
+                value: managerFilter,
+                onChange: setManagerFilter,
+                options: [
+                  { value: 'ALL', label: 'All managers' },
+                  ...managerOptions.map((managerId) => ({
+                    value: managerId,
+                    label: userName(appUsers, managerId),
+                  })),
+                ],
+              },
+              {
+                id: 'priority',
+                label: 'Priority filter',
+                value: priorityFilter,
+                onChange: setPriorityFilter,
+                options: [
+                  { value: 'ALL', label: 'All priorities' },
+                  { value: 'CRITICAL', label: 'Urgent & High' },
+                  { value: 'URGENT', label: 'Urgent' },
+                  { value: 'HIGH', label: 'High' },
+                  { value: 'NORMAL', label: 'Normal' },
+                  { value: 'LOW', label: 'Low' },
+                ],
+              },
+            ]}
+            emptyMessage="No projects match these filters."
+            pagination={{
+              page: pagination.pageIndex + 1,
+              pageSize: pagination.pageSize,
+              totalCount: visibleProjects.length,
+              pageSizeOptions: [5, 10, 25],
+              onPageChange: (page) => {
+                setPagination((current) => ({
+                  ...current,
+                  pageIndex: page - 1,
+                }));
+              },
+              onPageSizeChange: (pageSize) => {
+                setPagination({ pageIndex: 0, pageSize });
+              },
+            }}
+          />
         }
       />
       <Dialog open={wizardOpen} onOpenChange={setWizardOpen}>

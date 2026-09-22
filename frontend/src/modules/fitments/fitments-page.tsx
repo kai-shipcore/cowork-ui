@@ -408,10 +408,6 @@ export function FitmentsPage() {
           </strong>
         </Card>
       </div>
-      <p className="vehicle-meta">
-        Uses existing browser-local fitment observations. Shared database
-        storage is not connected.
-      </p>
       <Card>
         <Tabs
           value={kind}

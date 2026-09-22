@@ -169,10 +169,6 @@ export function ProductRegistrationsPage() {
             : undefined
         }
       />
-      <p>
-        This approval flow uses browser storage. Real authentication and server
-        transactions are not connected yet.
-      </p>
       <Card>
         <div className="grid-toolbar">
           <div className="grid-toolbar-filters">

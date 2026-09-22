@@ -10,14 +10,14 @@ import { useSearchParams } from 'react-router-dom';
 interface ProjectViewTabsProps {
   list: ReactNode;
   board: ReactNode;
-  toolbar?: ReactNode;
+  boardToolbar?: ReactNode;
 }
 
 /** URL-controlled project views keep the grid mounted when switching tabs. */
 export function ProjectViewTabs({
   list,
   board,
-  toolbar,
+  boardToolbar,
 }: ProjectViewTabsProps): ReactElement {
   const [searchParams, setSearchParams] = useSearchParams();
   const view = searchParams.get('view') === 'board' ? 'board' : 'list';
@@ -39,9 +39,11 @@ export function ProjectViewTabs({
           { value: 'board', label: 'Stage Board', icon: <Columns3 /> },
         ]}
       >
-        {toolbar}
         <ContentTabsPanel value="list">{list}</ContentTabsPanel>
-        <ContentTabsPanel value="board">{board}</ContentTabsPanel>
+        <ContentTabsPanel value="board">
+          {boardToolbar}
+          {board}
+        </ContentTabsPanel>
       </ContentTabs>
     </Card>
   );

@@ -32,6 +32,7 @@ import type { VehicleConfiguration } from '@/shared/types/workbench';
 import { useWorkbenchStore } from '@/app/workbench-store';
 import { ResearchEvidence } from '../research-evidence';
 import { groupVehicleResearch } from '../vehicle-research-grid-model';
+import './vehicle-research-page.css';
 
 const RESEARCH_STATUS_FILTERS = [
   { label: 'All', value: 'ALL' },
@@ -228,8 +229,8 @@ export function VehicleResearchPage() {
   const columns: GroupedDataGridColumn<VehicleConfiguration>[] = [
     {
       id: 'evidence',
-      header: 'Research Evidence',
-      width: 150,
+      header: 'Evidence / Decision',
+      width: 220,
       cell: (configuration) => (
         <Button
           variant="outline"
@@ -238,7 +239,7 @@ export function VehicleResearchPage() {
             setEvidenceConfigurationId(configuration.id);
           }}
         >
-          Research evidence
+          Evidence / Decision
         </Button>
       ),
     },
@@ -395,6 +396,7 @@ export function VehicleResearchPage() {
         />
       )}
       <GroupedDataGrid
+        className="vehicle-research-grid"
         label="Vehicle Research"
         columns={columns}
         groups={groups}

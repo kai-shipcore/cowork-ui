@@ -280,11 +280,6 @@ export function RdPerformance(): ReactElement {
             <Button type="submit" disabled={saving}>
               Save targets
             </Button>
-            <small className="perf-filters-note">
-              Targets are stored in this browser for this period and product.
-              Stage targets come from Stage Standards. Company policies are
-              unchanged.
-            </small>
           </form>
         )}
         {error && (
@@ -456,7 +451,7 @@ export function RdPerformance(): ReactElement {
             )}
           </div>
           <small>
-            {period.start} to {period.end} · {product} · Browser-local records
+            {period.start} to {period.end} · {product}
           </small>
         </div>
       </div>
