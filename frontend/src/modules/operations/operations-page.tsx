@@ -296,9 +296,8 @@ export function OperationsPage() {
           <div className="ops-panel">
             <h2>Requests by team</h2>
             <p>
-              Source: All requests stored in this browser · Last change{' '}
-              {new Date(snapshot.updatedAt).toLocaleString('en-US')} ·
-              Completion rate = Completed / All except cancelled
+              Last change {new Date(snapshot.updatedAt).toLocaleString('en-US')}
+              {' · '}Completion rate = Completed / All except cancelled
             </p>
             <div className="ops-table-wrap">
               <table>

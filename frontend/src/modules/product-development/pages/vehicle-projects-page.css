@@ -204,8 +204,9 @@
 
 .vp-search {
   position: relative;
-  flex: 1 1 240px;
-  min-width: 210px;
+  flex: 0 1 360px;
+  width: min(100%, 360px);
+  min-width: 260px;
 }
 
 .vp-search svg {
@@ -243,7 +244,8 @@
 
 .vp-select-field {
   display: grid;
-  flex: 0 1 145px;
+  flex: 0 0 170px;
+  width: 170px;
   gap: 4px;
 }
 
@@ -262,8 +264,55 @@
 .vp-priority-filter {
   display: flex;
   gap: 4px;
-  margin-left: auto;
+  margin-left: 0;
   padding-bottom: 1px;
+}
+
+.vp-grid-zone-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.vp-grid-zone-link > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.vp-grid-zone-link strong,
+.vp-grid-zone-link small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vp-grid-zone-link small {
+  color: var(--vp-muted);
+  font-size: 10px;
+}
+
+.vp-grid-zone-link:hover strong {
+  color: var(--vp-primary);
+}
+
+.vp-grid-group-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  gap: 10px;
+}
+
+.vp-grid-group-meta .vp-option-summary {
+  max-width: 380px;
 }
 
 .vp-priority-filter button,
@@ -575,6 +624,111 @@
   white-space: nowrap;
 }
 
+.vehicle-projects-page .rd-board-card {
+  gap: 7px;
+  padding: 13px 14px;
+}
+
+.vehicle-projects-page .rd-lane {
+  display: flex;
+  flex-direction: column;
+  max-height: min(68vh, 620px);
+}
+
+.vehicle-projects-page .rd-lane > h3 {
+  flex: 0 0 auto;
+}
+
+.vehicle-projects-page .rd-lane-cards {
+  min-height: 72px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px 4px 2px 0;
+  scrollbar-gutter: stable;
+}
+
+.vehicle-projects-page .rd-board-card-header,
+.vehicle-projects-page .rd-board-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.vehicle-projects-page .rd-board-card-header .vp-priority-badge {
+  min-height: 21px;
+  padding-inline: 7px;
+  font-size: 9px;
+}
+
+.vehicle-projects-page .rd-board-card > strong {
+  margin-top: 2px;
+  color: var(--vp-ink);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.vehicle-projects-page
+  .rd-board-card
+  > span:not(.rd-board-card-header):not(.rd-board-card-footer) {
+  color: var(--vp-ink-soft);
+  font-size: 11px;
+}
+
+.vehicle-projects-page .rd-board-card-footer {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--vp-border);
+}
+
+.vehicle-projects-page .rd-board-card-footer small {
+  overflow: hidden;
+  color: var(--vp-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vehicle-projects-page .rd-board-card-footer > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--vp-primary);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.vehicle-projects-page .rd-board-card-footer svg {
+  width: 13px;
+  height: 13px;
+}
+
+.vehicle-projects-page .rd-lane-more {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px dashed var(--vp-border);
+  border-radius: 8px;
+  color: var(--vp-primary);
+  font-size: 11px;
+  font-weight: 800;
+  background: color-mix(in srgb, var(--vp-primary) 5%, var(--vp-card));
+  cursor: pointer;
+}
+
+.vehicle-projects-page .rd-lane-more:hover {
+  border-color: var(--vp-primary);
+  background: color-mix(in srgb, var(--vp-primary) 9%, var(--vp-card));
+}
+
+.vehicle-projects-page .rd-lane-more small {
+  color: var(--vp-muted);
+  font-size: 10px;
+}
+
 .vp-empty-state {
   display: grid;
   min-height: 240px;
@@ -669,6 +823,17 @@
     width: 100%;
     margin-left: 0;
     overflow-x: auto;
+  }
+
+  .vp-search,
+  .vp-select-field {
+    flex-basis: 100%;
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .vp-grid-group-meta .vp-option-summary {
+    display: none;
   }
 
   .vp-column-head {

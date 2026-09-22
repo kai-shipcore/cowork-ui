@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@coverland-engineering/ui/button';
 import { Card, CardContent } from '@coverland-engineering/ui/card';
 import { Checkbox } from '@coverland-engineering/ui/checkbox';
+import {
+  ContentTabs,
+  ContentTabsPanel,
+} from '@coverland-engineering/ui/content-tabs';
 import {
   Dialog,
   DialogBody,
@@ -336,33 +339,38 @@ export function HuntBoardPage() {
         }
       />
 
-      <Tabs defaultValue="scan" className="hunt-tabs">
-        <TabsList variant="line" className="grid-tabs-list">
-          <TabsTrigger value="scan">
-            <ScanLine aria-hidden="true" />
-            Scan
-            <span className="stage-tab-count">
-              {scanWaitingProjects.length}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger value="fitting">
-            <Ruler aria-hidden="true" />
-            Fitting
-            <span className="stage-tab-count">{fittingProjects.length}</span>
-          </TabsTrigger>
-          <TabsTrigger value="calendar">
-            <CalendarDays aria-hidden="true" />
-            Calendar
-            <span className="stage-tab-count">{visibleVisits.length}</span>
-          </TabsTrigger>
-          <TabsTrigger value="dealers">
-            <Store aria-hidden="true" />
-            Dealer Directory
-            <span className="stage-tab-count">{visibleDealers.length}</span>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent forceMount value="scan" className="hunt-tab-content">
+      <ContentTabs
+        label="Hunt Board views"
+        defaultValue="scan"
+        className="hunt-tabs"
+        items={[
+          {
+            value: 'scan',
+            label: 'Scan',
+            icon: <ScanLine />,
+            count: scanWaitingProjects.length,
+          },
+          {
+            value: 'fitting',
+            label: 'Fitting',
+            icon: <Ruler />,
+            count: fittingProjects.length,
+          },
+          {
+            value: 'calendar',
+            label: 'Calendar',
+            icon: <CalendarDays />,
+            count: visibleVisits.length,
+          },
+          {
+            value: 'dealers',
+            label: 'Dealer Directory',
+            icon: <Store />,
+            count: visibleDealers.length,
+          },
+        ]}
+      >
+        <ContentTabsPanel value="scan" className="hunt-tab-content">
           <HuntWorkList
             kind="SCAN"
             rows={scanRows}
@@ -379,8 +387,8 @@ export function HuntBoardPage() {
               setSelectedVisitId(visit.id);
             }}
           />
-        </TabsContent>
-        <TabsContent forceMount value="fitting" className="hunt-tab-content">
+        </ContentTabsPanel>
+        <ContentTabsPanel value="fitting" className="hunt-tab-content">
           <HuntWorkList
             kind="FITTING"
             rows={fittingRows}
@@ -397,9 +405,9 @@ export function HuntBoardPage() {
               setSelectedVisitId(visit.id);
             }}
           />
-        </TabsContent>
+        </ContentTabsPanel>
 
-        <TabsContent value="calendar" className="hunt-tab-content">
+        <ContentTabsPanel value="calendar" className="hunt-tab-content">
           <div className="grid-toolbar">
             <div className="grid-toolbar-filters">
               <div className="search-field">
@@ -672,9 +680,9 @@ export function HuntBoardPage() {
               </>
             )}
           </div>
-        </TabsContent>
+        </ContentTabsPanel>
 
-        <TabsContent value="dealers" className="hunt-tab-content">
+        <ContentTabsPanel value="dealers" className="hunt-tab-content">
           <div className="grid-toolbar">
             <div className="grid-toolbar-filters">
               <div className="search-field">
@@ -794,8 +802,8 @@ export function HuntBoardPage() {
               </div>
             )}
           </div>
-        </TabsContent>
-      </Tabs>
+        </ContentTabsPanel>
+      </ContentTabs>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>

@@ -64,11 +64,7 @@ export function TeamDashboardPage() {
           Create team request →
         </Link>
       </div>
-      <p>
-        Demo data · All requests by receiving team · Last updated{' '}
-        {new Date(snapshot.updatedAt).toLocaleString('en-US')} · Select a metric
-        to open the related work.
-      </p>
+      <p>Last updated {new Date(snapshot.updatedAt).toLocaleString('en-US')}</p>
       <div className="ops-metrics">
         {metrics.map((metric) => (
           <Link

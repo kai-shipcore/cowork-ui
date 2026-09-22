@@ -103,11 +103,6 @@ export function DevelopmentRequestsPage(): ReactElement {
           </p>
         </div>
       </div>
-      <p className="rd-note">
-        Browser-local demo. Enter Notify Me, B2B, and vehicle launch evidence
-        manually; external systems do not sync automatically. Development
-        approval is a review record, not an official company authorization.
-      </p>
       {error && (
         <p role="alert" className="rd-error">
           {error}

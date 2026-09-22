@@ -1,0 +1,12 @@
+.vehicle-research-grid > div:nth-child(2) {
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.vehicle-research-grid [data-column-id='evidence'] > div {
+  overflow: visible;
+}
+
+.vehicle-research-grid [data-column-id='evidence'] button {
+  white-space: nowrap;
+}

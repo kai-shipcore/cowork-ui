@@ -1,7 +1,6 @@
 import { Button } from '@coverland-engineering/ui/button';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  PEOPLE,
   teamFromLocation,
   teamHome,
 } from '@/modules/operations/operations-model';
@@ -14,7 +13,6 @@ import { Header } from './header';
 import { HeaderBreadcrumbs } from './header-breadcrumbs';
 import { teams } from './header-logo';
 import { PageContent } from './page-content';
-import { ResetMockDataButton } from './reset-mock-data-button';
 import { Sidebar } from './sidebar';
 import '../workbench-layout.css';
 import '../metronic-theme.css';
@@ -29,8 +27,7 @@ export function Wrapper() {
       (team) =>
         team.dashboardPath === teamHome(teamFromLocation(pathname, search)),
     ) ?? teams[0];
-  const { actor, changeActor, message, error, saving, reload } =
-    useOperations();
+  const { error, reload } = useOperations();
   const { storageMessage, storageError, retryPersistence } =
     useWorkbenchStore();
 
@@ -58,32 +55,6 @@ export function Wrapper() {
               </Button>
             </div>
           )}
-          <div className="ops-demo">
-            <span>
-              Public demo · No confidential or personal data · Company
-              sign-in/shared storage not connected · R&D actor: Kai ·{' '}
-              {saving ? 'Saving…' : message}
-            </span>
-            <div className="ops-demo-actions">
-              <label>
-                Request demo actor
-                <select
-                  aria-label="Select demo actor"
-                  value={actor.id}
-                  onChange={(event) => {
-                    changeActor(event.target.value);
-                  }}
-                >
-                  {PEOPLE.map((person) => (
-                    <option key={person.id} value={person.id}>
-                      {person.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <ResetMockDataButton />
-            </div>
-          </div>
           {error && (
             <div className="ops-save-error" role="alert">
               {error}{' '}
