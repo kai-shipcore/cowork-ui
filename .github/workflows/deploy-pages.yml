@@ -1,0 +1,104 @@
+name: Deploy cowork-ui to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cowork-ui-pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Fork pull requests cannot access the private UI library credential.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: cowork-ui
+    steps:
+      - name: Check out cowork-ui
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: cowork-ui
+          persist-credentials: false
+
+      - name: Check UI library access is configured
+        env:
+          STORYBOOK_READ_KEY: ${{ secrets.STORYBOOK_READ_KEY }}
+        run: |
+          if [ -z "$STORYBOOK_READ_KEY" ]; then
+            echo '::error::Set STORYBOOK_READ_KEY to a read-only deploy key for Coverland-Engineering/coverland-storybook.'
+            exit 1
+          fi
+
+      - name: Check out the pinned UI library
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Coverland-Engineering/coverland-storybook
+          ref: 737ad2121acc9c48aa1338fe720abd5abb4480f3
+          path: Coverland_Storybook
+          ssh-key: ${{ secrets.STORYBOOK_READ_KEY }}
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.22.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: cowork-ui/pnpm-lock.yaml
+
+      - name: Install and build UI library
+        working-directory: Coverland_Storybook
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build:lib
+
+      - name: Install cowork-ui dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test frontend
+        run: pnpm --filter frontend test
+
+      - name: Build frontend for Pages
+        env:
+          VITE_BASE_URL: /cowork-ui/
+          VITE_ROUTER_MODE: hash
+        run: pnpm --filter frontend build
+
+      - name: Upload static site only
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: cowork-ui/frontend/dist
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
