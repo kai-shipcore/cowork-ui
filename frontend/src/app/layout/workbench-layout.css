@@ -4949,3 +4949,30 @@
     gap: 8px;
   }
 }
+
+/* Demo banner in the fixed header: one compact line, spaced off the top edge. */
+.header-demo {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding-top: 8px;
+}
+.header-demo .ops-demo {
+  flex-wrap: nowrap;
+  gap: 12px;
+  margin-bottom: 0;
+  padding: 4px 10px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.header-demo .ops-demo-actions {
+  flex-wrap: nowrap;
+}
+.header-demo .ops-demo select {
+  padding: 3px 6px;
+  font-size: 11px;
+}
+.header-demo .ops-demo button {
+  height: 24px;
+  font-size: 11px;
+}
