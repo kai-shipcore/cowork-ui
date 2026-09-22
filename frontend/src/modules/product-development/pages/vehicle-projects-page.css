@@ -35,7 +35,7 @@
   --vp-neutral-bg: #edf1f2;
   display: grid;
   gap: 18px;
-  padding: 24px 28px 36px;
+  padding: 0;
   color: var(--vp-ink);
   background: var(--vp-canvas);
 }
@@ -657,10 +657,6 @@
 }
 
 @media (max-width: 760px) {
-  .vehicle-projects-page {
-    padding: 18px 14px 28px;
-  }
-
   .vp-page-header {
     align-items: flex-start;
   }
