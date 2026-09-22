@@ -1,0 +1,134 @@
+.fitments-page {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.fitment-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.fitment-metrics > div {
+  padding: 18px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 14px;
+}
+.fitment-metrics strong {
+  margin-left: auto;
+  font-size: 24px;
+}
+.fitment-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--wb-blue);
+  font-weight: 600;
+}
+.fitment-detail-card {
+  padding: 24px;
+  display: grid;
+  gap: 18px;
+}
+.fitment-detail-card h2 {
+  font-size: 20px;
+  font-weight: 600;
+}
+.fitment-detail-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 20px;
+}
+.fitment-detail-heading h2 {
+  font-size: 24px;
+  margin: 8px 0;
+}
+.fitment-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.fitment-fields dt {
+  color: var(--muted-foreground);
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.fitment-fields dd {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.fitment-fields a,
+.fitment-history a {
+  color: var(--wb-blue);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.fitment-note {
+  padding: 18px;
+  background: var(--muted);
+  border-radius: 8px;
+}
+.fitment-note p,
+.fitment-history p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.fitment-note h3 {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.fitment-note-preview {
+  display: block;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fitment-history {
+  display: grid;
+  gap: 20px;
+  list-style: none;
+  padding: 0;
+}
+.fitment-history li {
+  display: flex;
+  gap: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.fitment-empty {
+  padding: 40px 24px;
+  text-align: center;
+}
+.fitment-empty h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.fitment-record-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.fitment-record-actions > button:first-child {
+  max-width: 520px;
+}
+@media (max-width: 760px) {
+  .fitment-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .fitment-fields {
+    grid-template-columns: 1fr;
+  }
+  .fitment-detail-card {
+    padding: 16px;
+  }
+  .fitment-detail-heading {
+    flex-wrap: wrap;
+  }
+}

@@ -15,7 +15,7 @@ export interface VehicleConfiguration {
   optionValueIds?: readonly string[];
   vehicle: string;
   vehicleClass: string;
-  options: ReadonlyArray<readonly [string, string]>;
+  options: readonly (readonly [string, string])[];
   researchStatus: 'RESEARCHING' | 'COMPLETE';
   projectGroupIds: readonly string[];
 }
@@ -34,6 +34,7 @@ export interface VehicleZoneProject {
   status?: 'ACTIVE' | 'ON_HOLD' | 'CANCELLED' | 'MERGED';
   stageHistory?: readonly ProjectStageRecord[];
   priority?: 'URGENT' | 'HIGH' | 'NORMAL' | 'LOW';
+  stageTargetDays?: readonly { stage: string; targetDays: number }[];
   targetAt?: string;
   lastActivityAt?: string;
   productShapeId?: string;
@@ -347,7 +348,7 @@ export interface VehicleProjectGroup {
   vehicle: string;
   vehicleResearchId: string;
   fNumber?: string;
-  options: ReadonlyArray<readonly [string, string]>;
+  options: readonly (readonly [string, string])[];
   product: ProductType;
   zoneProjects: readonly VehicleZoneProject[];
   stage: string;
@@ -489,7 +490,7 @@ export interface UniqueVehicle {
   vehicle: string;
   product: ProductType;
   vehicleResearchId: string;
-  options: ReadonlyArray<readonly [string, string]>;
+  options: readonly (readonly [string, string])[];
   projectGroupId: string;
   shapes: readonly string[];
   skuStatus: 'DRAFT' | 'REQUESTED' | 'ACTIVE';

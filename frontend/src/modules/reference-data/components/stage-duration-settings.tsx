@@ -8,6 +8,7 @@ import {
   canEditStageDurations,
   EMPTY_STAGE_DURATIONS,
   STAGE_DURATION_KEY,
+  STAGE_PRIORITIES,
   STAGE_PRODUCTS,
   stageDurationSchema,
 } from '@/app/stage-duration-model';
@@ -33,8 +34,8 @@ export function StageDurationSettings(): ReactElement {
         <div>
           <h2>Development Stage Standards</h2>
           <p>
-            Standard duration by product · Calendar days · Applies to newly
-            started stages
+            Standard duration by product and priority · Calendar days · Applies
+            to newly started stages
           </p>
         </div>
         <span>
@@ -44,7 +45,9 @@ export function StageDurationSettings(): ReactElement {
       </div>
       <p className="stage-duration-notice">
         Browser-local demo. Shared company storage and real permission checks
-        are not connected. Example durations do not apply until saved.
+        are not connected. Suggested durations do not apply until saved.
+        Suggestions use NORMAL as the baseline: URGENT 50%, HIGH 75%, LOW 150%,
+        rounded up to whole days.
       </p>
       <div
         className="stage-duration-products"
@@ -104,7 +107,14 @@ export function StageDurationSettings(): ReactElement {
                 {revision.stages
                   .map(
                     (entry) =>
-                      `${entry.stage}: ${String(entry.targetDays)} days`,
+                      `${entry.stage}: ${
+                        entry.priorityDays
+                          ? STAGE_PRIORITIES.map(
+                              (priority) =>
+                                `${priority} ${String(entry.priorityDays?.[priority])} days`,
+                            ).join(', ')
+                          : `${String(entry.targetDays)} days (all priorities)`
+                      }`,
                   )
                   .join(' / ')}
               </p>

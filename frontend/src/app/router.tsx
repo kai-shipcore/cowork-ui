@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router';
 import { useLoadingBar } from 'react-top-loading-bar';
 import { ROUTES } from '@/constants/routes';
 import { DashboardPage } from '@/modules/dashboard/pages/DashboardPage';
+import { FitmentsPage } from '@/modules/fitments/fitments-page';
 import { PartsPage } from '@/modules/parts/parts-page';
 import { Layout } from './layout/Layout';
 
@@ -168,6 +169,8 @@ export function AppRouter() {
           }
         />
         <Route path="/parts" element={<PartsPage />} />
+        <Route path="/fitments" element={<FitmentsPage />} />
+        <Route path="/fitments/:fitmentId" element={<FitmentsPage />} />
         <Route index element={<Navigate to={ROUTES.dashboard} replace />} />
         <Route path={ROUTES.dashboard} element={<DashboardPage />} />
         <Route

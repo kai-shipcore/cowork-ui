@@ -44,6 +44,8 @@ export function recordStageTransitions(
               zone.productTypeId,
               zone.currentStage,
               now,
+              zone.priority ?? 'NORMAL',
+              zone.stageTargetDays,
             ),
           },
         ],

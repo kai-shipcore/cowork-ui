@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@coverland-engineering/ui/dialog';
+import { Input } from '@coverland-engineering/ui/input';
 import {
   Select,
   SelectContent,
@@ -49,8 +50,11 @@ import {
 } from '@/modules/rd-workspace/intake-model';
 import { useRdRecords } from '@/modules/rd-workspace/use-rd-records';
 import {
+  projectStagePlan,
   readStageDurationRevisions,
+  STAGE_PRIORITIES,
   stageTarget,
+  type StagePriority,
 } from '@/app/stage-duration-model';
 import '@/modules/rd-workspace/rd-workspace.css';
 import { VEHICLE_CONFIGURATIONS as INITIAL_CONFIGURATIONS } from '@/app/workbench-mock-data';
@@ -106,6 +110,7 @@ const WIZARD_STEPS = [
   'Product Type',
   'Vehicle Configuration',
   'Zones',
+  'Priority & Timing',
   'Review',
 ] as const;
 const PRODUCT_CHOICES: readonly {
@@ -225,6 +230,10 @@ export function VehicleProjectsPage() {
   const selectedProject = searchParams.get('project') ?? undefined;
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
+  const [wizardPriority, setWizardPriority] = useState<StagePriority>('NORMAL');
+  const [wizardPlan, setWizardPlan] = useState<
+    { stage: string; targetDays: number }[]
+  >([]);
   const [wizardProduct, setWizardProduct] = useState<ProductType>('Seat Cover');
   const [wizardConfigurationId, setWizardConfigurationId] = useState<string>();
   const [wizardManagerId, setWizardManagerId] = useState('USR-KAI');
@@ -322,6 +331,8 @@ export function VehicleProjectsPage() {
     }
     setWizardStep(1);
     setWizardProduct(intake?.product ?? 'Seat Cover');
+    setWizardPriority(intake?.priority ?? 'NORMAL');
+    setWizardPlan([]);
     setWizardConfigurationId(requestedConfigurationId);
     setWizardManagerId('USR-KAI');
     setWizardMessage('');
@@ -363,6 +374,8 @@ export function VehicleProjectsPage() {
     });
     setWizardStep(1);
     setWizardProduct('Seat Cover');
+    setWizardPriority('NORMAL');
+    setWizardPlan([]);
     setWizardConfigurationId(undefined);
     setWizardManagerId('USR-KAI');
     setWizardMessage('');
@@ -380,6 +393,7 @@ export function VehicleProjectsPage() {
 
   const chooseProduct = (nextProduct: ProductType) => {
     setWizardProduct(nextProduct);
+    setWizardPlan([]);
     setWizardConfigurationId((current) =>
       current &&
       !projects.some(
@@ -394,6 +408,18 @@ export function VehicleProjectsPage() {
   };
 
   const createProject = () => {
+    if (
+      !wizardPlan.length ||
+      wizardPlan.some(
+        (entry) =>
+          !Number.isInteger(entry.targetDays) ||
+          entry.targetDays < 1 ||
+          entry.targetDays > 365,
+      )
+    ) {
+      setWizardMessage('Enter 1–365 whole days for every stage.');
+      return;
+    }
     if (!wizardConfiguration) return;
     if (!wizardProductChoice) return;
     if (searchParams.has('intake') && !intake) {
@@ -443,7 +469,8 @@ export function VehicleProjectsPage() {
           managerId: wizardManagerId,
           currentStage: initialStage,
           status: 'ACTIVE',
-          priority: intake?.priority ?? 'NORMAL',
+          priority: wizardPriority,
+          stageTargetDays: wizardPlan.map((entry) => ({ ...entry })),
           lastActivityAt: startedAt,
           stageHistory: [
             {
@@ -456,6 +483,8 @@ export function VehicleProjectsPage() {
                 wizardProductChoice.id,
                 initialStage,
                 startedAt,
+                wizardPriority,
+                wizardPlan,
               ),
             },
           ],
@@ -498,11 +527,25 @@ export function VehicleProjectsPage() {
       setWizardMessage('Select one vehicle configuration.');
       return;
     }
-    if (wizardStep === 4) {
+    if (wizardStep === 3 && !wizardPlan.length)
+      setWizardPlan(projectStagePlan(wizardProduct, wizardPriority));
+    if (
+      wizardStep === 4 &&
+      wizardPlan.some(
+        (entry) =>
+          !Number.isInteger(entry.targetDays) ||
+          entry.targetDays < 1 ||
+          entry.targetDays > 365,
+      )
+    ) {
+      setWizardMessage('Enter 1–365 whole days for every stage.');
+      return;
+    }
+    if (wizardStep === 5) {
       createProject();
       return;
     }
-    setWizardStep((current) => Math.min(4, current + 1));
+    setWizardStep((current) => Math.min(5, current + 1));
   };
 
   const urgentAndHigh = stageProjects.reduce(
@@ -1115,8 +1158,88 @@ export function VehicleProjectsPage() {
               </div>
             )}
 
-            {wizardStep === 4 && wizardConfiguration && (
+            {wizardStep === 4 && (
+              <div className="wizard-zone-step">
+                <h3>Project priority & stage target days</h3>
+                <p>
+                  Applies to all zone projects created together. Values are
+                  copied from Stage Standards, or suggested durations when no
+                  standard is saved.
+                </p>
+                <label>
+                  Project priority
+                  <Select
+                    value={wizardPriority}
+                    onValueChange={(value) => {
+                      setWizardPriority(value as StagePriority);
+                      setWizardPlan(
+                        projectStagePlan(wizardProduct, value as StagePriority),
+                      );
+                    }}
+                  >
+                    <SelectTrigger aria-label="Project priority">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STAGE_PRIORITIES.map((priority) => (
+                        <SelectItem key={priority} value={priority}>
+                          {priority}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
+                <p>
+                  Changing priority reloads its defaults and replaces edits
+                  below. Adjust the imported values for this project.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setWizardPlan(
+                      projectStagePlan(wizardProduct, wizardPriority),
+                    );
+                  }}
+                >
+                  Reload {wizardPriority} defaults
+                </Button>
+                {wizardPlan.map((entry, index) => (
+                  <label key={entry.stage} className="wizard-project-defaults">
+                    <span>{entry.stage} · Target days</span>
+                    <Input
+                      aria-label={`${entry.stage} target days`}
+                      type="number"
+                      min={1}
+                      max={365}
+                      step={1}
+                      value={entry.targetDays || ''}
+                      onChange={(event) => {
+                        const days = Number(event.target.value);
+                        setWizardPlan((current) =>
+                          current.map((row, i) =>
+                            i === index ? { ...row, targetDays: days } : row,
+                          ),
+                        );
+                      }}
+                    />
+                  </label>
+                ))}
+              </div>
+            )}
+            {wizardStep === 5 && wizardConfiguration && (
               <div className="wizard-review-step">
+                <div className="wizard-review-card full-width">
+                  <span>PRIORITY & TARGET DAYS</span>
+                  <strong>{wizardPriority}</strong>
+                  <p>
+                    {wizardPlan
+                      .map(
+                        (entry) =>
+                          `${entry.stage}: ${String(entry.targetDays)} days`,
+                      )
+                      .join(' · ')}
+                  </p>
+                </div>
                 <div className="wizard-review-card">
                   <span>Product</span>
                   <strong>
@@ -1214,8 +1337,8 @@ export function VehicleProjectsPage() {
                 Cancel
               </Button>
               <Button variant="primary" onClick={continueWizard}>
-                {wizardStep === 4 ? 'Create Project Group' : 'Continue'}
-                {wizardStep < 4 && <ChevronRight />}
+                {wizardStep === 5 ? 'Create Project Group' : 'Continue'}
+                {wizardStep < 5 && <ChevronRight />}
               </Button>
             </div>
           </DialogFooter>
