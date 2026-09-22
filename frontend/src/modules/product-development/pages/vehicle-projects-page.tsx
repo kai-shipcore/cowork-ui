@@ -27,6 +27,7 @@ import {
   FolderKanban,
   Plus,
   RectangleHorizontal,
+  RotateCcw,
   Search,
   Siren,
 } from 'lucide-react';
@@ -113,6 +114,15 @@ const WIZARD_STEPS = [
   'Priority & Timing',
   'Review',
 ] as const;
+const PRIORITY_PRESENTATION: Record<
+  StagePriority,
+  { label: string; pace: string }
+> = {
+  URGENT: { label: 'Critical', pace: '50% of standard' },
+  HIGH: { label: 'Accelerated', pace: '75% of standard' },
+  NORMAL: { label: 'Standard', pace: '100% of standard' },
+  LOW: { label: 'Flexible', pace: '150% of standard' },
+};
 const PRODUCT_CHOICES: readonly {
   id: string;
   name: ProductType;
@@ -1159,71 +1169,131 @@ export function VehicleProjectsPage() {
             )}
 
             {wizardStep === 4 && (
-              <div className="wizard-zone-step">
-                <h3>Project priority & stage target days</h3>
-                <p>
-                  Applies to all zone projects created together. Values are
-                  copied from Stage Standards, or suggested durations when no
-                  standard is saved.
-                </p>
-                <label>
-                  Project priority
-                  <Select
-                    value={wizardPriority}
-                    onValueChange={(value) => {
-                      setWizardPriority(value as StagePriority);
-                      setWizardPlan(
-                        projectStagePlan(wizardProduct, value as StagePriority),
-                      );
-                    }}
+              <div className="wizard-timing-step">
+                <header className="wizard-timing-heading">
+                  <span className="wizard-timing-icon" aria-hidden="true">
+                    <Clock3 />
+                  </span>
+                  <div>
+                    <h3>Set project pace</h3>
+                    <p>
+                      Choose one priority for all zone projects, then fine-tune
+                      the target days for each development stage.
+                    </p>
+                  </div>
+                  <div className="wizard-timing-total">
+                    <span>Planned timeline</span>
+                    <strong>
+                      {String(
+                        wizardPlan.reduce(
+                          (total, entry) => total + entry.targetDays,
+                          0,
+                        ),
+                      )}{' '}
+                      days
+                    </strong>
+                  </div>
+                </header>
+
+                <section className="wizard-timing-section">
+                  <div className="wizard-timing-section-heading">
+                    <div>
+                      <span className="wizard-timing-kicker">
+                        Project priority
+                      </span>
+                      <strong>{wizardPriority}</strong>
+                    </div>
+                    <span>Updates the stage defaults below</span>
+                  </div>
+                  <div
+                    className="wizard-priority-options"
+                    role="radiogroup"
+                    aria-label="Project priority"
                   >
-                    <SelectTrigger aria-label="Project priority">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STAGE_PRIORITIES.map((priority) => (
-                        <SelectItem key={priority} value={priority}>
-                          {priority}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </label>
-                <p>
-                  Changing priority reloads its defaults and replaces edits
-                  below. Adjust the imported values for this project.
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setWizardPlan(
-                      projectStagePlan(wizardProduct, wizardPriority),
-                    );
-                  }}
-                >
-                  Reload {wizardPriority} defaults
-                </Button>
-                {wizardPlan.map((entry, index) => (
-                  <label key={entry.stage} className="wizard-project-defaults">
-                    <span>{entry.stage} · Target days</span>
-                    <Input
-                      aria-label={`${entry.stage} target days`}
-                      type="number"
-                      min={1}
-                      max={365}
-                      step={1}
-                      value={entry.targetDays || ''}
-                      onChange={(event) => {
-                        const days = Number(event.target.value);
-                        setWizardPlan((current) =>
-                          current.map((row, i) =>
-                            i === index ? { ...row, targetDays: days } : row,
-                          ),
+                    {STAGE_PRIORITIES.map((priority) => (
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={wizardPriority === priority}
+                        className={`wizard-priority-option priority-${priority.toLowerCase()}`}
+                        key={priority}
+                        onClick={() => {
+                          setWizardPriority(priority);
+                          setWizardPlan(
+                            projectStagePlan(wizardProduct, priority),
+                          );
+                        }}
+                      >
+                        <span className="wizard-priority-radio" />
+                        <strong>{priority}</strong>
+                        <small>{PRIORITY_PRESENTATION[priority].label}</small>
+                        <em>{PRIORITY_PRESENTATION[priority].pace}</em>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="wizard-timing-section">
+                  <div className="wizard-timing-section-heading">
+                    <div>
+                      <span className="wizard-timing-kicker">
+                        Stage target days
+                      </span>
+                      <strong>Project-specific schedule</strong>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="wizard-timing-reload"
+                      onClick={() => {
+                        setWizardPlan(
+                          projectStagePlan(wizardProduct, wizardPriority),
                         );
                       }}
-                    />
-                  </label>
-                ))}
+                    >
+                      <RotateCcw /> Reload defaults
+                    </Button>
+                  </div>
+                  <div className="wizard-timing-grid">
+                    {wizardPlan.map((entry, index) => (
+                      <label key={entry.stage} className="wizard-timing-field">
+                        <span className="wizard-timing-stage-number">
+                          {String(index + 1).padStart(2, '0')}
+                        </span>
+                        <span className="wizard-timing-stage-name">
+                          {entry.stage}
+                          <small>Target duration</small>
+                        </span>
+                        <span className="wizard-timing-input">
+                          <Input
+                            aria-label={`${entry.stage} target days`}
+                            type="number"
+                            min={1}
+                            max={365}
+                            step={1}
+                            value={entry.targetDays || ''}
+                            onChange={(event) => {
+                              const days = Number(event.target.value);
+                              setWizardPlan((current) =>
+                                current.map((row, i) =>
+                                  i === index
+                                    ? { ...row, targetDays: days }
+                                    : row,
+                                ),
+                              );
+                            }}
+                          />
+                          <small>days</small>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </section>
+
+                <p className="wizard-timing-note">
+                  <Clock3 aria-hidden="true" />
+                  These values are copied from Stage Standards. Your edits apply
+                  only to this project and can be changed later.
+                </p>
               </div>
             )}
             {wizardStep === 5 && wizardConfiguration && (
