@@ -82,7 +82,12 @@ export function ProductShapesPage() {
       sortValue: (shape) => shape.name,
       cell: (shape) => (
         <>
-          <strong>{shape.name}</strong>
+          <Link
+            className="shape-name-link"
+            to={`/product-shapes/${encodeURIComponent(shape.id)}`}
+          >
+            <strong>{shape.name}</strong>
+          </Link>
           <div className="vehicle-meta">{shape.id}</div>
         </>
       ),
@@ -184,6 +189,11 @@ export function ProductShapesPage() {
       hideable: false,
       cell: (shape) => (
         <div className="table-actions">
+          <Button asChild variant="ghost" size="sm">
+            <Link to={`/product-shapes/${encodeURIComponent(shape.id)}`}>
+              View
+            </Link>
+          </Button>
           <Button
             variant="outline"
             size="sm"
