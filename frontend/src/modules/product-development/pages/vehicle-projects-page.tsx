@@ -691,7 +691,7 @@ export function VehicleProjectsPage() {
         const health = projectHealth(zone, currentDate);
         return (
           <span
-            className={`vp-health-badge health-${health.value}`}
+            className={`vp-health-badge health-${health.value}${health.value === 'late' ? ' vp-overdue-row-marker' : ''}`}
             title={health.reason}
           >
             {healthLabel(zone, currentDate)}
@@ -992,6 +992,7 @@ export function VehicleProjectsPage() {
         }
         list={
           <GroupedDataGrid
+            className="vp-project-grid"
             label="Vehicle Projects"
             columns={projectGridColumns}
             groups={projectGridGroups}

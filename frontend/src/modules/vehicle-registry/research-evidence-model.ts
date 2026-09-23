@@ -24,6 +24,7 @@ export const researchSeatTypeSchema = z.object({
   sourceUrl: z.union([z.literal(''), safeSourceUrl]),
   photo: evidencePhoto,
   photoName: z.string().max(200),
+  tags: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
 });
 
 export const researchEvidenceSectionSchema = z.object({

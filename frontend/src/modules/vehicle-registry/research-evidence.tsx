@@ -31,7 +31,19 @@ function newSeatType() {
     sourceUrl: '',
     photo: '',
     photoName: '',
+    tags: [],
   };
+}
+
+function parseTags(value: string): string[] {
+  return Array.from(
+    new Set(
+      value
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    ),
+  ).slice(0, 20);
 }
 
 function newSection(rowLabel = ''): ResearchEvidenceSection {
@@ -70,6 +82,16 @@ export function ResearchEvidence({
   );
   const [message, setMessage] = useState('');
   const [reading, setReading] = useState(false);
+  const [tagDrafts, setTagDrafts] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      (latest?.sections ?? []).flatMap((section) =>
+        section.seatTypes.map((seatType) => [
+          seatType.id,
+          seatType.tags.join(', '),
+        ]),
+      ),
+    ),
+  );
 
   function updateSection(
     sectionId: string,
@@ -348,6 +370,28 @@ export function ResearchEvidence({
                           });
                         }}
                       />
+                    </label>
+                    <label>
+                      Asset tags
+                      <Input
+                        value={
+                          tagDrafts[seatType.id] ?? seatType.tags.join(', ')
+                        }
+                        placeholder="Example: front seat, headrest, dimensions"
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          setTagDrafts((current) => ({
+                            ...current,
+                            [seatType.id]: value,
+                          }));
+                          updateSeatType(section.id, seatType.id, {
+                            tags: parseTags(value),
+                          });
+                        }}
+                      />
+                      <span className="research-tag-help">
+                        Separate multiple tags with commas.
+                      </span>
                     </label>
                     <label className="research-photo-input">
                       <ImagePlus aria-hidden="true" />

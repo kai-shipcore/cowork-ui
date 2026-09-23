@@ -13,6 +13,32 @@ export const researchMaterialSchema = z.object({
   sourceUrl: z.union([z.literal(''), z.url()]),
   notes: z.string().max(3000),
   tags: z.array(z.string().trim().min(1).max(80)).max(30),
+  productTypeId: z
+    .enum(['PT-SC', 'PT-CC', 'PT-FM', 'PT-SWC', 'PT-WS'])
+    .default('PT-SC'),
+  optionSelections: z
+    .array(
+      z.tuple([
+        z.string().trim().min(1).max(100),
+        z.string().trim().min(1).max(200),
+      ]),
+    )
+    .max(30)
+    .default([]),
+  researchRowId: z.string().max(200).optional(),
+  targetConfigurationId: z.string().max(200).optional(),
+  fileData: z
+    .string()
+    .max(1500000)
+    .refine(
+      (value) =>
+        !value ||
+        /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value),
+      'Only PNG, JPEG, and WebP files are supported.',
+    )
+    .default(''),
+  fileName: z.string().max(200).default(''),
+  fileType: z.string().max(100).default(''),
 });
 
 export const researchDetailSchema = z.object({
@@ -58,6 +84,13 @@ export function newResearchMaterial(): ResearchMaterial {
     sourceUrl: '',
     notes: '',
     tags: [],
+    productTypeId: 'PT-SC',
+    optionSelections: [],
+    researchRowId: '',
+    targetConfigurationId: '',
+    fileData: '',
+    fileName: '',
+    fileType: '',
   };
 }
 
@@ -88,6 +121,16 @@ export const RESEARCH_DETAIL_SEED: readonly ResearchDetailRecord[] = [
         sourceUrl: 'https://www.toyota.com/rav4hybrid/',
         notes: 'Confirms bucket fronts and 60/40 bench; headrests removable.',
         tags: ['Seat Cover', 'Front seat', 'Second row', 'Hybrid'],
+        productTypeId: 'PT-SC',
+        optionSelections: [
+          ['Powertrain', 'Hybrid'],
+          ['Seats', '5 Seats'],
+          ['Front Seat', 'Bucket'],
+          ['2nd Row Seat', 'Bench'],
+        ],
+        fileData: '',
+        fileName: '',
+        fileType: '',
       },
     ],
     actor: 'Kai (Demo)',
@@ -115,6 +158,16 @@ export const RESEARCH_DETAIL_SEED: readonly ResearchDetailRecord[] = [
         sourceUrl: 'https://www.toyota.com/rav4hybrid/',
         notes: 'Confirms bucket fronts and 60/40 bench; headrests removable.',
         tags: ['Seat Cover', 'Front seat', 'Second row', 'Hybrid'],
+        productTypeId: 'PT-SC',
+        optionSelections: [
+          ['Powertrain', 'Hybrid'],
+          ['Seats', '5 Seats'],
+          ['Front Seat', 'Bucket'],
+          ['2nd Row Seat', 'Bench'],
+        ],
+        fileData: '',
+        fileName: '',
+        fileType: '',
       },
       {
         id: 'research-material-seed-c01-2',
@@ -122,6 +175,14 @@ export const RESEARCH_DETAIL_SEED: readonly ResearchDetailRecord[] = [
         sourceUrl: '',
         notes: 'Measured 2nd row bench width; no under-seat storage tray.',
         tags: ['Seat Cover', 'Second row', 'Bench'],
+        productTypeId: 'PT-SC',
+        optionSelections: [
+          ['2nd Row Seat', 'Bench'],
+          ['Under-seat Storage', 'No Storage'],
+        ],
+        fileData: '',
+        fileName: '',
+        fileType: '',
       },
     ],
     actor: 'Kai (Demo)',

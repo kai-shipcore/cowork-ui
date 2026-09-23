@@ -23,7 +23,7 @@ export const STAGE_PRODUCTS = [
 const revisionSchema = z
   .object({
     id: z.string().min(1),
-    productTypeId: z.enum(['PT-SC', 'PT-CC', 'PT-FM']),
+    productTypeId: z.enum(['PT-SC', 'PT-CC', 'PT-FM', 'PT-SWC', 'PT-WS']),
     updatedAt: z.iso.datetime(),
     updatedBy: z.string().min(1),
     note: z.string().trim().min(1).max(500),

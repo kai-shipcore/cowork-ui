@@ -36,6 +36,7 @@ const evidence: ResearchEvidenceRecord = {
           sourceUrl: 'https://example.com/front-seat',
           photo: '',
           photoName: '',
+          tags: ['front seat'],
         },
       ],
     },

@@ -580,6 +580,20 @@
   background: var(--vp-danger-bg);
 }
 
+/* Make overdue work visible before the user reads the schedule badge. */
+.vp-project-grid tbody tr:has(.vp-overdue-row-marker) > td {
+  border-bottom-color: color-mix(in srgb, var(--vp-danger) 22%, transparent);
+  background: var(--vp-danger-bg);
+}
+
+.vp-project-grid tbody tr:has(.vp-overdue-row-marker) > td:first-child {
+  box-shadow: inset 4px 0 0 var(--vp-danger);
+}
+
+.vp-project-grid tbody tr:has(.vp-overdue-row-marker):hover > td {
+  background: color-mix(in srgb, var(--vp-danger-bg) 86%, var(--vp-danger));
+}
+
 .vp-health-badge.health-at-risk {
   color: var(--vp-warning);
   background: var(--vp-warning-bg);
