@@ -2,16 +2,20 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   type ActivityEntry,
+  type NewActivityComment,
 } from '@coverland-engineering/ui/activity/activity';
 import { Button } from '@coverland-engineering/ui/button';
 import { ArrowLeft, Pencil, Save, Search, Trash2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { UserAvatar } from '@/shared/domain/user-picker';
 import { WorkbenchPagination } from '@/shared/components/workbench-pagination';
 import { PRODUCT_TYPES } from '@/shared/types/workbench';
 import { useRdRecords } from '@/modules/rd-workspace/use-rd-records';
 import { useOperations } from '@/app/operations-store';
 import { useWorkbenchStore } from '@/app/workbench-store';
+import {
+  ResearchAssetUploader,
+  type ResearchAssetTarget,
+} from '../research-asset-uploader';
 import {
   RESEARCH_COMMENT_KEY,
   RESEARCH_COMMENT_SEED,
@@ -22,10 +26,6 @@ import {
   researchDetailSchema,
   type ResearchMaterial,
 } from '../vehicle-research-detail-model';
-import {
-  ResearchAssetUploader,
-  type ResearchAssetTarget,
-} from '../research-asset-uploader';
 import { vehicleResearchIdentity } from '../vehicle-research-grid-model';
 import './vehicle-research-detail-page.css';
 
@@ -47,7 +47,8 @@ export function VehicleResearchDetailPage() {
           selectedVehicleIdentity.makeModel,
       )
     : [];
-  const groupConfiguration = vehicleConfigurations[0] ?? configuration;
+  const groupConfiguration =
+    vehicleConfigurations.slice(0, 1).pop() ?? configuration;
   const researchGroupId = groupConfiguration?.id ?? configurationId;
   const researchTargets = Array.from(
     new Map(
@@ -71,10 +72,13 @@ export function VehicleResearchDetailPage() {
             } satisfies ResearchAssetTarget;
           }),
         )
-        .map((target) => [
-          `${target.productTypeId}:${JSON.stringify(target.options)}`,
-          target,
-        ] as const),
+        .map(
+          (target) =>
+            [
+              `${target.productTypeId}:${JSON.stringify(target.options)}`,
+              target,
+            ] as const,
+        ),
     ).values(),
   );
   const researchTargetGroups = PRODUCT_TYPES.map((productType) => ({
@@ -100,7 +104,6 @@ export function VehicleResearchDetailPage() {
   const [materials, setMaterials] = useState<readonly ResearchMaterial[]>(
     latest?.materials ?? [],
   );
-  const [comment, setComment] = useState('');
   const [message, setMessage] = useState('');
   const [productRowQuery, setProductRowQuery] = useState('');
   const [assetQuery, setAssetQuery] = useState('');
@@ -176,7 +179,9 @@ export function VehicleResearchDetailPage() {
       setAssetPageLoading(false);
     }, 180);
 
-    return () => window.clearTimeout(timeout);
+    return () => {
+      window.clearTimeout(timeout);
+    };
   }, [assetPagination.pageIndex, assetPagination.pageSize, filteredMaterials]);
 
   useEffect(() => {
@@ -200,6 +205,8 @@ export function VehicleResearchDetailPage() {
           type: 'USER_COMMENT' as const,
           message: item.message,
           author: item.author,
+          authorId: item.authorId,
+          attachments: item.attachments,
           createdAt: item.createdAt,
         })),
     ],
@@ -288,20 +295,57 @@ export function VehicleResearchDetailPage() {
     if (saved) setMaterials(nextMaterials);
   }
 
-  async function addComment() {
-    const value = comment.trim();
-    if (!value) return;
-    const ok = await comments.save((current) => [
+  function addComment({ message, files }: NewActivityComment): void {
+    if (!message) return;
+    void comments.save((current) => [
       ...current,
       {
         id: crypto.randomUUID(),
         configurationId: researchGroupId,
-        message: value,
+        message,
         author: actor.name,
+        authorId: actor.id,
+        // Files are not uploaded yet; keep what the attachment chip renders.
+        attachments: files.map((file) => ({
+          id: crypto.randomUUID(),
+          name: file.name,
+          size: file.size,
+        })),
         createdAt: new Date().toISOString(),
       },
     ]);
-    if (ok) setComment('');
+  }
+
+  function editComment(commentId: string, message: string): void {
+    void comments.save((current) =>
+      current.map((item) =>
+        item.id === commentId ? { ...item, message } : item,
+      ),
+    );
+  }
+
+  function deleteComment(commentId: string): void {
+    void comments.save((current) =>
+      current.filter((item) => item.id !== commentId),
+    );
+  }
+
+  function removeCommentAttachment(
+    commentId: string,
+    attachmentId: string,
+  ): void {
+    void comments.save((current) =>
+      current.map((item) =>
+        item.id === commentId
+          ? {
+              ...item,
+              attachments: item.attachments?.filter(
+                (attachment) => attachment.id !== attachmentId,
+              ),
+            }
+          : item,
+      ),
+    );
   }
 
   function resolveMaterialTarget(material: ResearchMaterial) {
@@ -368,7 +412,9 @@ export function VehicleResearchDetailPage() {
               <input
                 type="search"
                 value={productRowQuery}
-                onChange={(event) => setProductRowQuery(event.target.value)}
+                onChange={(event) => {
+                  setProductRowQuery(event.target.value);
+                }}
                 placeholder="Search product, configuration, or option"
                 aria-label="Search product research rows"
               />
@@ -381,7 +427,10 @@ export function VehicleResearchDetailPage() {
                 >
                   <header>
                     <div>
-                      <span className="research-product-mark" aria-hidden="true">
+                      <span
+                        className="research-product-mark"
+                        aria-hidden="true"
+                      >
                         {group.product
                           .split(' ')
                           .map((word) => word[0])
@@ -439,7 +488,9 @@ export function VehicleResearchDetailPage() {
                   vehicleLabel={selectedVehicleIdentity.makeModel}
                   targets={researchTargets}
                   onSaveMaterials={async (uploaded) => {
-                    const nextMaterials = [...materials, ...uploaded].slice(-50);
+                    const nextMaterials = [...materials, ...uploaded].slice(
+                      -50,
+                    );
                     const saved = await saveAssets(nextMaterials);
                     if (saved) setMaterials(nextMaterials);
                     return saved;
@@ -453,7 +504,9 @@ export function VehicleResearchDetailPage() {
               <input
                 type="search"
                 value={assetQuery}
-                onChange={(event) => setAssetQuery(event.target.value)}
+                onChange={(event) => {
+                  setAssetQuery(event.target.value);
+                }}
                 placeholder="Search filename, product, configuration, or tag"
                 aria-label="Search research assets"
               />
@@ -489,109 +542,122 @@ export function VehicleResearchDetailPage() {
                     : assetPageItems.map((item) => {
                         const selectedTarget = resolveMaterialTarget(item);
                         return (
-                  <article key={item.id}>
-                    <div className="research-asset-mapping-preview">
-                      {item.fileData ? (
-                        <img src={item.fileData} alt={item.fileName || item.title} />
-                      ) : (
-                        <span>LINK</span>
-                      )}
-                    </div>
-                    <div className="research-asset-mapping-body">
-                      <strong title={item.fileName || item.title}>
-                        {item.fileName || item.title}
-                      </strong>
-                      <div className="research-asset-assignment">
-                        <span>{targetLabel(selectedTarget)}</span>
-                        {item.tags.length > 0 ? (
-                          <div className="research-asset-tag-list">
-                            {item.tags.map((tag) => (
-                              <span key={tag}>{tag}</span>
-                            ))}
-                          </div>
-                        ) : (
-                          <small>No tags</small>
-                        )}
-                      </div>
-                      {editingAssetId === item.id && (
-                        <label>
-                          Configuration
-                          <select
-                            value={editingTargetId}
-                            onChange={(event) =>
-                              setEditingTargetId(event.target.value)
-                            }
-                          >
-                            <option value="" disabled>
-                              Select product and options
-                            </option>
-                            {researchTargetGroups.map((group) => (
-                              <optgroup key={group.id} label={group.product}>
-                                {group.rows.map((target, index) => (
-                                  <option key={target.id} value={target.id}>
-                                    Configuration {index + 1} ·{' '}
-                                    {target.options.length
-                                      ? target.options
-                                          .map(
-                                            ([key, value]) =>
-                                              `${key}: ${value}`,
-                                          )
-                                          .join(' / ')
-                                      : 'Base vehicle'}
-                                  </option>
-                                ))}
-                              </optgroup>
-                            ))}
-                          </select>
-                        </label>
-                      )}
-                      <div className="research-asset-card-actions">
-                        {editingAssetId === item.id ? (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setEditingAssetId(null);
-                                setEditingTargetId('');
-                              }}
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="primary"
-                              disabled={!editingTargetId || details.saving}
-                              onClick={() =>
-                                void saveAssetConfiguration(item.id)
-                              }
-                            >
-                              <Save /> Save
-                            </Button>
-                          </>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setEditingAssetId(item.id);
-                              setEditingTargetId(selectedTarget?.id ?? '');
-                            }}
-                          >
-                            <Pencil /> Edit
-                          </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={details.saving}
-                          onClick={() => void removeAsset(item.id)}
-                        >
-                          <Trash2 /> Remove
-                        </Button>
-                      </div>
-                    </div>
-                  </article>
+                          <article key={item.id}>
+                            <div className="research-asset-mapping-preview">
+                              {item.fileData ? (
+                                <img
+                                  src={item.fileData}
+                                  alt={item.fileName || item.title}
+                                />
+                              ) : (
+                                <span>LINK</span>
+                              )}
+                            </div>
+                            <div className="research-asset-mapping-body">
+                              <strong title={item.fileName || item.title}>
+                                {item.fileName || item.title}
+                              </strong>
+                              <div className="research-asset-assignment">
+                                <span>{targetLabel(selectedTarget)}</span>
+                                {item.tags.length > 0 ? (
+                                  <div className="research-asset-tag-list">
+                                    {item.tags.map((tag) => (
+                                      <span key={tag}>{tag}</span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <small>No tags</small>
+                                )}
+                              </div>
+                              {editingAssetId === item.id && (
+                                <label>
+                                  Configuration
+                                  <select
+                                    value={editingTargetId}
+                                    onChange={(event) => {
+                                      setEditingTargetId(event.target.value);
+                                    }}
+                                  >
+                                    <option value="" disabled>
+                                      Select product and options
+                                    </option>
+                                    {researchTargetGroups.map((group) => (
+                                      <optgroup
+                                        key={group.id}
+                                        label={group.product}
+                                      >
+                                        {group.rows.map((target, index) => (
+                                          <option
+                                            key={target.id}
+                                            value={target.id}
+                                          >
+                                            Configuration {index + 1} ·{' '}
+                                            {target.options.length
+                                              ? target.options
+                                                  .map(
+                                                    ([key, value]) =>
+                                                      `${key}: ${value}`,
+                                                  )
+                                                  .join(' / ')
+                                              : 'Base vehicle'}
+                                          </option>
+                                        ))}
+                                      </optgroup>
+                                    ))}
+                                  </select>
+                                </label>
+                              )}
+                              <div className="research-asset-card-actions">
+                                {editingAssetId === item.id ? (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        setEditingAssetId(null);
+                                        setEditingTargetId('');
+                                      }}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="primary"
+                                      disabled={
+                                        !editingTargetId || details.saving
+                                      }
+                                      onClick={() =>
+                                        void saveAssetConfiguration(item.id)
+                                      }
+                                    >
+                                      <Save /> Save
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setEditingAssetId(item.id);
+                                      setEditingTargetId(
+                                        selectedTarget?.id ?? '',
+                                      );
+                                    }}
+                                  >
+                                    <Pencil /> Edit
+                                  </Button>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  disabled={details.saving}
+                                  onClick={() => void removeAsset(item.id)}
+                                >
+                                  <Trash2 /> Remove
+                                </Button>
+                              </div>
+                            </div>
+                          </article>
                         );
                       })}
                 </div>
@@ -615,45 +681,21 @@ export function VehicleResearchDetailPage() {
         </main>
 
         <aside className="research-activity-column">
-          <section
-            className="research-timeline"
-            aria-labelledby="research-timeline-title"
-          >
-            <h2 id="research-timeline-title">Timeline</h2>
-            <div className="comment-composer">
-              <UserAvatar
-                user={{
-                  id: actor.id,
-                  name: actor.name.replace(/\s*\(.*\)$/, ''),
-                }}
-                size="md"
-              />
-              <textarea
-                aria-label="Leave a comment"
-                rows={2}
-                value={comment}
-                onChange={(event) => setComment(event.target.value)}
-                placeholder="Leave a comment..."
-              />
-              <Button
-                size="sm"
-                disabled={!comment.trim() || comments.saving}
-                onClick={() => void addComment()}
-              >
-                Post
-              </Button>
-            </div>
-            <p className="comment-visibility">
-              Only you and other staff can see comments
-            </p>
-            <Activity
-              className="research-timeline-feed"
-              entries={activity}
-              title="Activity"
-              emptyMessage="No research activity yet."
-              systemAuthorLabel="Coverland System"
-            />
-          </section>
+          <Activity
+            entries={activity}
+            title="Timeline"
+            emptyMessage="No research activity yet."
+            systemAuthorLabel="Coverland System"
+            commenter={{
+              id: actor.id,
+              // Initials come from the name; drop the "(Demo)" suffix.
+              name: actor.name.replace(/\s*\(.*\)$/, ''),
+            }}
+            onSubmit={addComment}
+            onEditComment={editComment}
+            onDeleteComment={deleteComment}
+            onRemoveAttachment={removeCommentAttachment}
+          />
         </aside>
       </div>
     </section>

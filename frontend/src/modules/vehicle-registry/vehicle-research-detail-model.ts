@@ -64,11 +64,21 @@ export const researchDetailListSchema = z.array(researchDetailSchema);
 export type ResearchDetailRecord = z.infer<typeof researchDetailSchema>;
 export type ResearchMaterial = z.infer<typeof researchMaterialSchema>;
 
+export const researchCommentAttachmentSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1).max(255),
+  size: z.number().int().min(0),
+});
+
 export const researchCommentSchema = z.object({
   id: z.string(),
   configurationId: z.string(),
   message: z.string().trim().min(1).max(2000),
   author: z.string(),
+  /** Matched against the current actor to offer edit and delete. */
+  authorId: z.string().optional(),
+  /** File metadata only; uploads do not exist yet. */
+  attachments: z.array(researchCommentAttachmentSchema).max(20).optional(),
   createdAt: z.string(),
 });
 export const researchCommentListSchema = z.array(researchCommentSchema);
@@ -198,6 +208,7 @@ export const RESEARCH_COMMENT_SEED: readonly ResearchComment[] = [
     message:
       'Started the hybrid configuration. Need a second source for the 2nd row armrest on LE.',
     author: 'Kai (Demo)',
+    authorId: 'USR-KAI',
     createdAt: '2026-09-10T09:25:00.000Z',
   },
   {
@@ -206,6 +217,7 @@ export const RESEARCH_COMMENT_SEED: readonly ResearchComment[] = [
     message:
       'Galpin visit booked for 9/17. Will check under-seat storage in person.',
     author: 'R&D Member (Demo)',
+    authorId: 'rd-member',
     createdAt: '2026-09-12T17:40:00.000Z',
   },
   {
@@ -214,6 +226,7 @@ export const RESEARCH_COMMENT_SEED: readonly ResearchComment[] = [
     message:
       'Scan done. No storage tray on any hybrid trim, so c02 stays a separate configuration.',
     author: 'R&D Member (Demo)',
+    authorId: 'rd-member',
     createdAt: '2026-09-17T22:10:00.000Z',
   },
   {
@@ -222,6 +235,7 @@ export const RESEARCH_COMMENT_SEED: readonly ResearchComment[] = [
     message:
       'Research complete and pushed to development. Seat Cover project PG-00124 is linked.',
     author: 'Kai (Demo)',
+    authorId: 'USR-KAI',
     createdAt: '2026-09-18T15:08:00.000Z',
   },
 ];
