@@ -39,6 +39,7 @@ import { useWorkbenchStore } from '@/app/workbench-store';
 import { ResearchAssetLibrary } from '../research-asset-library';
 import {
   RESEARCH_DETAIL_KEY,
+  RESEARCH_DETAIL_SEED,
   researchDetailListSchema,
 } from '../vehicle-research-detail-model';
 import { groupVehicleResearch } from '../vehicle-research-grid-model';
@@ -68,12 +69,13 @@ const INITIAL_CRITERIA: readonly ConfigurationCriterion[] = [
 export function VehicleResearchPage() {
   const navigate = useNavigate();
   const [viewParams] = useSearchParams();
-  const researchView =
-    viewParams.get('view') === 'assets' ? 'assets' : 'registry';
+  const [researchView, setResearchView] = useState<'registry' | 'assets'>(() =>
+    viewParams.get('view') === 'assets' ? 'assets' : 'registry',
+  );
   const { records: researchDetails } = useRdRecords(
     RESEARCH_DETAIL_KEY,
     researchDetailListSchema,
-    [],
+    RESEARCH_DETAIL_SEED,
   );
   const {
     configurations,
@@ -437,8 +439,10 @@ export function VehicleResearchPage() {
           label="Vehicle research view"
           value={researchView}
           onValueChange={(value) => {
+            const nextView = value === 'assets' ? 'assets' : 'registry';
+            setResearchView(nextView);
             void navigate(
-              value === 'assets'
+              nextView === 'assets'
                 ? `${ROUTES.vehicleResearch}?view=assets`
                 : ROUTES.vehicleResearch,
               { replace: true },
