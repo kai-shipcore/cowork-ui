@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import {
   Activity,
   type ActivityEntry,
+  type NewActivityComment,
 } from '@coverland-engineering/ui/activity/activity';
 import { Button } from '@coverland-engineering/ui/button';
 import {
@@ -110,6 +111,7 @@ import { InspectionResult } from '@/modules/sampling/inspection-result';
 import { ShipmentDialog } from '@/modules/sampling/shipment-dialog';
 import { ShipmentSummary } from '@/modules/sampling/shipment-summary';
 import { CURRENT_USER_ID } from '@/app/current-user';
+import { useOperations } from '@/app/operations-store';
 import { SEED_SCAN_VISIT_DATE } from '@/app/workbench-mock-data';
 import { isLegacySeedActivity, useWorkbenchStore } from '@/app/workbench-store';
 import {
@@ -675,6 +677,7 @@ export function ProjectDetailView({
     () =>
       savedDetail?.activity.filter((item) => !isLegacySeedActivity(item)) ?? [],
   );
+  const { actor } = useOperations();
   const [dialog, setDialog] = useState<DialogName>();
   const [dialogZone, setDialogZone] = useState<string>();
   const [dialogDesignId, setDialogDesignId] = useState<string>();
@@ -973,6 +976,54 @@ export function ProjectDetailView({
       detail,
     };
     setActivity((current) => [item, ...current]);
+  }
+
+  function addComment({ message, files }: NewActivityComment): void {
+    const now = new Date();
+    const pad = (value: number) => String(value).padStart(2, '0');
+    const item: ActivityItem = {
+      id: crypto.randomUUID(),
+      date: `${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+      time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+      title: 'Comment',
+      detail: message,
+      authorId: actor.id,
+      author: actor.name,
+      // Files are not uploaded yet; keep what the chip renders.
+      attachments: files.map((file) => ({
+        id: crypto.randomUUID(),
+        name: file.name,
+        size: file.size,
+      })),
+    };
+    setActivity((current) => [item, ...current]);
+  }
+
+  function editComment(itemId: string, message: string): void {
+    setActivity((current) =>
+      current.map((item) =>
+        item.id === itemId ? { ...item, detail: message } : item,
+      ),
+    );
+  }
+
+  function deleteComment(itemId: string): void {
+    setActivity((current) => current.filter((item) => item.id !== itemId));
+  }
+
+  function removeCommentAttachment(itemId: string, attachmentId: string): void {
+    setActivity((current) =>
+      current.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              attachments: item.attachments?.filter(
+                (attachment) => attachment.id !== attachmentId,
+              ),
+            }
+          : item,
+      ),
+    );
   }
 
   /** Writes `vehicle_project.manager_id` for one zone project. */
@@ -1593,7 +1644,18 @@ export function ProjectDetailView({
           />
         </TabsContent>
         <TabsContent value="activity">
-          <ActivityTab activity={activity} />
+          <ActivityTab
+            activity={activity}
+            commenter={{
+              id: actor.id,
+              // Initials come from the name; drop the "(Demo)" suffix.
+              name: actor.name.replace(/\s*\(.*\)$/, ''),
+            }}
+            onSubmit={addComment}
+            onEditComment={editComment}
+            onDeleteComment={deleteComment}
+            onRemoveAttachment={removeCommentAttachment}
+          />
         </TabsContent>
       </Tabs>
       <ProjectDialog
@@ -4198,15 +4260,44 @@ function VisitCard({
 
 interface ActivityTabProps {
   activity: readonly ActivityItem[];
+  commenter: { id: string; name: string };
+  onSubmit: (comment: NewActivityComment) => void;
+  onEditComment: (itemId: string, message: string) => void;
+  onDeleteComment: (itemId: string) => void;
+  onRemoveAttachment: (itemId: string, attachmentId: string) => void;
 }
 
-function ActivityTab({ activity }: ActivityTabProps) {
-  const entries: readonly ActivityEntry[] = activity.map((item) => ({
+/** Comments carry an author and render as the reader's own when it matches. */
+function toActivityEntry(item: ActivityItem): ActivityEntry {
+  const createdAt = `2026-${item.date}T${item.time}:00-07:00`;
+  if (item.authorId !== undefined) {
+    return {
+      id: item.id,
+      type: 'USER_COMMENT',
+      message: item.detail,
+      author: item.author ?? item.authorId,
+      authorId: item.authorId,
+      attachments: item.attachments,
+      createdAt,
+    };
+  }
+  return {
     id: item.id,
     type: 'SYSTEM_LOG',
     message: `${item.title} — ${item.detail}`,
-    createdAt: `2026-${item.date}T${item.time}:00-07:00`,
-  }));
+    createdAt,
+  };
+}
+
+function ActivityTab({
+  activity,
+  commenter,
+  onSubmit,
+  onEditComment,
+  onDeleteComment,
+  onRemoveAttachment,
+}: ActivityTabProps) {
+  const entries = activity.map((item) => toActivityEntry(item));
 
   return (
     <Activity
@@ -4214,6 +4305,11 @@ function ActivityTab({ activity }: ActivityTabProps) {
       title="Activity Timeline"
       emptyMessage="No activity yet."
       systemAuthorLabel="Coverland System"
+      commenter={commenter}
+      onSubmit={onSubmit}
+      onEditComment={onEditComment}
+      onDeleteComment={onDeleteComment}
+      onRemoveAttachment={onRemoveAttachment}
       className="project-activity-feed"
     />
   );

@@ -682,12 +682,23 @@ export interface ProjectAsset {
   date: string;
 }
 
+/** A file named on a comment; only its metadata is kept until uploads exist. */
+export interface ProjectActivityAttachment {
+  id: string;
+  name: string;
+  size: number;
+}
+
 export interface ProjectActivityItem {
   id: string;
   date: string;
   time: string;
   title: string;
   detail: string;
+  /** Set on a person's comment; system entries have no author. */
+  authorId?: string;
+  author?: string;
+  attachments?: readonly ProjectActivityAttachment[];
 }
 
 export interface ProjectDetailSnapshot {
