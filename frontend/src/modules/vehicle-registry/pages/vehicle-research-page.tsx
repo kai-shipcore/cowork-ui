@@ -34,9 +34,13 @@ import { PageHeader } from '@/shared/components/page-header';
 import { StatusBadge } from '@/shared/components/status-badge';
 import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import type { VehicleConfiguration } from '@/shared/types/workbench';
+import { useRdRecords } from '@/modules/rd-workspace/use-rd-records';
 import { useWorkbenchStore } from '@/app/workbench-store';
 import { ResearchAssetLibrary } from '../research-asset-library';
-import { ResearchEvidence } from '../research-evidence';
+import {
+  RESEARCH_DETAIL_KEY,
+  researchDetailListSchema,
+} from '../vehicle-research-detail-model';
 import { groupVehicleResearch } from '../vehicle-research-grid-model';
 import '../research-asset-library.css';
 import './vehicle-research-page.css';
@@ -66,6 +70,11 @@ export function VehicleResearchPage() {
   const [viewParams, setViewParams] = useSearchParams();
   const researchView =
     viewParams.get('view') === 'assets' ? 'assets' : 'registry';
+  const { records: researchDetails } = useRdRecords(
+    RESEARCH_DETAIL_KEY,
+    researchDetailListSchema,
+    [],
+  );
   const {
     configurations,
     projects,
@@ -95,10 +104,6 @@ export function VehicleResearchPage() {
   const [status, setStatus] = useState<ResearchStatusFilter>('ALL');
   const [product, setProduct] = useState('ALL');
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [evidenceConfigurationId, setEvidenceConfigurationId] = useState('');
-  const evidenceConfiguration = configurations.find(
-    (entry) => entry.id === evidenceConfigurationId,
-  );
   const [manufacturer, setManufacturer] = useState('Toyota');
   const [vehicleClass, setVehicleClass] = useState('SUV');
   const [model, setModel] = useState('');
@@ -109,6 +114,9 @@ export function VehicleResearchPage() {
     useState<VehicleConfiguration>();
   const [criteria, setCriteria] =
     useState<readonly ConfigurationCriterion[]>(INITIAL_CRITERIA);
+  const latestResearchDetails = new Map(
+    researchDetails.map((detail) => [detail.configurationId, detail]),
+  );
 
   const searchedConfigurations = configurations.filter((configuration) => {
     const matchesQuery = configuration.vehicle
@@ -238,22 +246,6 @@ export function VehicleResearchPage() {
 
   const columns: GroupedDataGridColumn<VehicleConfiguration>[] = [
     {
-      id: 'evidence',
-      header: 'Evidence / Decision',
-      width: 220,
-      cell: (configuration) => (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setEvidenceConfigurationId(configuration.id);
-          }}
-        >
-          Evidence / Decision
-        </Button>
-      ),
-    },
-    {
       id: 'configuration',
       header: 'Configuration',
       width: 480,
@@ -262,7 +254,20 @@ export function VehicleResearchPage() {
         configuration.options
           .map(([name, value]) => `${name}: ${value}`)
           .join(' / '),
-      cell: (configuration) => <ConfigChips options={configuration.options} />,
+      cell: (configuration) => (
+        <button
+          type="button"
+          className="research-detail-link"
+          onClick={() => {
+            void navigate(
+              `/vehicle-research/${encodeURIComponent(configuration.id)}`,
+            );
+          }}
+        >
+          <ConfigChips options={configuration.options} />
+          <span>Open research detail</span>
+        </button>
+      ),
     },
     {
       id: 'status',
@@ -277,6 +282,37 @@ export function VehicleResearchPage() {
           }
         />
       ),
+    },
+    {
+      id: 'project-conversion',
+      header: 'Project conversion',
+      width: 180,
+      sortValue: (configuration) =>
+        latestResearchDetails.get(configuration.id)?.projectDisposition ??
+        'PENDING',
+      cell: (configuration) => {
+        const disposition =
+          latestResearchDetails.get(configuration.id)?.projectDisposition ??
+          'PENDING';
+        return (
+          <StatusBadge
+            label={
+              disposition === 'PUSH'
+                ? 'Push'
+                : disposition === 'HOLD'
+                  ? 'On Hold'
+                  : 'Not set'
+            }
+            tone={
+              disposition === 'PUSH'
+                ? 'success'
+                : disposition === 'HOLD'
+                  ? 'warning'
+                  : 'neutral'
+            }
+          />
+        );
+      },
     },
     {
       id: 'development',
@@ -395,16 +431,6 @@ export function VehicleResearchPage() {
         }
       />
 
-      {evidenceConfiguration && (
-        <ResearchEvidence
-          key={evidenceConfiguration.id}
-          configuration={evidenceConfiguration}
-          configurations={configurations}
-          onClose={() => {
-            setEvidenceConfigurationId('');
-          }}
-        />
-      )}
       <Card className="vehicle-research-surface">
         <ContentTabs
           label="Vehicle research view"
@@ -459,28 +485,43 @@ export function VehicleResearchPage() {
                 },
               ]}
               toolbarContent={
-                <div
-                  className="stage-tabs"
-                  role="group"
-                  aria-label="Research status"
-                >
-                  {RESEARCH_STATUS_FILTERS.map((filter) => (
-                    <button
-                      type="button"
-                      key={filter.value}
-                      className="stage-tab"
-                      aria-pressed={status === filter.value}
+                <>
+                  <div
+                    className="stage-tabs"
+                    role="group"
+                    aria-label="Research status"
+                  >
+                    {RESEARCH_STATUS_FILTERS.map((filter) => (
+                      <button
+                        type="button"
+                        key={filter.value}
+                        className="stage-tab"
+                        aria-pressed={status === filter.value}
+                        onClick={() => {
+                          setStatus(filter.value);
+                        }}
+                      >
+                        {filter.label}
+                        <span className="stage-tab-count">
+                          {statusCounts.get(filter.value) ?? 0}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  {(query || product !== 'ALL' || status !== 'ALL') && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       onClick={() => {
-                        setStatus(filter.value);
+                        setQuery('');
+                        setProduct('ALL');
+                        setStatus('ALL');
                       }}
                     >
-                      {filter.label}
-                      <span className="stage-tab-count">
-                        {statusCounts.get(filter.value) ?? 0}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+                      <X /> Clear filters
+                    </Button>
+                  )}
+                </>
               }
               actions={
                 <>
@@ -523,7 +564,11 @@ export function VehicleResearchPage() {
           <ContentTabsPanel value="assets">
             <ResearchAssetLibrary
               configurations={configurations}
-              onOpenEvidence={setEvidenceConfigurationId}
+              onOpenEvidence={(configurationId) => {
+                void navigate(
+                  `/vehicle-research/${encodeURIComponent(configurationId)}`,
+                );
+              }}
             />
           </ContentTabsPanel>
         </ContentTabs>

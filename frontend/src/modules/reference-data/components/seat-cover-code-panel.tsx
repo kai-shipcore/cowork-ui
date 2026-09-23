@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@coverland-engineering/ui/select';
-import { Plus, Search, Trash2 } from 'lucide-react';
+import { Plus, Search, Trash2, X } from 'lucide-react';
 import { StatusBadge } from '@/shared/components/status-badge';
 import {
   useWorkbenchPagination,
@@ -152,12 +152,30 @@ export function SeatCoverCodePanel({
               aria-label="Search code or description"
               placeholder="Search codes"
               value={query}
-              onChange={(event) => onQueryChange(event.target.value)}
+              onChange={(event) => {
+                onQueryChange(event.target.value);
+              }}
             />
           </div>
+          {query && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                onQueryChange('');
+              }}
+            >
+              <X /> Clear filters
+            </Button>
+          )}
         </div>
         <div className="grid-toolbar-actions">
-          <Button variant="primary" onClick={() => setCodeDialogOpen(true)}>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setCodeDialogOpen(true);
+            }}
+          >
             <Plus /> Add code
           </Button>
         </div>
@@ -193,7 +211,9 @@ export function SeatCoverCodePanel({
                             <button
                               type="button"
                               aria-label={`${named.value} Unlink`}
-                              onClick={() => removeLink(link.id)}
+                              onClick={() => {
+                                removeLink(link.id);
+                              }}
                             >
                               <Trash2 />
                             </button>
@@ -246,7 +266,9 @@ export function SeatCoverCodePanel({
               <Input
                 placeholder="Example: 424BEN"
                 value={code}
-                onChange={(event) => setCode(event.target.value)}
+                onChange={(event) => {
+                  setCode(event.target.value);
+                }}
               />
             </label>
             <label>
@@ -254,7 +276,9 @@ export function SeatCoverCodePanel({
               <Input
                 placeholder="Example: 40/20/40 split-cushion bench"
                 value={description}
-                onChange={(event) => setDescription(event.target.value)}
+                onChange={(event) => {
+                  setDescription(event.target.value);
+                }}
               />
             </label>
             <div className="dialog-note">
@@ -267,7 +291,12 @@ export function SeatCoverCodePanel({
             )}
           </DialogBody>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCodeDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCodeDialogOpen(false);
+              }}
+            >
               Cancelled
             </Button>
             <Button
@@ -283,7 +312,9 @@ export function SeatCoverCodePanel({
 
       <Dialog
         open={linkDialogFor !== undefined}
-        onOpenChange={(open) => !open && setLinkDialogFor(undefined)}
+        onOpenChange={(open) => {
+          if (!open) setLinkDialogFor(undefined);
+        }}
       >
         <DialogContent>
           <DialogHeader>
@@ -321,14 +352,18 @@ export function SeatCoverCodePanel({
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setLinkDialogFor(undefined)}
+              onClick={() => {
+                setLinkDialogFor(undefined);
+              }}
             >
               Cancelled
             </Button>
             <Button
               variant="primary"
               disabled={!linkValueId || alreadyLinked}
-              onClick={() => linkDialogFor && addLink(linkDialogFor)}
+              onClick={() => {
+                if (linkDialogFor) addLink(linkDialogFor);
+              }}
             >
               Link
             </Button>

@@ -11,6 +11,7 @@ import '@/modules/operations/operations.css';
 import { useLayout } from './context';
 import { Header } from './header';
 import { HeaderBreadcrumbs } from './header-breadcrumbs';
+import { HeaderDemoBanner } from './header-demo-banner';
 import { teams } from './header-logo';
 import { PageContent } from './page-content';
 import { Sidebar } from './sidebar';
@@ -55,6 +56,7 @@ export function Wrapper() {
               </Button>
             </div>
           )}
+          {isMobile && <HeaderDemoBanner />}
           {error && (
             <div className="ops-save-error" role="alert">
               {error}{' '}

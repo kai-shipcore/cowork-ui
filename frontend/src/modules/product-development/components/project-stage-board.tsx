@@ -23,10 +23,10 @@ const STAGES = [
 ];
 const LANE_PAGE_SIZE = 8;
 
-type BoardEntry = {
+interface BoardEntry {
   project: VehicleProjectGroup;
   zone: VehicleProjectGroup['zoneProjects'][number];
-};
+}
 
 interface StageLaneProps {
   stage: (typeof STAGES)[number];

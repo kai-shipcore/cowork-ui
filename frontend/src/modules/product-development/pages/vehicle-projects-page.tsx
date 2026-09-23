@@ -35,6 +35,7 @@ import {
   RotateCcw,
   Search,
   Siren,
+  X,
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { userName } from '@/shared/domain/app-user';
@@ -247,6 +248,19 @@ export function VehicleProjectsPage() {
   const [managerFilter, setManagerFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [query, setQuery] = useState('');
+  const hasActiveFilter =
+    query !== '' ||
+    product !== 'ALL' ||
+    stageFilter !== 'ALL' ||
+    managerFilter !== 'ALL' ||
+    priorityFilter !== 'ALL';
+  function clearFilters(): void {
+    setQuery('');
+    setProduct('ALL');
+    setStageFilter('ALL');
+    setManagerFilter('ALL');
+    setPriorityFilter('ALL');
+  }
   const selectedProject = searchParams.get('project') ?? undefined;
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
@@ -960,6 +974,11 @@ export function VehicleProjectsPage() {
                 </button>
               ))}
             </div>
+            {hasActiveFilter && (
+              <Button size="sm" variant="ghost" onClick={clearFilters}>
+                <X /> Clear filters
+              </Button>
+            )}
           </div>
         }
         board={
@@ -1047,6 +1066,13 @@ export function VehicleProjectsPage() {
                 ],
               },
             ]}
+            toolbarContent={
+              hasActiveFilter && (
+                <Button size="sm" variant="ghost" onClick={clearFilters}>
+                  <X /> Clear filters
+                </Button>
+              )
+            }
             emptyMessage="No projects match these filters."
             pagination={{
               page: pagination.pageIndex + 1,

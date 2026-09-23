@@ -26,7 +26,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { userName } from '@/shared/domain/app-user';
 import { PageHeader } from '@/shared/components/page-header';
 import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
@@ -206,6 +206,18 @@ export function ProductRegistrationsPage() {
                 ))}
               </SelectContent>
             </Select>
+            {(query || filter !== 'ALL') && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setQuery('');
+                  setFilter('ALL');
+                }}
+              >
+                <X /> Clear filters
+              </Button>
+            )}
           </div>
         </div>
         <FlatDataGrid

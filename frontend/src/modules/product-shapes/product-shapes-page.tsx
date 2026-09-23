@@ -18,7 +18,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { ClipboardCheck, Search, Shapes } from 'lucide-react';
+import { ClipboardCheck, Search, Shapes, X } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { PageHeader } from '@/shared/components/page-header';
 import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
@@ -307,6 +307,19 @@ export function ProductShapesPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                {(query || product !== 'ALL' || status !== 'ALL') && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setQuery('');
+                      setProduct('ALL');
+                      setStatus('ALL');
+                    }}
+                  >
+                    <X /> Clear filters
+                  </Button>
+                )}
               </>
             </div>
             <div className="grid-toolbar-actions">

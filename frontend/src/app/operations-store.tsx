@@ -62,7 +62,7 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
   const [snapshot, setSnapshot] = useState(initial.snapshot);
   const [actor, setActor] = useState<Person>(PEOPLE[0]);
   const [error, setError] = useState(initial.error);
-  const [message, setMessage] = useState('Demo data · Saved in this browser');
+  const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
 
   function reload() {

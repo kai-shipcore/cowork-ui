@@ -3,12 +3,21 @@
   overscroll-behavior-inline: contain;
 }
 
-.vehicle-research-grid [data-column-id='evidence'] > div {
-  overflow: visible;
+.research-detail-link {
+  display: grid;
+  width: 100%;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.vehicle-research-grid [data-column-id='evidence'] button {
-  white-space: nowrap;
+.research-detail-link > span:last-child {
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .vehicle-research-surface {

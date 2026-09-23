@@ -1,15 +1,15 @@
 import { useMemo, useState, type ReactElement } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
-import { Download, FileImage, Search } from 'lucide-react';
+import { Download, ExternalLink, FileImage, Link2, Search } from 'lucide-react';
 import { ConfigChips } from '@/shared/domain/config-chips';
 import type { VehicleConfiguration } from '@/shared/types/workbench';
 import { useRdRecords } from '@/modules/rd-workspace/use-rd-records';
 import {
-  EMPTY_RESEARCH_EVIDENCE,
-  RESEARCH_EVIDENCE_KEY,
-  researchEvidenceListSchema,
-  type ResearchEvidenceRecord,
-} from './research-evidence-model';
+  RESEARCH_DETAIL_KEY,
+  RESEARCH_DETAIL_SEED,
+  researchDetailListSchema,
+  type ResearchDetailRecord,
+} from './vehicle-research-detail-model';
 
 interface ResearchAssetLibraryProps {
   configurations: readonly VehicleConfiguration[];
@@ -19,7 +19,6 @@ interface ResearchAssetLibraryProps {
 interface ResearchAsset {
   id: string;
   configuration: VehicleConfiguration;
-  evidence: ResearchEvidenceRecord;
   filename: string;
   photo: string;
   sourceUrl: string;
@@ -48,8 +47,8 @@ function assetFormat(photo: string, filename: string) {
   return extension ? extension.toUpperCase() : 'IMAGE';
 }
 
-function latestEvidence(records: readonly ResearchEvidenceRecord[]) {
-  const latest = new Map<string, ResearchEvidenceRecord>();
+function latestEvidence(records: readonly ResearchDetailRecord[]) {
+  const latest = new Map<string, ResearchDetailRecord>();
   for (const record of records) {
     const saved = latest.get(record.configurationId);
     if (!saved || Date.parse(record.at) >= Date.parse(saved.at)) {
@@ -60,7 +59,7 @@ function latestEvidence(records: readonly ResearchEvidenceRecord[]) {
 }
 
 function researchAssets(
-  records: readonly ResearchEvidenceRecord[],
+  records: readonly ResearchDetailRecord[],
   configurations: readonly VehicleConfiguration[],
 ): ResearchAsset[] {
   return latestEvidence(records).flatMap((evidence) => {
@@ -69,43 +68,26 @@ function researchAssets(
     );
     if (!configuration) return [];
     const identity = vehicleIdentity(configuration.vehicle);
-    const sectionAssets = evidence.sections.flatMap((section) =>
-      section.seatTypes.flatMap((seatType) =>
-        seatType.photo
-          ? [
-              {
-                id: `${evidence.id}-${section.id}-${seatType.id}`,
-                configuration,
-                evidence,
-                filename: seatType.photoName || 'Research image',
-                photo: seatType.photo,
-                sourceUrl: seatType.sourceUrl,
-                rowLabel: section.rowLabel,
-                variation: seatType.name,
-                tags: seatType.tags,
-                ...identity,
-                format: assetFormat(seatType.photo, seatType.photoName),
-              },
-            ]
-          : [],
-      ),
+    return evidence.materials.flatMap((material) =>
+      material.fileData || material.sourceUrl
+        ? [
+            {
+              id: `${evidence.id}-${material.id}`,
+              configuration,
+              filename: material.fileName || material.title,
+              photo: material.fileData,
+              sourceUrl: material.sourceUrl,
+              rowLabel: material.fileData ? 'Uploaded asset' : 'Source link',
+              variation: material.notes || material.title,
+              tags: material.tags,
+              ...identity,
+              format: material.fileData
+                ? assetFormat(material.fileData, material.fileName)
+                : 'LINK',
+            },
+          ]
+        : [],
     );
-    if (sectionAssets.length || !evidence.photo) return sectionAssets;
-    return [
-      {
-        id: `${evidence.id}-legacy-photo`,
-        configuration,
-        evidence,
-        filename: evidence.photoName || 'Research image',
-        photo: evidence.photo,
-        sourceUrl: evidence.sources[0] ?? '',
-        rowLabel: 'Research evidence',
-        variation: evidence.summary || 'Supporting image',
-        tags: [],
-        ...identity,
-        format: assetFormat(evidence.photo, evidence.photoName),
-      },
-    ];
   });
 }
 
@@ -115,9 +97,9 @@ export function ResearchAssetLibrary({
   onOpenEvidence,
 }: ResearchAssetLibraryProps): ReactElement {
   const { records } = useRdRecords(
-    RESEARCH_EVIDENCE_KEY,
-    researchEvidenceListSchema,
-    EMPTY_RESEARCH_EVIDENCE,
+    RESEARCH_DETAIL_KEY,
+    researchDetailListSchema,
+    RESEARCH_DETAIL_SEED,
   );
   const assets = useMemo(
     () => researchAssets(records, configurations),
@@ -198,7 +180,7 @@ export function ResearchAssetLibrary({
         <div>
           <span className="research-assets-eyebrow">Asset library</span>
           <h2>Research files</h2>
-          <p>Latest saved images across vehicle research configurations.</p>
+          <p>Latest saved files and sources across research configurations.</p>
         </div>
         <strong>{visibleAssets.length} files</strong>
       </header>
@@ -297,7 +279,13 @@ export function ResearchAssetLibrary({
           {visibleAssets.map((asset) => (
             <article className="research-asset-card" key={asset.id}>
               <div className="research-asset-preview">
-                <img src={asset.photo} alt={asset.filename} />
+                {asset.photo ? (
+                  <img src={asset.photo} alt={asset.filename} />
+                ) : (
+                  <span className="research-asset-link-preview">
+                    <Link2 aria-hidden="true" />
+                  </span>
+                )}
                 <span>{asset.format}</span>
               </div>
               <div className="research-asset-body">
@@ -335,11 +323,17 @@ export function ResearchAssetLibrary({
                     size="sm"
                     onClick={() => onOpenEvidence(asset.configuration.id)}
                   >
-                    View evidence
+                    View research
                   </Button>
-                  <a href={asset.photo} download={asset.filename}>
-                    <Download aria-hidden="true" /> Download
-                  </a>
+                  {asset.photo ? (
+                    <a href={asset.photo} download={asset.filename}>
+                      <Download aria-hidden="true" /> Download
+                    </a>
+                  ) : (
+                    <a href={asset.sourceUrl} target="_blank" rel="noreferrer">
+                      <ExternalLink aria-hidden="true" /> Open source
+                    </a>
+                  )}
                 </footer>
               </div>
             </article>
@@ -356,7 +350,7 @@ export function ResearchAssetLibrary({
           <p>
             {assets.length
               ? 'Try a different make, model, option, or search term.'
-              : 'Images saved in Research Evidence will appear here.'}
+              : 'Files and links saved in Vehicle Research will appear here.'}
           </p>
         </div>
       )}

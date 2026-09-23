@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   FolderKanban,
   Package,
+  X,
   XCircle,
 } from 'lucide-react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
@@ -439,6 +440,24 @@ export function FitmentsPage() {
               updateFilter('q', value);
             },
           }}
+          toolbarContent={
+            (query || quality !== 'ALL') && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setParams((current) => {
+                    const next = new URLSearchParams(current);
+                    next.delete('q');
+                    next.delete('quality');
+                    return next;
+                  });
+                }}
+              >
+                <X /> Clear filters
+              </Button>
+            )
+          }
           actions={
             <Select
               value={quality}

@@ -11,7 +11,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { userName } from '@/shared/domain/app-user';
 import { ConfigChips } from '@/shared/domain/config-chips';
 import { PageHeader } from '@/shared/components/page-header';
@@ -436,6 +436,17 @@ export function UniqueVehiclesPage() {
                 }}
               />
             </div>
+            {query && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setQuery('');
+                }}
+              >
+                <X /> Clear filters
+              </Button>
+            )}
           </div>
         </div>
         <FlatDataGrid
