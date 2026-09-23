@@ -129,9 +129,9 @@ export function ResearchAssetUploader({
   const [customTag, setCustomTag] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
-  const activeDraft = drafts[activeIndex];
+  const activeDraft = drafts.find((_, index) => index === activeIndex);
   const activeTarget = targets.find(
-    (target) => target.id === activeDraft.targetId,
+    (target) => target.id === activeDraft?.targetId,
   );
   const tagOptions = useMemo(
     () =>
@@ -239,6 +239,7 @@ export function ResearchAssetUploader({
   }
 
   function toggleTag(tag: string) {
+    if (!activeDraft) return;
     updateDraft(activeDraft.id, {
       tags: activeDraft.tags.includes(tag)
         ? activeDraft.tags.filter((item) => item !== tag)
@@ -248,7 +249,7 @@ export function ResearchAssetUploader({
 
   function addCustomTag() {
     const tag = customTag.trim();
-    if (!tag) return;
+    if (!activeDraft || !tag) return;
     updateDraft(activeDraft.id, {
       tags: Array.from(new Set([...activeDraft.tags, tag])).slice(0, 30),
     });
@@ -299,7 +300,7 @@ export function ResearchAssetUploader({
     else setMessage('Unable to save assets. Try again.');
   }
 
-  const currentComplete = Boolean(activeDraft.targetId);
+  const currentComplete = Boolean(activeDraft?.targetId);
   const isLast = activeIndex === drafts.length - 1;
 
   return (
@@ -367,7 +368,7 @@ export function ResearchAssetUploader({
                     <strong>
                       Asset {activeIndex + 1} of {drafts.length}
                     </strong>
-                    <span>{activeDraft.fileName}</span>
+                    <span>{activeDraft?.fileName}</span>
                   </div>
                   <div aria-label="Asset progress">
                     {drafts.map((draft, index) => (
@@ -405,14 +406,15 @@ export function ResearchAssetUploader({
                 <div className="research-asset-wizard-content">
                   <div className="research-asset-wizard-preview">
                     <img
-                      src={activeDraft.fileData}
-                      alt={activeDraft.fileName}
+                      src={activeDraft?.fileData}
+                      alt={activeDraft?.fileName}
                     />
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => {
-                        removeDraft(activeDraft.id, activeIndex);
+                        if (activeDraft)
+                          removeDraft(activeDraft.id, activeIndex);
                       }}
                     >
                       <Trash2 aria-hidden="true" /> Remove image
@@ -423,8 +425,9 @@ export function ResearchAssetUploader({
                     <label>
                       Configuration
                       <select
-                        value={activeDraft.targetId}
+                        value={activeDraft?.targetId ?? ''}
                         onChange={(event) => {
+                          if (!activeDraft) return;
                           updateDraft(activeDraft.id, {
                             targetId: event.target.value,
                           });
@@ -473,12 +476,12 @@ export function ResearchAssetUploader({
                           <button
                             type="button"
                             key={tag}
-                            aria-pressed={activeDraft.tags.includes(tag)}
+                            aria-pressed={activeDraft?.tags.includes(tag)}
                             onClick={() => {
                               toggleTag(tag);
                             }}
                           >
-                            {activeDraft.tags.includes(tag) && (
+                            {activeDraft?.tags.includes(tag) && (
                               <Check aria-hidden="true" />
                             )}
                             {tag}
