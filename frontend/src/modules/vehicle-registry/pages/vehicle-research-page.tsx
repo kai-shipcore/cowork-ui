@@ -150,22 +150,8 @@ export function VehicleResearchPage() {
       );
     return matchesQuery && matchesProduct;
   });
-  const statusCounts = new Map(
-    RESEARCH_STATUS_FILTERS.map((filter) => [
-      filter.value,
-      searchedConfigurations.filter(
-        (configuration) =>
-          filter.value === 'ALL' ||
-          configuration.researchStatus === filter.value,
-      ).length,
-    ]),
-  );
-  const visibleConfigurations = searchedConfigurations.filter(
-    (configuration) =>
-      status === 'ALL' || configuration.researchStatus === status,
-  );
-  const productRows = visibleConfigurations.flatMap<ProductResearchRow>(
-    (configuration) => {
+  const searchedProductRows =
+    searchedConfigurations.flatMap<ProductResearchRow>((configuration) => {
       return PRODUCT_TYPES.map((productType) => {
         const productTypeId = productType.id;
         const allowedOptionNames = new Set(
@@ -184,7 +170,17 @@ export function VehicleResearchPage() {
           ),
         } satisfies ProductResearchRow;
       });
-    },
+    });
+  const statusCounts = new Map(
+    RESEARCH_STATUS_FILTERS.map((filter) => [
+      filter.value,
+      searchedProductRows.filter(
+        (row) => filter.value === 'ALL' || row.researchStatus === filter.value,
+      ).length,
+    ]),
+  );
+  const productRows = searchedProductRows.filter(
+    (row) => status === 'ALL' || row.researchStatus === status,
   );
   const vehicleGroups = groupVehicleResearch(productRows);
   const {
