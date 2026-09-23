@@ -33,6 +33,8 @@ import {
 } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
 import { teamHome, type TeamId } from '@/modules/operations/operations-model';
+import coverlandFaviconUrl from '../../../public/brand/coverland-favicon.ico?url';
+import icarcoverFaviconUrl from '../../../public/brand/icarcover-favicon.png?url';
 
 export interface MenuItem {
   title?: string;
@@ -237,12 +239,12 @@ export const MENU_SIDEBAR_SITE_LINKS: MenuItem[] = [
   {
     title: 'Coverland',
     path: 'https://www.coverland.com',
-    img: '/brand/coverland-favicon.ico',
+    img: coverlandFaviconUrl,
   },
   {
     title: 'iCarCover',
     path: 'https://www.icarcover.com',
-    img: '/brand/icarcover-favicon.png',
+    img: icarcoverFaviconUrl,
   },
 ];
 

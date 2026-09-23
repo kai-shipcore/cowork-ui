@@ -3,7 +3,7 @@ import { RiGoogleFill } from '@remixicon/react';
 import { ShieldAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
-import { toAbsoluteUrl } from '@/shared/lib/helpers';
+import coverlandLogoUrl from '../../../../public/media/app/coverland_logo.png?url';
 
 /** Public prototype entry; never collects credentials or simulates authentication. */
 export function LoginPage() {
@@ -11,7 +11,7 @@ export function LoginPage() {
     <div className="mt-login bg-background flex min-h-screen w-full">
       <div className="mt-login-brand bg-muted hidden w-full items-center justify-center p-12 md:flex">
         <img
-          src={toAbsoluteUrl('/media/app/coverland_logo.png')}
+          src={coverlandLogoUrl}
           className="w-full max-w-xs rounded-2xl bg-white"
           alt="Coverland"
         />
