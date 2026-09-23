@@ -1,4 +1,9 @@
 import type {
+  ApprovalGrant,
+  ApprovalType,
+  ShapeAssignment,
+} from '@/shared/types/db-workflow';
+import type {
   AppUser,
   Complaint,
   Dealer,
@@ -49,7 +54,7 @@ function dayThisMonth(offsetFromToday: number): string {
   const month = value('month');
   const lastDay = new Date(year, month, 0).getDate();
   const day = Math.min(Math.max(value('day') + offsetFromToday, 1), lastDay);
-  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  return `${String(year)}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
 /** Date of the seeded SCAN visit VS-01, shared with the project detail seed. */
@@ -59,7 +64,7 @@ function createZoneProjects(
   projectGroupId: string,
   productTypeId: string,
   vehicleResearchId: string,
-  zones: ReadonlyArray<readonly [string, string]>,
+  zones: readonly (readonly [string, string])[],
   currentStage: VehicleZoneProject['currentStage'],
   productShapeByZone: Readonly<Record<string, string>> = {},
 ): readonly VehicleZoneProject[] {
@@ -214,37 +219,37 @@ export const APP_USERS: readonly AppUser[] = [
 export const VEHICLE_ZONES: readonly VehicleZone[] = [
   stamped({
     id: 'ZONE-SC-F',
-    productTypeId: 'PT-SC' as ProductTypeId,
+    productTypeId: 'PT-SC',
     code: 'F',
     name: 'Front Row',
   }),
   stamped({
     id: 'ZONE-SC-B',
-    productTypeId: 'PT-SC' as ProductTypeId,
+    productTypeId: 'PT-SC',
     code: 'B',
     name: '2nd Row',
   }),
   stamped({
     id: 'ZONE-SC-E',
-    productTypeId: 'PT-SC' as ProductTypeId,
+    productTypeId: 'PT-SC',
     code: 'E',
     name: '3rd Row',
   }),
   stamped({
     id: 'ZONE-FM-F',
-    productTypeId: 'PT-FM' as ProductTypeId,
+    productTypeId: 'PT-FM',
     code: 'F',
     name: '1st Row Floor',
   }),
   stamped({
     id: 'ZONE-FM-B',
-    productTypeId: 'PT-FM' as ProductTypeId,
+    productTypeId: 'PT-FM',
     code: 'B',
     name: '2nd Row Floor',
   }),
   stamped({
     id: 'ZONE-CC-EX',
-    productTypeId: 'PT-CC' as ProductTypeId,
+    productTypeId: 'PT-CC',
     code: 'EX',
     name: 'Exterior',
   }),
@@ -871,20 +876,20 @@ export const SAMPLE_SHIPMENTS: readonly SampleShipment[] = [
 
 export const SAMPLE_REQUEST_ITEMS: readonly SampleRequestItem[] = [
   ...Array.from({ length: 3 }, (_, index) => ({
-    id: `SRI-1039-${index + 1}`,
+    id: `SRI-1039-${String(index + 1)}`,
     sampleRequestId: 'SR-1039',
-    vehicleProductDesignId: `DS-CAMRY-${index + 1}`,
-    vehicleProductDesignRevisionId: `REV-CAMRY-${index + 1}-1`,
+    vehicleProductDesignId: `DS-CAMRY-${String(index + 1)}`,
+    vehicleProductDesignRevisionId: `REV-CAMRY-${String(index + 1)}-1`,
     sampleRound: 1,
     priority: 'NORMAL' as const,
     sampleReceivedAt: '2026-08-13T15:20:00-07:00',
     sampleShipmentId: 'SHIP-499',
   })),
   ...Array.from({ length: 3 }, (_, index) => ({
-    id: `SRI-1041-${index + 1}`,
+    id: `SRI-1041-${String(index + 1)}`,
     sampleRequestId: 'SR-1041',
-    vehicleProductDesignId: `DS-CAMRY-${index + 1}`,
-    vehicleProductDesignRevisionId: `REV-CAMRY-${index + 1}-2`,
+    vehicleProductDesignId: `DS-CAMRY-${String(index + 1)}`,
+    vehicleProductDesignRevisionId: `REV-CAMRY-${String(index + 1)}-2`,
     sampleRound: 2,
     priority: index === 0 ? ('URGENT' as const) : ('NORMAL' as const),
     sampleShipmentId: 'SHIP-500',
@@ -945,6 +950,25 @@ export const UNIQUE_VEHICLES: readonly UniqueVehicle[] = [
   },
 ];
 
+/**
+ * Current PRIMARY Shape per zone for the demo F# vehicles, so a registration
+ * request can be raised without first walking through the assignment panel.
+ */
+export const SHAPE_ASSIGNMENTS: readonly ShapeAssignment[] = [
+  ['SA-001', 'SC20855', 'ZONE-SC-F', 'SHP-SC-F-10'],
+  ['SA-002', 'SC20855', 'ZONE-SC-B', 'SHP-SC-B-40'],
+  ['SA-003', 'CC20854', 'ZONE-CC-EX', 'SHP-CC-CN-M'],
+  ['SA-004', 'FM10237', 'ZONE-FM-F', 'SHP-FM-S1-TT-SI03'],
+  ['SA-005', 'FM10237', 'ZONE-FM-B', 'SHP-FM-S2-TT-SI03'],
+].map(([id, uniqueVehicleId, vehicleZoneId, vehicleProductShapeId]) => ({
+  id,
+  uniqueVehicleId,
+  vehicleZoneId,
+  vehicleProductShapeId,
+  type: 'PRIMARY' as const,
+  validFrom: REFERENCE_TIMESTAMP,
+}));
+
 export const MASTER_PRODUCTS: readonly MasterProduct[] = [];
 
 export const MASTER_PRODUCT_SKUS: readonly MasterProductSku[] = [];
@@ -955,3 +979,68 @@ export const PRODUCT_REGISTRATIONS: readonly VehicleProductRegistration[] = [];
 
 export const PRODUCT_REGISTRATION_ITEMS: readonly VehicleProductRegistrationItem[] =
   [];
+
+/** The only approval type wired in so far: the sign-off for a registration of new SKUs. */
+export const APPROVAL_TYPES: readonly ApprovalType[] = [
+  {
+    id: 'VEHICLE_PRODUCT_REGISTRATION',
+    code: 'REGISTRATION',
+    name: 'SKU registration',
+    status: 'ACTIVE',
+  },
+  {
+    id: 'VEHICLE_RESEARCH_HANDOFF',
+    code: 'RESEARCH_HANDOFF',
+    name: 'Research → project handoff',
+    status: 'ACTIVE',
+  },
+];
+
+/** Demo grants so a route can be built without a server: Kai and JH can do either step. */
+export const APPROVAL_GRANTS: readonly ApprovalGrant[] = [
+  {
+    id: 'AG-001',
+    appUserId: 'USR-KAI',
+    approvalTypeId: 'VEHICLE_PRODUCT_REGISTRATION',
+    canForward: true,
+    canFinalApprove: true,
+    status: 'ACTIVE',
+  },
+  {
+    id: 'AG-002',
+    appUserId: 'USR-YOUNG',
+    approvalTypeId: 'VEHICLE_PRODUCT_REGISTRATION',
+    canForward: true,
+    canFinalApprove: false,
+    status: 'ACTIVE',
+  },
+  {
+    id: 'AG-003',
+    appUserId: 'USR-CHRISTIAN',
+    approvalTypeId: 'VEHICLE_PRODUCT_REGISTRATION',
+    canForward: false,
+    canFinalApprove: true,
+    status: 'ACTIVE',
+  },
+  {
+    id: 'AG-004',
+    appUserId: 'USR-JH',
+    approvalTypeId: 'VEHICLE_PRODUCT_REGISTRATION',
+    canForward: true,
+    canFinalApprove: true,
+    status: 'ACTIVE',
+  },
+  ...[
+    ['AG-101', 'USR-KAI', true, true],
+    ['AG-102', 'USR-YOUNG', true, false],
+    ['AG-103', 'USR-CHRISTIAN', false, true],
+    ['AG-104', 'USR-JH', true, true],
+  ].map(([id, appUserId, canForward, canFinalApprove]) => ({
+    id: String(id),
+    appUserId: String(appUserId),
+    approvalTypeId: 'VEHICLE_RESEARCH_HANDOFF',
+    canForward: Boolean(canForward),
+    canFinalApprove: Boolean(canFinalApprove),
+    status: 'ACTIVE' as const,
+  })),
+];

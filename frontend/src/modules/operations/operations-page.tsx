@@ -10,6 +10,8 @@ import {
 import { RdPerformance } from '@/modules/rd-workspace/rd-performance';
 import { useOperations } from '@/app/operations-store';
 import { useWorkbenchStore } from '@/app/workbench-store';
+import { ApprovalAdministration } from './approval-administration';
+import { ApprovalInbox } from './approval-inbox';
 import {
   isOpen,
   isOverdue,
@@ -210,7 +212,14 @@ export function OperationsPage() {
         )}
       </div>
     ) : section === 'settings' ? (
-      <PersonalSettings key={actor.id} actor={actor}>
+      <PersonalSettings
+        key={actor.id}
+        actor={actor}
+        // APPROVAL_MANAGE is not modelled yet; team leads stand in for it locally.
+        administration={
+          actor.role === 'lead' ? <ApprovalAdministration /> : undefined
+        }
+      >
         <div className="ops-panel ops-form">
           <h2>Demo work data backup</h2>
           <p>
@@ -524,6 +533,13 @@ export function OperationsPage() {
             </p>
           </div>
         )}
+        {section === 'tasks' &&
+          (view === 'approvals' || view === 'requested') && (
+            <ApprovalInbox
+              mode={view === 'approvals' ? 'awaiting' : 'requested'}
+              query={query}
+            />
+          )}
         {section === 'tasks' && actor.team === 'rd' && (
           <div className="ops-panel">
             <h2>Existing R&D work</h2>

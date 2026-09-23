@@ -1,36 +1,18 @@
 import type { WorkbenchState } from '@/app/workbench-store';
-import type { ApprovalRequest, ApprovalStep } from '../types/db-workflow';
+import {
+  cancelApproval,
+  decideApproval,
+  findTask,
+  requireCondition,
+  submitApproval,
+  type ApprovalDecision,
+  type ApprovalRoute,
+} from './approval/approval-engine';
+
+export type { ApprovalRoute } from './approval/approval-engine';
 
 export const PRODUCT_APPROVAL_TYPE = 'VEHICLE_PRODUCT_REGISTRATION';
-export type ApprovalRoute = readonly {
-  type: 'FORWARD' | 'FINAL';
-  users: readonly string[];
-}[];
 
-function requireCondition(value: unknown, message: string): asserts value {
-  if (!value) throw new Error(message);
-}
-function activeUser(state: WorkbenchState, id: string) {
-  return state.appUsers.some(
-    (user) => user.id === id && user.status === 'ACTIVE',
-  );
-}
-function authorized(
-  state: WorkbenchState,
-  id: string,
-  type: ApprovalStep['type'],
-) {
-  return (
-    activeUser(state, id) &&
-    state.approvalGrants.some(
-      (grant) =>
-        grant.appUserId === id &&
-        grant.approvalTypeId === PRODUCT_APPROVAL_TYPE &&
-        grant.status === 'ACTIVE' &&
-        (type === 'FINAL' ? grant.canFinalApprove : grant.canForward),
-    )
-  );
-}
 export function registrationSnapshot(
   state: WorkbenchState,
   registrationId: string,
@@ -113,41 +95,21 @@ function validateProducts(state: WorkbenchState, ids: readonly string[]) {
     );
   }
 }
+
+/** Opens the SKU registration sign-off after the products themselves pass validation. */
 export function submitProductApproval(
   state: WorkbenchState,
   registrationId: string,
   actor: string,
   route: ApprovalRoute,
+  note = '',
 ): WorkbenchState {
   const registration = state.registrations.find(
     (row) => row.id === registrationId,
   );
   requireCondition(
-    registration && !registration.approvedAt && activeUser(state, actor),
-    'A valid unapproved registration and active requester are required.',
-  );
-  requireCondition(
-    !state.approvalRequests.some(
-      (row) =>
-        row.entityId === registrationId &&
-        (row.status === 'PENDING' || row.status === 'APPROVED'),
-    ),
-    'An active or approved request already exists.',
-  );
-  requireCondition(
-    route.length > 0 &&
-      route[route.length - 1].type === 'FINAL' &&
-      route.filter((step) => step.type === 'FINAL').length === 1,
-    'Exactly one FINAL step is required at the end.',
-  );
-  requireCondition(
-    route.every(
-      (step) =>
-        step.users.length > 0 &&
-        new Set(step.users).size === step.users.length &&
-        step.users.every((user) => authorized(state, user, step.type)),
-    ),
-    'Assign active approvers with the required permissions for each step.',
+    registration && !registration.approvedAt,
+    'A valid unapproved registration is required.',
   );
   const items = state.registrationItems.filter(
     (row) => row.registrationId === registrationId,
@@ -163,168 +125,86 @@ export function submitProductApproval(
     ),
     'Registration reference Shape not found.',
   );
-  const now = new Date().toISOString();
-  const request: ApprovalRequest = {
-    id: crypto.randomUUID(),
-    approvalTypeId: PRODUCT_APPROVAL_TYPE,
-    entityType: 'VEHICLE_PRODUCT_REGISTRATION',
-    entityId: registrationId,
-    requestedBy: actor,
-    submittedData: {
-      productIds,
-      sourceShapeIds,
-      snapshot: registrationSnapshot(state, registrationId),
+  return submitApproval(
+    state,
+    {
+      approvalTypeId: PRODUCT_APPROVAL_TYPE,
+      entityType: 'VEHICLE_PRODUCT_REGISTRATION',
+      entityId: registrationId,
+      requestedBy: actor,
+      submittedData: {
+        productIds,
+        sourceShapeIds,
+        snapshot: registrationSnapshot(state, registrationId),
+      },
+      ...(note.trim() ? { note: note.trim() } : {}),
     },
-    status: 'PENDING',
-    createdAt: now,
-  };
-  const steps: ApprovalStep[] = route.map((step, index) => ({
-    id: crypto.randomUUID(),
-    approvalRequestId: request.id,
-    stepNumber: index + 1,
-    type: step.type,
-    status: index === 0 ? 'PENDING' : 'WAITING',
-    activatedAt: index === 0 ? now : undefined,
-  }));
-  return {
-    ...state,
-    approvalRequests: [...state.approvalRequests, request],
-    approvalSteps: [...state.approvalSteps, ...steps],
-    approvalAssignments: [
-      ...state.approvalAssignments,
-      ...steps.flatMap((step, index) =>
-        route[index].users.map((user) => ({
-          id: crypto.randomUUID(),
-          approvalRequestStepId: step.id,
-          assignedTo: user,
-          status: 'PENDING' as const,
-        })),
-      ),
-    ],
-  };
+    route,
+  );
 }
+
+/**
+ * One approver's decision on a registration. The final approval activates the
+ * products and opens their SKUs in the same update, provided the registration
+ * has not changed since submission.
+ */
 export function decideProductApproval(
   state: WorkbenchState,
   assignmentId: string,
   actor: string,
-  decision: 'APPROVED' | 'REJECTED',
+  decision: ApprovalDecision,
   comment: string,
 ): WorkbenchState {
-  const assignment = state.approvalAssignments.find(
-    (row) => row.id === assignmentId,
-  );
-  const step = state.approvalSteps.find(
-    (row) => row.id === assignment?.approvalRequestStepId,
-  );
-  const request = state.approvalRequests.find(
-    (row) => row.id === step?.approvalRequestId,
-  );
+  // Authorization and step checks run first so their errors take precedence.
+  const result = decideApproval(state, assignmentId, actor, decision, comment);
+  const task = findTask(state, assignmentId);
   requireCondition(
-    assignment &&
-      step &&
-      request &&
-      assignment.status === 'PENDING' &&
-      step.status === 'PENDING' &&
-      request.status === 'PENDING',
-    'This is not the current approval step.',
+    task?.request.entityType === 'VEHICLE_PRODUCT_REGISTRATION',
+    'This is not a registration approval.',
   );
-  requireCondition(
-    assignment.assignedTo === actor && authorized(state, actor, step.type),
-    'An assigned approver with valid step permissions is required.',
-  );
-  requireCondition(
-    decision !== 'REJECTED' || comment.trim(),
-    'Enter a rejection reason.',
-  );
+  const { submittedData, entityId } = task.request;
   if (decision === 'APPROVED') {
     requireCondition(
-      request.submittedData.snapshot ===
-        registrationSnapshot(state, request.entityId),
+      submittedData.snapshot === registrationSnapshot(state, entityId),
       'Product information changed after submission. Reject and resubmit.',
     );
-    validateProducts(state, request.submittedData.productIds);
+    validateProducts(state, submittedData.productIds);
   }
+  if (result.outcome !== 'APPROVED') return result.state;
   const now = new Date().toISOString();
-  const assignments = state.approvalAssignments.map((row) =>
-    row.id === assignment.id
-      ? {
-          ...row,
-          status: decision,
-          decidedBy: actor,
-          decidedAt: now,
-          comment: comment.trim(),
-        }
-      : row,
-  );
-  const allApproved = assignments
-    .filter((row) => row.approvalRequestStepId === step.id)
-    .every((row) => row.status === 'APPROVED');
-  const final = decision === 'APPROVED' && allApproved && step.type === 'FINAL';
-  const rejected = decision === 'REJECTED';
-  const nextStep = state.approvalSteps
-    .filter(
-      (row) =>
-        row.approvalRequestId === request.id &&
-        row.stepNumber > step.stepNumber,
-    )
-    .sort((a, b) => a.stepNumber - b.stepNumber)
-    .find((row) => row.status === 'WAITING');
-  const relatedSteps = new Set(
-    state.approvalSteps
-      .filter((row) => row.approvalRequestId === request.id)
-      .map((row) => row.id),
+  const approved = result.state.masterProducts.filter((row) =>
+    submittedData.productIds.includes(row.id),
   );
   return {
-    ...state,
-    approvalAssignments: assignments.map((row) =>
-      rejected &&
-      relatedSteps.has(row.approvalRequestStepId) &&
-      row.status === 'PENDING'
-        ? { ...row, status: 'CANCELLED' }
-        : row,
-    ),
-    approvalSteps: state.approvalSteps.map((row) =>
-      row.id === step.id && (allApproved || rejected)
-        ? { ...row, status: rejected ? 'REJECTED' : 'APPROVED', closedAt: now }
-        : rejected && relatedSteps.has(row.id) && row.status === 'WAITING'
-          ? { ...row, status: 'CANCELLED', closedAt: now }
-          : allApproved && row.id === nextStep?.id
-            ? { ...row, status: 'PENDING', activatedAt: now }
-            : row,
-    ),
-    approvalRequests: state.approvalRequests.map((row) =>
-      row.id === request.id && (final || rejected)
-        ? { ...row, status: rejected ? 'REJECTED' : 'APPROVED', closedAt: now }
-        : row,
-    ),
-    masterProducts: state.masterProducts.map((row) =>
-      final && request.submittedData.productIds.includes(row.id)
+    ...result.state,
+    masterProducts: result.state.masterProducts.map((row) =>
+      submittedData.productIds.includes(row.id)
         ? { ...row, status: 'ACTIVE', updatedAt: now }
         : row,
     ),
-    masterProductSkus: final
-      ? [
-          ...state.masterProductSkus,
-          ...state.masterProducts
-            .filter((row) => request.submittedData.productIds.includes(row.id))
-            .map((row) => ({
-              id: crypto.randomUUID(),
-              masterProductId: row.id,
-              sku: row.sku,
-              validFrom: now,
-              note: 'Final approval',
-            })),
-        ]
-      : state.masterProductSkus,
-    uniqueVehicles: state.uniqueVehicles.map((vehicle) =>
-      final &&
-      state.masterProducts.some(
-        (row) =>
-          request.submittedData.productIds.includes(row.id) &&
-          row.fNumber === vehicle.fNumber,
-      )
+    masterProductSkus: [
+      ...result.state.masterProductSkus,
+      ...approved.map((row) => ({
+        id: crypto.randomUUID(),
+        masterProductId: row.id,
+        sku: row.sku,
+        validFrom: now,
+        note: 'Final approval',
+      })),
+    ],
+    uniqueVehicles: result.state.uniqueVehicles.map((vehicle) =>
+      approved.some((row) => row.fNumber === vehicle.fNumber)
         ? { ...vehicle, skuStatus: 'ACTIVE' }
         : vehicle,
     ),
   };
+}
+
+/** The requester withdraws a pending registration request. */
+export function cancelProductApproval(
+  state: WorkbenchState,
+  requestId: string,
+  actor: string,
+): WorkbenchState {
+  return cancelApproval(state, requestId, actor);
 }

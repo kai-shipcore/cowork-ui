@@ -16,6 +16,7 @@ import {
   ResearchAssetUploader,
   type ResearchAssetTarget,
 } from '../research-asset-uploader';
+import { ResearchHandoffCard } from '../research-handoff-card';
 import {
   RESEARCH_COMMENT_KEY,
   RESEARCH_COMMENT_SEED,
@@ -400,6 +401,10 @@ export function VehicleResearchDetailPage() {
 
       <div className="research-detail-layout">
         <main className="research-detail-main">
+          <ResearchHandoffCard
+            configurations={vehicleConfigurations}
+            selectedId={configurationId}
+          />
           <section className="research-detail-card research-row-card">
             <div className="section-heading">
               <div>

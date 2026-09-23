@@ -18,6 +18,14 @@ function fixture(): WorkbenchState {
       canForward: true,
       canFinalApprove: true,
     })),
+    approvalTypes: [
+      {
+        id: PRODUCT_APPROVAL_TYPE,
+        code: 'REGISTRATION',
+        name: 'SKU registration',
+        status: 'ACTIVE',
+      },
+    ],
     approvalRequests: [],
     approvalSteps: [],
     approvalAssignments: [],

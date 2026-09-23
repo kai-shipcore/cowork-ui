@@ -1,0 +1,515 @@
+/* Approval UI shared by every feature that submits requests. */
+
+.approval-status-chip {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+}
+
+.approval-status-chip small {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+/* Route builder ---------------------------------------------------------- */
+
+.approval-route-builder {
+  display: grid;
+  gap: 14px;
+}
+
+.approval-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.approval-preset,
+.approval-person-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--foreground);
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.approval-preset:hover,
+.approval-person-chip:hover {
+  border-color: var(--primary);
+}
+
+.approval-person-chip[aria-pressed='true'] {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.approval-person-chip em {
+  font-style: normal;
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.approval-steps {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.approval-step {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+.approval-step > header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.approval-step > header small,
+.approval-step-summary,
+.approval-route-note {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.approval-step-tools {
+  display: flex;
+  margin-left: auto;
+  gap: 2px;
+}
+
+.approval-step-number {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.approval-step-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.approval-rule {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+}
+
+.approval-rule label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.approval-step-warning,
+.approval-error {
+  color: var(--destructive);
+  font-size: 12px;
+}
+
+.approval-add-step {
+  list-style: none;
+}
+
+/* Stepper ---------------------------------------------------------------- */
+
+.approval-stepper {
+  display: grid;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.approval-stepper-step {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 12px;
+  position: relative;
+  padding-bottom: 18px;
+}
+
+.approval-stepper-step:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 13px;
+  top: 28px;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+
+.approval-stepper-marker {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--muted-foreground);
+}
+
+.approval-stepper-marker svg {
+  width: 14px;
+  height: 14px;
+}
+
+.approval-stepper-step[data-status='PENDING'] .approval-stepper-marker {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.approval-stepper-step[data-status='APPROVED'] .approval-stepper-marker {
+  border-color: #059669;
+  background: #059669;
+  color: #fff;
+}
+
+.approval-stepper-step[data-status='REJECTED'] .approval-stepper-marker {
+  border-color: var(--destructive);
+  background: var(--destructive);
+  color: #fff;
+}
+
+.approval-stepper-step[data-status='WAITING'],
+.approval-stepper-step[data-status='CANCELLED'] {
+  opacity: 0.7;
+}
+
+.approval-stepper-body {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.approval-stepper-body > header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.approval-stepper-body > header small,
+.approval-stepper-body > p {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.approval-assignees {
+  display: grid;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.approval-assignee {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.approval-assignee time {
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.approval-assignee q {
+  flex-basis: 100%;
+  color: var(--foreground);
+  quotes: '“' '”';
+}
+
+/* Decision panel --------------------------------------------------------- */
+
+.approval-decision {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--primary);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--primary) 5%, var(--card));
+}
+
+.approval-decision h3 {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.approval-decision p {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.approval-decision label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.approval-decision textarea,
+.approval-panel textarea,
+.approval-inbox textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--foreground);
+  padding: 9px 11px;
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.approval-decision-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Entity panel ----------------------------------------------------------- */
+
+.approval-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.approval-panel-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--muted);
+}
+
+.approval-panel-summary dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.approval-panel-summary dt {
+  color: var(--muted-foreground);
+}
+
+.approval-panel-summary dd {
+  margin: 0;
+}
+
+.approval-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.approval-panel h3 {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.approval-panel-rejection {
+  padding: 12px 14px;
+  border: 1px solid var(--destructive);
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.approval-panel-rejection strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.approval-panel-empty {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.approval-panel details {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.approval-panel details summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.approval-panel details > div {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
+}
+
+.approval-submit-summary {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--muted);
+  font-size: 12px;
+}
+
+.approval-submit-summary strong {
+  font-size: 13px;
+}
+
+.approval-submit-note {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Inbox ------------------------------------------------------------------ */
+
+.approval-inbox {
+  display: grid;
+  gap: 10px;
+}
+
+.approval-inbox-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.approval-inbox-row.is-aging {
+  border-color: #f59e0b;
+}
+
+.approval-inbox-main {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.approval-inbox-main strong {
+  font-size: 13px;
+}
+
+.approval-inbox-main small,
+.approval-inbox-meta {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.approval-inbox-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.approval-inbox-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.approval-inbox-comment {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+}
+
+.approval-inbox-comment > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* Administration --------------------------------------------------------- */
+
+.approval-admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.approval-admin-table th,
+.approval-admin-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.approval-admin-table th {
+  color: var(--muted-foreground);
+  font-weight: 600;
+}
+
+.approval-admin-table td:not(:first-child) {
+  text-align: center;
+}
+
+.approval-admin-table input[type='checkbox'] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--primary);
+}
+
+.approval-admin-type {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.approval-admin-type code {
+  font-family: Consolas, ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+
+@media (max-width: 720px) {
+  .approval-inbox-row {
+    grid-template-columns: 1fr;
+  }
+
+  .approval-inbox-actions {
+    justify-content: flex-end;
+  }
+}

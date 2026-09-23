@@ -143,6 +143,10 @@ export function DashboardPage() {
           label="Pending approval"
           value={approvalsPending}
           description={`Handoff approval ${String(summary.handoffPending.length)} · SKU registration ${String(summary.pendingRegistrations)}`}
+          onClick={() => {
+            // React Router handles route errors; the click does not await navigation.
+            void navigate('/work/tasks?team=rd&view=approvals');
+          }}
         />
       </div>
 

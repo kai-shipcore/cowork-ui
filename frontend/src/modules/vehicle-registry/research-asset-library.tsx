@@ -79,26 +79,28 @@ function researchAssets(
             const configuration = configurations.find(
               (item) =>
                 item.id ===
-                (material.targetConfigurationId || evidence.configurationId),
+                (material.targetConfigurationId ?? evidence.configurationId),
             );
             if (!configuration) return [];
             const identity = vehicleIdentity(configuration.vehicle);
-            return [{
-              id: `${evidence.id}-${material.id}`,
-              configuration,
-              filename: material.fileName || material.title,
-              photo: material.fileData,
-              sourceUrl: material.sourceUrl,
-              rowLabel: material.fileData ? 'Uploaded asset' : 'Source link',
-              variation: material.notes || material.title,
-              tags: material.tags,
-              productTypeId: material.productTypeId,
-              optionSelections: material.optionSelections,
-              ...identity,
-              format: material.fileData
-                ? assetFormat(material.fileData, material.fileName)
-                : 'LINK',
-            }];
+            return [
+              {
+                id: `${evidence.id}-${material.id}`,
+                configuration,
+                filename: material.fileName || material.title,
+                photo: material.fileData,
+                sourceUrl: material.sourceUrl,
+                rowLabel: material.fileData ? 'Uploaded asset' : 'Source link',
+                variation: material.notes || material.title,
+                tags: material.tags,
+                productTypeId: material.productTypeId,
+                optionSelections: material.optionSelections,
+                ...identity,
+                format: material.fileData
+                  ? assetFormat(material.fileData, material.fileName)
+                  : 'LINK',
+              },
+            ];
           })()
         : [],
     );
@@ -136,9 +138,7 @@ export function ResearchAssetLibrary({
   ).sort();
   const optionKeys = Array.from(
     new Set(
-      assets.flatMap((asset) =>
-        asset.optionSelections.map(([key]) => key),
-      ),
+      assets.flatMap((asset) => asset.optionSelections.map(([key]) => key)),
     ),
   ).sort();
   const optionValues = Array.from(
@@ -229,7 +229,9 @@ export function ResearchAssetLibrary({
           <span>Model</span>
           <select
             value={model}
-            onChange={(event) => setModel(event.target.value)}
+            onChange={(event) => {
+              setModel(event.target.value);
+            }}
           >
             <option value="ALL">All models</option>
             {models.map((item) => (
@@ -256,7 +258,9 @@ export function ResearchAssetLibrary({
           <span>Value</span>
           <select
             value={optionValue}
-            onChange={(event) => setOptionValue(event.target.value)}
+            onChange={(event) => {
+              setOptionValue(event.target.value);
+            }}
           >
             <option value="ALL">All values</option>
             {optionValues.map((item) => (
@@ -268,7 +272,9 @@ export function ResearchAssetLibrary({
           <span>File type</span>
           <select
             value={format}
-            onChange={(event) => setFormat(event.target.value)}
+            onChange={(event) => {
+              setFormat(event.target.value);
+            }}
           >
             <option value="ALL">All types</option>
             {formats.map((item) => (
@@ -278,7 +284,12 @@ export function ResearchAssetLibrary({
         </label>
         <label>
           <span>Tag</span>
-          <select value={tag} onChange={(event) => setTag(event.target.value)}>
+          <select
+            value={tag}
+            onChange={(event) => {
+              setTag(event.target.value);
+            }}
+          >
             <option value="ALL">All tags</option>
             {tags.map((item) => (
               <option key={item}>{item}</option>
@@ -331,7 +342,9 @@ export function ResearchAssetLibrary({
                         type="button"
                         key={item}
                         aria-pressed={tag === item}
-                        onClick={() => setTag(tag === item ? 'ALL' : item)}
+                        onClick={() => {
+                          setTag(tag === item ? 'ALL' : item);
+                        }}
                       >
                         #{item}
                       </button>
@@ -342,7 +355,9 @@ export function ResearchAssetLibrary({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => onOpenEvidence(asset.configuration.id)}
+                    onClick={() => {
+                      onOpenEvidence(asset.configuration.id);
+                    }}
                   >
                     View research
                   </Button>

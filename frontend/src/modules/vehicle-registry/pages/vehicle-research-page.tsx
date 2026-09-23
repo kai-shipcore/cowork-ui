@@ -30,6 +30,13 @@ import { CarFront, Files, List, Plus, Truck, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { ConfigChips } from '@/shared/domain/config-chips';
+import {
+  canStartDevelopment,
+  RESEARCH_DISPOSITION_LABELS,
+  RESEARCH_DISPOSITION_TONES,
+  researchDisposition,
+  type ResearchDisposition,
+} from '@/shared/domain/research-approval';
 import { PageHeader } from '@/shared/components/page-header';
 import { StatusBadge } from '@/shared/components/status-badge';
 import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
@@ -39,14 +46,8 @@ import {
   type ProductTypeId,
   type VehicleConfiguration,
 } from '@/shared/types/workbench';
-import { useRdRecords } from '@/modules/rd-workspace/use-rd-records';
 import { useWorkbenchStore } from '@/app/workbench-store';
 import { ResearchAssetLibrary } from '../research-asset-library';
-import {
-  RESEARCH_DETAIL_KEY,
-  RESEARCH_DETAIL_SEED,
-  researchDetailListSchema,
-} from '../vehicle-research-detail-model';
 import { groupVehicleResearch } from '../vehicle-research-grid-model';
 import '../research-asset-library.css';
 import './vehicle-research-page.css';
@@ -83,17 +84,13 @@ export function VehicleResearchPage() {
   const [researchView, setResearchView] = useState<'registry' | 'assets'>(() =>
     viewParams.get('view') === 'assets' ? 'assets' : 'registry',
   );
-  const { records: researchDetails } = useRdRecords(
-    RESEARCH_DETAIL_KEY,
-    researchDetailListSchema,
-    RESEARCH_DETAIL_SEED,
-  );
   const {
     configurations,
     projects,
     setConfigurations,
     vehicleOptionKeys,
     vehicleOptionValues,
+    approvalRequests,
   } = useWorkbenchStore();
   // The option dictionary lives in vehicle_option_key /
   // vehicle_option_value; this screen only reads it. Manage it in
@@ -127,9 +124,14 @@ export function VehicleResearchPage() {
     useState<VehicleConfiguration>();
   const [criteria, setCriteria] =
     useState<readonly ConfigurationCriterion[]>(INITIAL_CRITERIA);
-  const latestResearchDetails = new Map(
-    researchDetails.map((detail) => [detail.configurationId, detail]),
-  );
+  function dispositionOf(
+    configuration: ProductResearchRow,
+  ): ResearchDisposition {
+    return researchDisposition(approvalRequests, {
+      id: configuration.sourceConfigurationId,
+      projectGroupIds: configuration.projectGroupIds,
+    });
+  }
 
   const searchedConfigurations = configurations.filter((configuration) => {
     const matchesQuery = configuration.vehicle
@@ -164,11 +166,8 @@ export function VehicleResearchPage() {
   );
   const productRows = visibleConfigurations.flatMap<ProductResearchRow>(
     (configuration) => {
-      const resolvedProductTypeIds = PRODUCT_TYPES.map((item) => item.id);
-      return resolvedProductTypeIds.map((productTypeId) => {
-        const productType = PRODUCT_TYPES.find(
-          (item) => item.id === productTypeId,
-        )!;
+      return PRODUCT_TYPES.map((productType) => {
+        const productTypeId = productType.id;
         const allowedOptionNames = new Set(
           vehicleOptionKeys
             .filter((key) => key.productTypeId === productTypeId)
@@ -307,7 +306,7 @@ export function VehicleResearchPage() {
           }}
         >
           <span
-            className={`research-product-type research-product-type-${configuration.productTypeId?.toLowerCase()}`}
+            className={`research-product-type research-product-type-${configuration.productTypeId.toLowerCase()}`}
           >
             {configuration.product}
           </span>
@@ -332,31 +331,15 @@ export function VehicleResearchPage() {
     },
     {
       id: 'project-conversion',
-      header: 'Project conversion',
+      header: 'Project handoff',
       width: 180,
-      sortValue: (configuration) =>
-        latestResearchDetails.get(configuration.sourceConfigurationId)
-          ?.projectDisposition ?? 'PENDING',
+      sortValue: (configuration) => dispositionOf(configuration),
       cell: (configuration) => {
-        const disposition =
-          latestResearchDetails.get(configuration.sourceConfigurationId)
-            ?.projectDisposition ?? 'PENDING';
+        const disposition = dispositionOf(configuration);
         return (
           <StatusBadge
-            label={
-              disposition === 'PUSH'
-                ? 'Push'
-                : disposition === 'HOLD'
-                  ? 'On Hold'
-                  : 'Not set'
-            }
-            tone={
-              disposition === 'PUSH'
-                ? 'success'
-                : disposition === 'HOLD'
-                  ? 'warning'
-                  : 'neutral'
-            }
+            label={RESEARCH_DISPOSITION_LABELS[disposition]}
+            tone={RESEARCH_DISPOSITION_TONES[disposition]}
           />
         );
       },
@@ -401,7 +384,7 @@ export function VehicleResearchPage() {
               </button>
             ))}
           </div>
-        ) : configuration.researchStatus === 'COMPLETE' ? (
+        ) : canStartDevelopment(configuration, dispositionOf(configuration)) ? (
           <div className="development-empty-state">
             <span>No development yet</span>
             <Button
@@ -415,6 +398,30 @@ export function VehicleResearchPage() {
               }}
             >
               <Plus /> Start Development
+            </Button>
+          </div>
+        ) : configuration.researchStatus === 'COMPLETE' ? (
+          <div className="development-locked-state">
+            <span>
+              {dispositionOf(configuration) === 'HOLD'
+                ? 'Development on hold'
+                : dispositionOf(configuration) === 'REVIEWING'
+                  ? 'Handoff approval in progress'
+                  : 'Handoff approval not requested'}
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                // React Router handles route errors; the click does not await navigation.
+                void navigate(
+                  `${ROUTES.vehicleResearch}/${encodeURIComponent(configuration.sourceConfigurationId)}`,
+                );
+              }}
+            >
+              {dispositionOf(configuration) === 'PENDING'
+                ? 'Request approval'
+                : 'Open approval'}
             </Button>
           </div>
         ) : (

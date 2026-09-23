@@ -1,0 +1,54 @@
+.research-handoff-list {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.research-handoff-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.research-handoff-row:hover {
+  border-color: var(--primary);
+}
+
+.research-handoff-row[aria-expanded='true'] {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 5%, var(--card));
+}
+
+.research-handoff-id {
+  font-family: Consolas, ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--primary);
+}
+
+.research-handoff-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+@media (max-width: 720px) {
+  .research-handoff-row {
+    grid-template-columns: 1fr;
+  }
+
+  .research-handoff-badges {
+    justify-content: flex-start;
+  }
+}

@@ -46,8 +46,7 @@ export function groupVehicleResearch<T extends VehicleConfiguration>(
     const productCount = new Set(
       rows
         .map(
-          (row) =>
-            (row as VehicleConfiguration & { product?: string }).product,
+          (row) => (row as VehicleConfiguration & { product?: string }).product,
         )
         .filter(Boolean),
     ).size;

@@ -24,6 +24,8 @@ import { usePersonalSettings } from './use-personal-settings';
 interface PersonalSettingsProps {
   actor: Person;
   children: ReactNode;
+  /** Rendered after the personal form for people who may manage approvals. */
+  administration?: ReactNode;
 }
 const SECTIONS = [
   { id: 'profile', title: 'Personal profile', icon: UserRound },
@@ -37,7 +39,18 @@ const SECTIONS = [
 export function PersonalSettings({
   actor,
   children,
+  administration,
 }: PersonalSettingsProps): ReactElement {
+  const sections = administration
+    ? [
+        ...SECTIONS,
+        {
+          id: 'approval-admin',
+          title: 'Approval administration',
+          icon: ShieldCheck,
+        },
+      ]
+    : SECTIONS;
   const { draft, saved, dirty, feedback, blocked, update, save, cancel } =
     usePersonalSettings(actor);
   return (
@@ -66,7 +79,7 @@ export function PersonalSettings({
             <span className="prefs-badge">Demo profile</span>
           </div>
           <nav aria-label="Personal settings sections">
-            {SECTIONS.map(({ id, title, icon: Icon }) => (
+            {sections.map(({ id, title, icon: Icon }) => (
               <a key={id} href={'#' + id}>
                 <Icon aria-hidden="true" />
                 {title}
@@ -365,6 +378,7 @@ export function PersonalSettings({
               </div>
             </div>
           </form>
+          {administration}
           <details className="prefs-backup">
             <summary>
               <Database aria-hidden="true" />

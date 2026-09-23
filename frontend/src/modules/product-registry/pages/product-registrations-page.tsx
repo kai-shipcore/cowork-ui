@@ -26,16 +26,35 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { Search, X } from 'lucide-react';
+import { Search, Send, X } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { userName } from '@/shared/domain/app-user';
+import {
+  APPROVAL_STATUS_LABELS,
+  requestProgress,
+  type EntityApprovalStatus,
+} from '@/shared/domain/approval/approval-model';
+import { ApprovalStatusChip } from '@/shared/domain/approval/approval-status-chip';
 import { PageHeader } from '@/shared/components/page-header';
 import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import { useWorkbenchStore } from '@/app/workbench-store';
-import {
-  LocalApprovalGrants,
-  ProductApprovalPanel,
-} from '../components/product-approval-panel';
+import { ProductApprovalPanel } from '../components/product-approval-panel';
 import '@/modules/product-shapes/shape-management.css';
+import '@/shared/domain/approval/approval.css';
+
+const STATUS_FILTERS: readonly EntityApprovalStatus[] = [
+  'NOT_SUBMITTED',
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+  'CANCELLED',
+  'LEGACY_APPROVED',
+];
+const RESUBMITTABLE: readonly EntityApprovalStatus[] = [
+  'NOT_SUBMITTED',
+  'REJECTED',
+  'CANCELLED',
+];
 
 export function ProductRegistrationsPage() {
   const {
@@ -43,16 +62,42 @@ export function ProductRegistrationsPage() {
     registrationItems,
     masterProducts,
     approvalRequests,
+    approvalSteps,
+    approvalAssignments,
     appUsers,
   } = useWorkbenchStore();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('ALL');
-  const [reviewing, setReviewing] = useState('');
+  // The open registration lives in the URL so the approval inbox can link here.
+  const [params, setParams] = useSearchParams();
+  const reviewing = params.get('review') ?? '';
+  const [submitIntent, setSubmitIntent] = useState(false);
+  const openReview = (id: string, submit = false) => {
+    setSubmitIntent(submit);
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      next.set('review', id);
+      return next;
+    });
+  };
+  const closeReview = () => {
+    setSubmitIntent(false);
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete('review');
+      return next;
+    });
+  };
   const itemsOf = (id: string) =>
     registrationItems.filter((item) => item.registrationId === id);
-  const statusOf = (id: string) =>
-    approvalRequests.filter((request) => request.entityId === id).slice(-1)[0]
-      ?.status ??
+  const latestRequest = (id: string) =>
+    approvalRequests
+      .filter((request) => request.entityId === id)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .slice(-1)
+      .pop();
+  const statusOf = (id: string): EntityApprovalStatus =>
+    latestRequest(id)?.status ??
     (registrations.find((row) => row.id === id)?.approvedAt
       ? 'LEGACY_APPROVED'
       : 'NOT_SUBMITTED');
@@ -106,27 +151,59 @@ export function ProductRegistrationsPage() {
     },
     {
       id: 'status',
-      header: 'Status',
-      width: 180,
+      header: 'Approval',
+      width: 260,
       sortValue: (row) => statusOf(row.id),
-      cell: (row) => <>{statusOf(row.id)}</>,
+      cell: (row) => {
+        const request = latestRequest(row.id);
+        const progress = request
+          ? requestProgress(
+              request,
+              approvalSteps,
+              approvalAssignments,
+              appUsers,
+            )
+          : undefined;
+        return (
+          <ApprovalStatusChip
+            status={statusOf(row.id)}
+            detail={
+              progress
+                ? [progress.label, progress.detail].filter(Boolean).join(' · ')
+                : undefined
+            }
+          />
+        );
+      },
     },
     {
       id: 'actions',
       header: 'Actions',
-      width: 180,
+      width: 260,
       hideable: false,
       cell: (row) => (
-        <>
+        <div className="approval-panel-actions">
+          {RESUBMITTABLE.includes(statusOf(row.id)) && (
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => {
+                openReview(row.id, true);
+              }}
+            >
+              <Send /> Submit for approval
+            </Button>
+          )}
           <Button
+            size="sm"
             variant="outline"
             onClick={() => {
-              setReviewing(row.id);
+              openReview(row.id);
             }}
           >
-            Review / History
+            Open
           </Button>
-        </>
+        </div>
       ),
     },
   ];
@@ -191,17 +268,10 @@ export function ProductRegistrationsPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">Status: All</SelectItem>
-                {[
-                  'NOT_SUBMITTED',
-                  'PENDING',
-                  'APPROVED',
-                  'REJECTED',
-                  'CANCELLED',
-                  'LEGACY_APPROVED',
-                ].map((status) => (
+                <SelectItem value="ALL">Approval: All</SelectItem>
+                {STATUS_FILTERS.map((status) => (
                   <SelectItem key={status} value={status}>
-                    {status}
+                    {APPROVAL_STATUS_LABELS[status]}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -265,7 +335,7 @@ export function ProductRegistrationsPage() {
       <Dialog
         open={Boolean(reviewing)}
         onOpenChange={(open) => {
-          if (!open) setReviewing('');
+          if (!open) closeReview();
         }}
       >
         <DialogContent className="detail-dialog">
@@ -300,22 +370,17 @@ export function ProductRegistrationsPage() {
               <ProductApprovalPanel
                 key={reviewing}
                 registrationId={reviewing}
+                initialSubmitOpen={submitIntent}
               />
             )}
           </DialogBody>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setReviewing('');
-              }}
-            >
+            <Button variant="outline" onClick={closeReview}>
               Close
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <LocalApprovalGrants />
     </section>
   );
 }

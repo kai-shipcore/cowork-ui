@@ -39,6 +39,15 @@ export interface ProjectStageRecord {
   templateRevisionId?: string;
 }
 
+/** `approval_type`: a kind of sign-off a feature refers to by its stable code. */
+export interface ApprovalType {
+  id: string;
+  code: string;
+  name: string;
+  status: 'ACTIVE' | 'INACTIVE';
+}
+/** ALL: everyone in the step must approve. ANY: the first decision settles the step. */
+export type ApprovalCompletionRule = 'ALL' | 'ANY';
 export interface ApprovalGrant {
   id: string;
   appUserId: string;
@@ -61,22 +70,37 @@ export interface ApprovalStep {
   approvalRequestId: string;
   stepNumber: number;
   type: 'FORWARD' | 'FINAL';
+  /** Absent on steps recorded before the rule existed; read as ALL. */
+  completionRule?: ApprovalCompletionRule;
   status: 'WAITING' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
   activatedAt?: string;
   closedAt?: string;
 }
-export interface ApprovalRequest {
+interface ApprovalRequestBase {
   id: string;
   approvalTypeId: string;
-  entityType: 'VEHICLE_PRODUCT_REGISTRATION';
   entityId: string;
   requestedBy: string;
+  note?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+  createdAt: string;
+  closedAt?: string;
+}
+/** Sign-off on a bundle of new SKUs; the snapshot guards against edits after submission. */
+export interface RegistrationApprovalRequest extends ApprovalRequestBase {
+  entityType: 'VEHICLE_PRODUCT_REGISTRATION';
   submittedData: {
     productIds: readonly string[];
     sourceShapeIds: readonly string[];
     snapshot: string;
   };
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
-  createdAt: string;
-  closedAt?: string;
 }
+/** Sign-off on taking a completed research combination into development. */
+export interface ResearchApprovalRequest extends ApprovalRequestBase {
+  entityType: 'VEHICLE_RESEARCH';
+  submittedData: {
+    snapshot: string;
+  };
+}
+export type ApprovalRequest =
+  RegistrationApprovalRequest | ResearchApprovalRequest;

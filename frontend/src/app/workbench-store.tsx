@@ -19,6 +19,7 @@ import type {
   ApprovalGrant,
   ApprovalRequest,
   ApprovalStep,
+  ApprovalType,
   FitmentQuality,
   ShapeAssignment,
 } from '@/shared/types/db-workflow';
@@ -62,6 +63,8 @@ import { CURRENT_USER_ID } from './current-user';
 import { readStageDurationRevisions } from './stage-duration-model';
 import {
   APP_USERS,
+  APPROVAL_GRANTS,
+  APPROVAL_TYPES,
   COMPLAINTS,
   DEALERS,
   MASTER_PRODUCT_PACKAGINGS,
@@ -77,6 +80,7 @@ import {
   SEAT_COVER_CODE_OPTION_VALUES,
   SEAT_COVER_CODES,
   SEAT_COVER_PARTS,
+  SHAPE_ASSIGNMENTS,
   UNIQUE_VEHICLES,
   VEHICLE_CONFIGURATIONS,
   VEHICLE_OPTION_KEYS,
@@ -97,6 +101,7 @@ export interface WorkbenchState {
   approvalSteps: readonly ApprovalStep[];
   approvalAssignments: readonly ApprovalAssignment[];
   approvalGrants: readonly ApprovalGrant[];
+  approvalTypes: readonly ApprovalType[];
   configurations: readonly VehicleConfiguration[];
   projects: readonly VehicleProjectGroup[];
   visits: readonly Visit[];
@@ -180,12 +185,13 @@ interface WorkbenchStore extends WorkbenchState {
 /** Hand-written reference data; fills any collection the seed snapshot lacks. */
 function baselineState(): WorkbenchState {
   return {
-    shapeAssignments: [],
+    shapeAssignments: SHAPE_ASSIGNMENTS,
     fitmentQualities: [],
     approvalRequests: [],
     approvalSteps: [],
     approvalAssignments: [],
-    approvalGrants: [],
+    approvalGrants: APPROVAL_GRANTS,
+    approvalTypes: APPROVAL_TYPES,
     configurations: VEHICLE_CONFIGURATIONS,
     projects: VEHICLE_PROJECTS,
     visits: VISITS,
@@ -772,12 +778,33 @@ function migrateState(
       },
     ),
     projectDetails,
-    shapeAssignments: stored.shapeAssignments ?? [],
+    // Browsers that saved before assignments were seeded hold an empty list; give them the demo ones.
+    shapeAssignments: stored.shapeAssignments?.length
+      ? stored.shapeAssignments
+      : fallback.shapeAssignments,
     fitmentQualities: stored.fitmentQualities ?? [],
     approvalRequests: stored.approvalRequests ?? [],
     approvalSteps: stored.approvalSteps ?? [],
     approvalAssignments: stored.approvalAssignments ?? [],
-    approvalGrants: stored.approvalGrants ?? [],
+    // Browsers that saved before grants were seeded hold an empty list; give them the demo grants.
+    approvalGrants: [
+      ...(stored.approvalGrants ?? []),
+      ...fallback.approvalGrants.filter(
+        (grant) =>
+          !stored.approvalGrants?.some(
+            (row) =>
+              row.approvalTypeId === grant.approvalTypeId &&
+              row.appUserId === grant.appUserId,
+          ),
+      ),
+    ],
+    // Seed types and grants the stored snapshot has never seen (new approval types).
+    approvalTypes: [
+      ...(stored.approvalTypes ?? []),
+      ...fallback.approvalTypes.filter(
+        (type) => !stored.approvalTypes?.some((row) => row.id === type.id),
+      ),
+    ],
   };
 }
 
