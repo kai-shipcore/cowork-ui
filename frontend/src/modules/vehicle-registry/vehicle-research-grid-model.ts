@@ -1,33 +1,64 @@
 import type { VehicleConfiguration } from '@/shared/types/workbench';
 
-interface ResearchVehicleGroup {
+interface ResearchVehicleGroup<T extends VehicleConfiguration> {
   id: string;
   title: string;
   description: string;
   vehicleClass: string;
-  rows: VehicleConfiguration[];
+  rows: T[];
 }
 
-/** Groups filtered configurations before paging; full vehicle labels keep collapse ids stable. */
-export function groupVehicleResearch(
-  configurations: readonly VehicleConfiguration[],
-): ResearchVehicleGroup[] {
-  const vehicles = new Map<string, VehicleConfiguration[]>();
+export function vehicleResearchIdentity(vehicle: string) {
+  const match = /^(\d{4}(?:[–-]\d{4})?)\s+(.+)$/.exec(vehicle.trim());
+  return {
+    years: match?.[1] ?? '',
+    makeModel: match?.[2] ?? vehicle.trim(),
+  };
+}
+
+/** Groups filtered configurations by make and model before paging. */
+export function groupVehicleResearch<T extends VehicleConfiguration>(
+  configurations: readonly T[],
+): ResearchVehicleGroup<T>[] {
+  const vehicles = new Map<string, T[]>();
   for (const configuration of configurations) {
-    const rows = vehicles.get(configuration.vehicle) ?? [];
+    const { makeModel } = vehicleResearchIdentity(configuration.vehicle);
+    const rows = vehicles.get(makeModel) ?? [];
     rows.push(configuration);
-    vehicles.set(configuration.vehicle, rows);
+    vehicles.set(makeModel, rows);
   }
-  return Array.from(vehicles, ([vehicle, rows]) => {
-    const match = /^(\d{4}(?:–\d{4})?)\s+(.+)$/.exec(vehicle);
+  return Array.from(vehicles, ([makeModel, rows]) => {
     const vehicleClass = rows[0]?.vehicleClass ?? '';
+    const years = Array.from(
+      new Set(
+        rows
+          .map((row) => vehicleResearchIdentity(row.vehicle).years)
+          .filter(Boolean),
+      ),
+    );
+    const configurationCount = new Set(
+      rows.map(
+        (row) =>
+          (row as VehicleConfiguration & { sourceConfigurationId?: string })
+            .sourceConfigurationId ?? row.id,
+      ),
+    ).size;
+    const productCount = new Set(
+      rows
+        .map(
+          (row) =>
+            (row as VehicleConfiguration & { product?: string }).product,
+        )
+        .filter(Boolean),
+    ).size;
     return {
-      id: vehicle,
-      title: match?.[2] ?? vehicle,
+      id: makeModel,
+      title: makeModel,
       description: [
-        match?.[1],
+        years.join(', '),
         vehicleClass,
-        `${String(rows.length)} Configurations`,
+        `${String(configurationCount)} Configurations`,
+        productCount ? `${String(productCount)} Product Types` : '',
       ]
         .filter(Boolean)
         .join(' · '),

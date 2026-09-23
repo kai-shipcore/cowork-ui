@@ -14,7 +14,7 @@ function configuration(id: string, vehicle: string): VehicleConfiguration {
   };
 }
 
-await test('groups configurations by full vehicle identity and preserves rows and project links', () => {
+await test('groups configurations by make and model and preserves rows and project links', () => {
   const first = configuration('a', '2023–2026 Toyota RAV4');
   const second = configuration('b', '2024 Honda CR-V');
   const third = configuration('c', first.vehicle);
@@ -22,7 +22,7 @@ await test('groups configurations by full vehicle identity and preserves rows an
   const before = structuredClone(input);
   const groups = groupVehicleResearch(input);
   assert.equal(groups.length, 2);
-  assert.equal(groups[0]?.id, first.vehicle);
+  assert.equal(groups[0]?.id, 'Toyota RAV4');
   assert.equal(groups[0]?.title, 'Toyota RAV4');
   assert.equal(groups[0]?.description, '2023–2026 · SUV · 2 Configurations');
   assert.deepEqual(
@@ -34,16 +34,19 @@ await test('groups configurations by full vehicle identity and preserves rows an
   assert.deepEqual(input, before);
 });
 
-await test('different year ranges remain separate groups and paging never splits configurations', () => {
+await test('different year ranges remain in one make-model group', () => {
   const groups = groupVehicleResearch([
     configuration('a', '2023–2026 Toyota RAV4'),
     configuration('b', '2020–2022 Toyota RAV4'),
     configuration('c', '2023–2026 Toyota RAV4'),
   ]);
-  assert.equal(groups.length, 2);
-  assert.notEqual(groups[0]?.id, groups[1]?.id);
-  assert.equal(groups.slice(0, 1)[0]?.rows.length, 2);
-  assert.equal(groups.slice(1, 2)[0]?.rows.length, 1);
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0]?.id, 'Toyota RAV4');
+  assert.equal(groups[0]?.rows.length, 3);
+  assert.equal(
+    groups[0]?.description,
+    '2023–2026, 2020–2022 · SUV · 3 Configurations',
+  );
 });
 
 await test('filtered results retain collapse ids but reflect only matching configuration counts', () => {

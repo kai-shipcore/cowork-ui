@@ -33,7 +33,12 @@ import { ConfigChips } from '@/shared/domain/config-chips';
 import { PageHeader } from '@/shared/components/page-header';
 import { StatusBadge } from '@/shared/components/status-badge';
 import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
-import type { VehicleConfiguration } from '@/shared/types/workbench';
+import {
+  PRODUCT_TYPES,
+  type ProductType,
+  type ProductTypeId,
+  type VehicleConfiguration,
+} from '@/shared/types/workbench';
 import { useRdRecords } from '@/modules/rd-workspace/use-rd-records';
 import { useWorkbenchStore } from '@/app/workbench-store';
 import { ResearchAssetLibrary } from '../research-asset-library';
@@ -57,6 +62,12 @@ interface ConfigurationCriterion {
   id: number;
   title: string;
   value: string;
+}
+
+interface ProductResearchRow extends VehicleConfiguration {
+  sourceConfigurationId: string;
+  productTypeId: ProductTypeId;
+  product: ProductType;
 }
 
 const INITIAL_CRITERIA: readonly ConfigurationCriterion[] = [
@@ -126,6 +137,11 @@ export function VehicleResearchPage() {
       .includes(query.toLowerCase());
     const matchesProduct =
       product === 'ALL' ||
+      PRODUCT_TYPES.some(
+        (item) =>
+          item.product === product &&
+          configuration.productTypeId === item.id,
+      ) ||
       configuration.projectGroupIds.some(
         (projectId) =>
           projects.find((project) => project.id === projectId)?.product ===
@@ -147,7 +163,33 @@ export function VehicleResearchPage() {
     (configuration) =>
       status === 'ALL' || configuration.researchStatus === status,
   );
-  const vehicleGroups = groupVehicleResearch(visibleConfigurations);
+  const productRows = visibleConfigurations.flatMap<ProductResearchRow>(
+    (configuration) => {
+      const resolvedProductTypeIds = PRODUCT_TYPES.map((item) => item.id);
+      return resolvedProductTypeIds
+        .map((productTypeId) => {
+          const productType = PRODUCT_TYPES.find(
+            (item) => item.id === productTypeId,
+          )!;
+          const allowedOptionNames = new Set(
+            vehicleOptionKeys
+              .filter((key) => key.productTypeId === productTypeId)
+              .map((key) => key.name),
+          );
+          return {
+            ...configuration,
+            id: `${configuration.id}:${productTypeId}`,
+            sourceConfigurationId: configuration.id,
+            productTypeId,
+            product: productType.product,
+            options: configuration.options.filter(([key]) =>
+              allowedOptionNames.has(key),
+            ),
+          } satisfies ProductResearchRow;
+        });
+    },
+  );
+  const vehicleGroups = groupVehicleResearch(productRows);
   const {
     pageItems: pagedVehicleGroups,
     pagination,
@@ -246,7 +288,7 @@ export function VehicleResearchPage() {
     );
   }
 
-  const columns: GroupedDataGridColumn<VehicleConfiguration>[] = [
+  const columns: GroupedDataGridColumn<ProductResearchRow>[] = [
     {
       id: 'configuration',
       header: 'Configuration',
@@ -262,10 +304,15 @@ export function VehicleResearchPage() {
           className="research-detail-link"
           onClick={() => {
             void navigate(
-              `/vehicle-research/${encodeURIComponent(configuration.id)}`,
+              `/vehicle-research/${encodeURIComponent(configuration.sourceConfigurationId)}`,
             );
           }}
         >
+          <span
+            className={`research-product-type research-product-type-${configuration.productTypeId?.toLowerCase()}`}
+          >
+            {configuration.product}
+          </span>
           <ConfigChips options={configuration.options} />
           <span>Open research detail</span>
         </button>
@@ -290,12 +337,12 @@ export function VehicleResearchPage() {
       header: 'Project conversion',
       width: 180,
       sortValue: (configuration) =>
-        latestResearchDetails.get(configuration.id)?.projectDisposition ??
-        'PENDING',
+        latestResearchDetails.get(configuration.sourceConfigurationId)
+          ?.projectDisposition ?? 'PENDING',
       cell: (configuration) => {
         const disposition =
-          latestResearchDetails.get(configuration.id)?.projectDisposition ??
-          'PENDING';
+          latestResearchDetails.get(configuration.sourceConfigurationId)
+            ?.projectDisposition ?? 'PENDING';
         return (
           <StatusBadge
             label={
@@ -322,10 +369,15 @@ export function VehicleResearchPage() {
       width: 420,
       sortValue: (configuration) => configuration.projectGroupIds.length,
       cell: (configuration) => {
-        const linkedProjects = configuration.projectGroupIds.map((id) => ({
-          id,
-          project: projects.find((project) => project.id === id),
-        }));
+        const linkedProjects = configuration.projectGroupIds
+          .map((id) => ({
+            id,
+            project: projects.find((project) => project.id === id),
+          }))
+          .filter(
+            ({ project }) =>
+              !project || project.productTypeId === configuration.productTypeId,
+          );
         return linkedProjects.length ? (
           <div className="development-project-list">
             {linkedProjects.map(({ id, project }) => (
@@ -360,7 +412,7 @@ export function VehicleResearchPage() {
               onClick={() => {
                 // React Router handles route errors; the click does not await navigation.
                 void navigate(
-                  `${ROUTES.vehicleProjects}?new=1&configuration=${encodeURIComponent(configuration.id)}`,
+                  `${ROUTES.vehicleProjects}?new=1&configuration=${encodeURIComponent(configuration.sourceConfigurationId)}`,
                 );
               }}
             >
@@ -374,7 +426,10 @@ export function VehicleResearchPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                completeResearch(configuration);
+                const sourceConfiguration = configurations.find(
+                  (item) => item.id === configuration.sourceConfigurationId,
+                );
+                if (sourceConfiguration) completeResearch(sourceConfiguration);
               }}
             >
               Research Complete
@@ -384,7 +439,7 @@ export function VehicleResearchPage() {
       },
     },
   ];
-  const groups: GroupedDataGridGroup<VehicleConfiguration>[] =
+  const groups: GroupedDataGridGroup<ProductResearchRow>[] =
     pagedVehicleGroups.map((group) => {
       const firstConfiguration = group.rows.slice(0, 1).pop();
       return {
@@ -403,7 +458,13 @@ export function VehicleResearchPage() {
                 variant="dashed"
                 aria-label={`${group.id} Add configuration`}
                 onClick={() => {
-                  openConfigurationDialog(firstConfiguration);
+                  const sourceConfiguration = configurations.find(
+                    (item) =>
+                      item.id === firstConfiguration.sourceConfigurationId,
+                  );
+                  if (sourceConfiguration) {
+                    openConfigurationDialog(sourceConfiguration);
+                  }
                 }}
               >
                 <Plus /> Configuration
@@ -486,6 +547,11 @@ export function VehicleResearchPage() {
                     { value: 'Seat Cover', label: 'Seat Cover' },
                     { value: 'Car Cover', label: 'Car Cover' },
                     { value: 'Floor Mat', label: 'Floor Mat' },
+                    {
+                      value: 'Steering Wheel Cover',
+                      label: 'Steering Wheel Cover',
+                    },
+                    { value: 'Window Shield', label: 'Window Shield' },
                   ],
                 },
               ]}

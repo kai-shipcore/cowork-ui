@@ -1,6 +1,11 @@
 import type { ProjectStageRecord } from './db-workflow';
 
-export type ProductType = 'Seat Cover' | 'Car Cover' | 'Floor Mat';
+export type ProductType =
+  | 'Seat Cover'
+  | 'Car Cover'
+  | 'Floor Mat'
+  | 'Steering Wheel Cover'
+  | 'Window Shield';
 
 export type StatusTone =
   'neutral' | 'progress' | 'success' | 'warning' | 'danger' | 'purple' | 'cyan';
@@ -90,6 +95,8 @@ export const PRODUCT_TYPES = [
   { id: 'PT-SC', product: 'Seat Cover' },
   { id: 'PT-CC', product: 'Car Cover' },
   { id: 'PT-FM', product: 'Floor Mat' },
+  { id: 'PT-SWC', product: 'Steering Wheel Cover' },
+  { id: 'PT-WS', product: 'Window Shield' },
 ] as const;
 
 export type ProductTypeId = (typeof PRODUCT_TYPES)[number]['id'];

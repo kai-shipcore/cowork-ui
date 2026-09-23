@@ -371,6 +371,8 @@ function productTypeId(product: VehicleProjectGroup['product']): string {
     'Seat Cover': 'PT-SC',
     'Car Cover': 'PT-CC',
     'Floor Mat': 'PT-FM',
+    'Steering Wheel Cover': 'PT-SWC',
+    'Window Shield': 'PT-WS',
   }[product];
 }
 

@@ -17,6 +17,8 @@ const CATEGORY_SEGMENTS: Record<ProductTypeId, readonly string[]> = {
   'PT-SC': ['CA', 'SC'],
   'PT-FM': ['CA', 'FM'],
   'PT-CC': ['CC'],
+  'PT-SWC': ['CA', 'SWC'],
+  'PT-WS': ['CA', 'WS'],
 };
 
 /**

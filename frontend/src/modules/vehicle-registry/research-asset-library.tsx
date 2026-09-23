@@ -2,7 +2,11 @@ import { useMemo, useState, type ReactElement } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
 import { Download, ExternalLink, FileImage, Link2, Search } from 'lucide-react';
 import { ConfigChips } from '@/shared/domain/config-chips';
-import type { VehicleConfiguration } from '@/shared/types/workbench';
+import {
+  PRODUCT_TYPES,
+  type ProductTypeId,
+  type VehicleConfiguration,
+} from '@/shared/types/workbench';
 import { useRdRecords } from '@/modules/rd-workspace/use-rd-records';
 import {
   RESEARCH_DETAIL_KEY,
@@ -29,7 +33,13 @@ interface ResearchAsset {
   years: string;
   format: string;
   tags: readonly string[];
+  productTypeId: ProductTypeId;
+  optionSelections: readonly (readonly [string, string])[];
 }
+
+const PRODUCT_LABELS = Object.fromEntries(
+  PRODUCT_TYPES.map((item) => [item.id, item.product]),
+) as Record<ProductTypeId, string>;
 
 function vehicleIdentity(vehicle: string) {
   const match = /^(\d{4}(?:–\d{4})?)\s+(\S+)\s+(.+)$/.exec(vehicle);
@@ -63,15 +73,17 @@ function researchAssets(
   configurations: readonly VehicleConfiguration[],
 ): ResearchAsset[] {
   return latestEvidence(records).flatMap((evidence) => {
-    const configuration = configurations.find(
-      (item) => item.id === evidence.configurationId,
-    );
-    if (!configuration) return [];
-    const identity = vehicleIdentity(configuration.vehicle);
     return evidence.materials.flatMap((material) =>
       material.fileData || material.sourceUrl
-        ? [
-            {
+        ? (() => {
+            const configuration = configurations.find(
+              (item) =>
+                item.id ===
+                (material.targetConfigurationId || evidence.configurationId),
+            );
+            if (!configuration) return [];
+            const identity = vehicleIdentity(configuration.vehicle);
+            return [{
               id: `${evidence.id}-${material.id}`,
               configuration,
               filename: material.fileName || material.title,
@@ -80,12 +92,14 @@ function researchAssets(
               rowLabel: material.fileData ? 'Uploaded asset' : 'Source link',
               variation: material.notes || material.title,
               tags: material.tags,
+              productTypeId: material.productTypeId,
+              optionSelections: material.optionSelections,
               ...identity,
               format: material.fileData
                 ? assetFormat(material.fileData, material.fileName)
                 : 'LINK',
-            },
-          ]
+            }];
+          })()
         : [],
     );
   });
@@ -112,7 +126,6 @@ export function ResearchAssetLibrary({
   const [optionValue, setOptionValue] = useState('ALL');
   const [format, setFormat] = useState('ALL');
   const [tag, setTag] = useState('ALL');
-
   const makes = Array.from(new Set(assets.map((asset) => asset.make))).sort();
   const models = Array.from(
     new Set(
@@ -124,14 +137,14 @@ export function ResearchAssetLibrary({
   const optionKeys = Array.from(
     new Set(
       assets.flatMap((asset) =>
-        asset.configuration.options.map(([key]) => key),
+        asset.optionSelections.map(([key]) => key),
       ),
     ),
   ).sort();
   const optionValues = Array.from(
     new Set(
       assets.flatMap((asset) =>
-        asset.configuration.options
+        asset.optionSelections
           .filter(([key]) => optionKey === 'ALL' || key === optionKey)
           .map(([, value]) => value),
       ),
@@ -145,7 +158,7 @@ export function ResearchAssetLibrary({
   ).sort();
   const normalizedQuery = query.trim().toLowerCase();
   const visibleAssets = assets.filter((asset) => {
-    const optionText = asset.configuration.options.flat().join(' ');
+    const optionText = asset.optionSelections.flat().join(' ');
     const matchesQuery =
       !normalizedQuery ||
       [
@@ -159,7 +172,7 @@ export function ResearchAssetLibrary({
         .join(' ')
         .toLowerCase()
         .includes(normalizedQuery);
-    const matchesOption = asset.configuration.options.some(
+    const matchesOption = asset.optionSelections.some(
       ([key, value]) =>
         (optionKey === 'ALL' || key === optionKey) &&
         (optionValue === 'ALL' || value === optionValue),
@@ -299,10 +312,18 @@ export function ResearchAssetLibrary({
                   </div>
                 </div>
                 <div className="research-asset-context">
-                  <span>{asset.rowLabel}</span>
+                  <span>
+                    {PRODUCT_LABELS[asset.productTypeId]} · {asset.rowLabel}
+                  </span>
                   <strong>{asset.variation}</strong>
                 </div>
-                <ConfigChips options={asset.configuration.options} />
+                <ConfigChips
+                  options={
+                    asset.optionSelections.length
+                      ? asset.optionSelections
+                      : asset.configuration.options
+                  }
+                />
                 {asset.tags.length > 0 && (
                   <div className="research-asset-tags" aria-label="Asset tags">
                     {asset.tags.map((item) => (

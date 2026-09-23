@@ -32,6 +32,24 @@ export const PROJECT_PIPELINES: Record<ProductType, readonly ProjectStage[]> = {
     'Fitting',
     'Approved',
   ],
+  'Steering Wheel Cover': [
+    'Research',
+    'Vehicle Hunt',
+    'Scan',
+    'Design',
+    'Sample',
+    'Fitting',
+    'Approved',
+  ],
+  'Window Shield': [
+    'Research',
+    'Vehicle Hunt',
+    'Scan',
+    'Design',
+    'Sample',
+    'Fitting',
+    'Approved',
+  ],
 };
 
 export interface GroupStageSummary {

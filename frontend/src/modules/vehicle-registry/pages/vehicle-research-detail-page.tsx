@@ -1,21 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   type ActivityEntry,
 } from '@coverland-engineering/ui/activity/activity';
 import { Button } from '@coverland-engineering/ui/button';
-import { Input } from '@coverland-engineering/ui/input';
-import { ArrowLeft, ImagePlus, Link2, Plus, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, Pencil, Save, Search, Trash2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ConfigChips } from '@/shared/domain/config-chips';
 import { UserAvatar } from '@/shared/domain/user-picker';
-import { StatusBadge } from '@/shared/components/status-badge';
+import { WorkbenchPagination } from '@/shared/components/workbench-pagination';
+import { PRODUCT_TYPES } from '@/shared/types/workbench';
 import { useRdRecords } from '@/modules/rd-workspace/use-rd-records';
 import { useOperations } from '@/app/operations-store';
 import { useWorkbenchStore } from '@/app/workbench-store';
 import {
-  newResearchMaterial,
-  projectDispositionSchema,
   RESEARCH_COMMENT_KEY,
   RESEARCH_COMMENT_SEED,
   RESEARCH_DETAIL_KEY,
@@ -23,48 +20,69 @@ import {
   researchCommentListSchema,
   researchDetailListSchema,
   researchDetailSchema,
-  researchStatusSchema,
   type ResearchMaterial,
 } from '../vehicle-research-detail-model';
+import {
+  ResearchAssetUploader,
+  type ResearchAssetTarget,
+} from '../research-asset-uploader';
+import { vehicleResearchIdentity } from '../vehicle-research-grid-model';
 import './vehicle-research-detail-page.css';
-
-const TAG_SUGGESTIONS = [
-  'Seat Cover',
-  'Car Cover',
-  'Floor Mat',
-  'Front seat',
-  'Second row',
-  'Third row',
-  'Driver',
-  'Passenger',
-  'Bucket',
-  'Bench',
-  'Hybrid',
-  'Power seat',
-  'Manual seat',
-  '7 seats',
-  '8 seats',
-];
-
-function parseTags(value: string) {
-  return Array.from(
-    new Set(
-      value
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter(Boolean),
-    ),
-  ).slice(0, 30);
-}
 
 export function VehicleResearchDetailPage() {
   const navigate = useNavigate();
   const { configurationId = '' } = useParams();
   const { actor } = useOperations();
-  const { configurations, setConfigurations } = useWorkbenchStore();
+  const { configurations, vehicleOptionKeys } = useWorkbenchStore();
   const configuration = configurations.find(
     (item) => item.id === configurationId,
   );
+  const selectedVehicleIdentity = vehicleResearchIdentity(
+    configuration?.vehicle ?? '',
+  );
+  const vehicleConfigurations = configuration
+    ? configurations.filter(
+        (item) =>
+          vehicleResearchIdentity(item.vehicle).makeModel ===
+          selectedVehicleIdentity.makeModel,
+      )
+    : [];
+  const groupConfiguration = vehicleConfigurations[0] ?? configuration;
+  const researchGroupId = groupConfiguration?.id ?? configurationId;
+  const researchTargets = Array.from(
+    new Map(
+      vehicleConfigurations
+        .flatMap((vehicleConfiguration) =>
+          PRODUCT_TYPES.map((productType) => {
+            const allowedOptionNames = new Set(
+              vehicleOptionKeys
+                .filter((key) => key.productTypeId === productType.id)
+                .map((key) => key.name),
+            );
+            const options = vehicleConfiguration.options.filter(([key]) =>
+              allowedOptionNames.has(key),
+            );
+            return {
+              id: `${vehicleConfiguration.id}:${productType.id}`,
+              configurationId: vehicleConfiguration.id,
+              productTypeId: productType.id,
+              productLabel: productType.product,
+              options,
+            } satisfies ResearchAssetTarget;
+          }),
+        )
+        .map((target) => [
+          `${target.productTypeId}:${JSON.stringify(target.options)}`,
+          target,
+        ] as const),
+    ).values(),
+  );
+  const researchTargetGroups = PRODUCT_TYPES.map((productType) => ({
+    ...productType,
+    rows: researchTargets.filter(
+      (target) => target.productTypeId === productType.id,
+    ),
+  })).filter((group) => group.rows.length > 0);
   const details = useRdRecords(
     RESEARCH_DETAIL_KEY,
     researchDetailListSchema,
@@ -76,50 +94,107 @@ export function VehicleResearchDetailPage() {
     RESEARCH_COMMENT_SEED,
   );
   const history = details.records.filter(
-    (item) => item.configurationId === configurationId,
+    (item) => item.configurationId === researchGroupId,
   );
   const latest = history.slice(-1).pop();
-  const [researchStatus, setResearchStatus] = useState(
-    latest?.researchStatus ??
-      (configuration?.researchStatus === 'COMPLETE'
-        ? 'COMPLETE'
-        : 'RESEARCHING'),
-  );
-  const [projectDisposition, setProjectDisposition] = useState(
-    latest?.projectDisposition ?? 'PENDING',
-  );
-  const [holdReason, setHoldReason] = useState(latest?.holdReason ?? '');
-  const [generation, setGeneration] = useState(latest?.generation ?? '');
-  const [overview, setOverview] = useState(latest?.overview ?? '');
-  const [modelYears, setModelYears] = useState(latest?.modelYears ?? '');
-  const [trimLevels, setTrimLevels] = useState(latest?.trimLevels ?? '');
-  const [frontSeats, setFrontSeats] = useState(latest?.frontSeats ?? '');
-  const [secondRow, setSecondRow] = useState(latest?.secondRow ?? '');
-  const [thirdRow, setThirdRow] = useState(latest?.thirdRow ?? '');
-  const [optionalFeatures, setOptionalFeatures] = useState(
-    latest?.optionalFeatures ?? '',
-  );
   const [materials, setMaterials] = useState<readonly ResearchMaterial[]>(
-    latest?.materials.length ? latest.materials : [newResearchMaterial()],
+    latest?.materials ?? [],
   );
   const [comment, setComment] = useState('');
   const [message, setMessage] = useState('');
-  const [tagDrafts, setTagDrafts] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      (latest?.materials ?? []).map((item) => [item.id, item.tags.join(', ')]),
-    ),
-  );
+  const [productRowQuery, setProductRowQuery] = useState('');
+  const [assetQuery, setAssetQuery] = useState('');
+  const [assetPagination, setAssetPagination] = useState({
+    pageIndex: 0,
+    pageSize: 5,
+  });
+  const [assetPageItems, setAssetPageItems] = useState<
+    readonly ResearchMaterial[]
+  >([]);
+  const [assetPageLoading, setAssetPageLoading] = useState(false);
+  const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
+  const [editingTargetId, setEditingTargetId] = useState('');
+  const visibleResearchTargetGroups = researchTargetGroups
+    .map((group) => ({
+      ...group,
+      rows: group.rows
+        .map((target, index) => ({
+          ...target,
+          configurationNumber: index + 1,
+        }))
+        .filter((target) =>
+          [
+            group.product,
+            `Configuration ${String(target.configurationNumber)}`,
+            ...target.options.flatMap(([key, value]) => [key, value]),
+          ]
+            .join(' ')
+            .toLowerCase()
+            .includes(productRowQuery.trim().toLowerCase()),
+        ),
+    }))
+    .filter((group) => group.rows.length > 0);
+  const filteredMaterials = useMemo(() => {
+    const query = assetQuery.trim().toLowerCase();
+    if (!query) return materials;
+    return materials.filter((material) => {
+      const productLabel =
+        PRODUCT_TYPES.find((item) => item.id === material.productTypeId)
+          ?.product ?? '';
+      return [
+        material.title,
+        material.fileName,
+        productLabel,
+        ...material.tags,
+        ...material.optionSelections.flatMap(([key, value]) => [key, value]),
+      ]
+        .join(' ')
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [assetQuery, materials]);
+
+  useEffect(() => {
+    const lastPageIndex = Math.max(
+      0,
+      Math.ceil(filteredMaterials.length / assetPagination.pageSize) - 1,
+    );
+    if (assetPagination.pageIndex > lastPageIndex) {
+      setAssetPagination((current) => ({
+        ...current,
+        pageIndex: lastPageIndex,
+      }));
+      return;
+    }
+
+    setAssetPageLoading(true);
+    const timeout = window.setTimeout(() => {
+      const start = assetPagination.pageIndex * assetPagination.pageSize;
+      setAssetPageItems(
+        filteredMaterials.slice(start, start + assetPagination.pageSize),
+      );
+      setAssetPageLoading(false);
+    }, 180);
+
+    return () => window.clearTimeout(timeout);
+  }, [assetPagination.pageIndex, assetPagination.pageSize, filteredMaterials]);
+
+  useEffect(() => {
+    setAssetPagination((current) =>
+      current.pageIndex === 0 ? current : { ...current, pageIndex: 0 },
+    );
+  }, [assetQuery]);
 
   const activity = useMemo<readonly ActivityEntry[]>(
     () => [
       ...history.map((item) => ({
         id: `history-${item.id}`,
         type: 'SYSTEM_LOG' as const,
-        message: `Research saved · ${item.researchStatus} · Project ${item.projectDisposition}`,
+        message: `${String(item.materials.length)} research assets saved`,
         createdAt: item.at,
       })),
       ...comments.records
-        .filter((item) => item.configurationId === configurationId)
+        .filter((item) => item.configurationId === researchGroupId)
         .map((item) => ({
           id: item.id,
           type: 'USER_COMMENT' as const,
@@ -128,109 +203,89 @@ export function VehicleResearchDetailPage() {
           createdAt: item.createdAt,
         })),
     ],
-    [comments.records, configurationId, history],
+    [comments.records, history, researchGroupId],
   );
 
-  if (!configuration) {
+  if (!configuration || !groupConfiguration) {
     return (
       <section className="research-detail-missing">
         <h1>Research record not found</h1>
-        <Button
-          onClick={() => {
-            void navigate('/vehicle-research');
-          }}
-        >
+        <Button onClick={() => void navigate('/vehicle-research')}>
           Back to Vehicle Research
         </Button>
       </section>
     );
   }
 
-  function updateMaterial(id: string, patch: Partial<ResearchMaterial>) {
-    setMaterials((current) =>
-      current.map((item) => (item.id === id ? { ...item, ...patch } : item)),
-    );
-  }
-
-  function toggleTag(id: string, tag: string) {
-    const item = materials.find((entry) => entry.id === id);
-    if (!item) return;
-    const nextTags = item.tags.includes(tag)
-      ? item.tags.filter((value) => value !== tag)
-      : [...item.tags, tag];
-    updateMaterial(id, { tags: nextTags });
-    setTagDrafts((current) => ({
-      ...current,
-      [id]: nextTags.join(', '),
-    }));
-  }
-
-  function readMaterialFile(id: string, file?: File) {
-    if (!file) return;
-    if (
-      !['image/png', 'image/jpeg', 'image/webp'].includes(file.type) ||
-      file.size > 1024 * 1024
-    ) {
-      setMessage('Select a PNG, JPEG, or WebP image up to 1 MB.');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result !== 'string') return;
-      updateMaterial(id, {
-        fileData: reader.result,
-        fileName: file.name,
-        fileType: file.type,
-      });
-      setMessage('Asset added. Save research to register it.');
+  function assignMaterialToTarget(
+    material: ResearchMaterial,
+    targetId: string,
+  ): ResearchMaterial {
+    const target = researchTargets.find((item) => item.id === targetId);
+    if (!target) return material;
+    return {
+      ...material,
+      researchRowId: target.id,
+      targetConfigurationId: target.configurationId,
+      productTypeId: target.productTypeId,
+      optionSelections: target.options.map(
+        ([key, value]) => [key, value] as [string, string],
+      ),
     };
-    reader.onerror = () => setMessage('Unable to read the asset file.');
-    reader.readAsDataURL(file);
   }
 
-  async function saveResearch() {
+  async function saveAssets(
+    nextMaterials: readonly ResearchMaterial[] = materials,
+  ): Promise<boolean> {
     const parsed = researchDetailSchema.safeParse({
       id: crypto.randomUUID(),
-      configurationId,
-      researchStatus,
-      projectDisposition,
-      holdReason,
-      generation,
-      overview,
-      modelYears,
-      trimLevels,
-      frontSeats,
-      secondRow,
-      thirdRow,
-      optionalFeatures,
-      materials,
+      configurationId: researchGroupId,
+      researchStatus:
+        latest?.researchStatus ??
+        (configuration?.researchStatus === 'COMPLETE'
+          ? 'COMPLETE'
+          : 'RESEARCHING'),
+      projectDisposition: latest?.projectDisposition ?? 'PENDING',
+      holdReason: latest?.holdReason ?? '',
+      generation: latest?.generation ?? '',
+      overview: latest?.overview ?? '',
+      modelYears: latest?.modelYears ?? '',
+      trimLevels: latest?.trimLevels ?? '',
+      frontSeats: latest?.frontSeats ?? '',
+      secondRow: latest?.secondRow ?? '',
+      thirdRow: latest?.thirdRow ?? '',
+      optionalFeatures: latest?.optionalFeatures ?? '',
+      materials: nextMaterials,
       actor: actor.name,
       at: new Date().toISOString(),
     });
     if (!parsed.success) {
       setMessage(parsed.error.issues.map((issue) => issue.message).join(' / '));
-      return;
-    }
-    if (projectDisposition === 'HOLD' && !holdReason.trim()) {
-      setMessage('Add a reason before placing project conversion on hold.');
-      return;
+      return false;
     }
     const ok = await details.save((current) => [...current, parsed.data]);
-    if (!ok) return;
-    setConfigurations((current) =>
-      current.map((item) =>
-        item.id === configurationId
-          ? {
-              ...item,
-              researchStatus:
-                researchStatus === 'COMPLETE' ? 'COMPLETE' : 'RESEARCHING',
-            }
-          : item,
-      ),
+    if (ok) setMessage('Research assets saved.');
+    return ok;
+  }
+
+  async function saveAssetConfiguration(assetId: string) {
+    if (!editingTargetId) return;
+    const nextMaterials = materials.map((material) =>
+      material.id === assetId
+        ? assignMaterialToTarget(material, editingTargetId)
+        : material,
     );
-    setMessage(
-      'Vehicle research saved. The decision was added to the timeline.',
-    );
+    const saved = await saveAssets(nextMaterials);
+    if (!saved) return;
+    setMaterials(nextMaterials);
+    setEditingAssetId(null);
+    setEditingTargetId('');
+  }
+
+  async function removeAsset(assetId: string) {
+    const nextMaterials = materials.filter((item) => item.id !== assetId);
+    const saved = await saveAssets(nextMaterials);
+    if (saved) setMaterials(nextMaterials);
   }
 
   async function addComment() {
@@ -240,7 +295,7 @@ export function VehicleResearchDetailPage() {
       ...current,
       {
         id: crypto.randomUUID(),
-        configurationId,
+        configurationId: researchGroupId,
         message: value,
         author: actor.name,
         createdAt: new Date().toISOString(),
@@ -249,361 +304,314 @@ export function VehicleResearchDetailPage() {
     if (ok) setComment('');
   }
 
+  function resolveMaterialTarget(material: ResearchMaterial) {
+    const savedTarget = researchTargets.find(
+      (target) => target.id === material.researchRowId,
+    );
+    if (savedTarget) return savedTarget;
+
+    return researchTargets.find(
+      (target) =>
+        target.productTypeId === material.productTypeId &&
+        material.optionSelections.every(([key, value]) =>
+          target.options.some(
+            ([targetKey, targetValue]) =>
+              targetKey === key && targetValue === value,
+          ),
+        ),
+    );
+  }
+
+  function targetLabel(target: ResearchAssetTarget | undefined) {
+    if (!target) return 'Configuration not selected';
+    const group = researchTargetGroups.find(
+      (item) => item.id === target.productTypeId,
+    );
+    const index = group?.rows.findIndex((item) => item.id === target.id) ?? -1;
+    return `${target.productLabel} · Configuration ${String(index + 1)}`;
+  }
+
   return (
     <section className="research-detail-page">
       <Button
         className="research-back-button"
         variant="ghost"
-        onClick={() => {
-          void navigate('/vehicle-research');
-        }}
+        onClick={() => void navigate('/vehicle-research')}
       >
         <ArrowLeft /> Vehicle Research
       </Button>
+
       <header className="research-detail-header">
         <div className="research-detail-title-row">
           <div>
             <p>VEHICLE RESEARCH</p>
-            <h1>{configuration.vehicle}</h1>
-            <ConfigChips options={configuration.options} />
-          </div>
-          <div className="research-detail-badges">
-            <StatusBadge
-              label={researchStatus}
-              tone={researchStatus === 'COMPLETE' ? 'success' : 'progress'}
-            />
-            <StatusBadge
-              label={`PROJECT ${projectDisposition}`}
-              tone={
-                projectDisposition === 'PUSH'
-                  ? 'success'
-                  : projectDisposition === 'HOLD'
-                    ? 'warning'
-                    : 'neutral'
-              }
-            />
+            <h1>{selectedVehicleIdentity.makeModel}</h1>
+            <span className="research-group-summary">
+              {researchTargets.length} product research rows ·{' '}
+              {vehicleConfigurations.length} vehicle configurations
+            </span>
           </div>
         </div>
       </header>
 
       <div className="research-detail-layout">
         <main className="research-detail-main">
-          <section className="research-detail-card decision-card">
+          <section className="research-detail-card research-row-card">
             <div className="section-heading">
               <div>
-                <span>01</span>
-                <h2>Research & project decision</h2>
+                <h2>Product research rows</h2>
               </div>
-              <p>
-                Research completion and project conversion are managed
-                separately.
+              <p>Each uploaded image is mapped to one row.</p>
+            </div>
+            <label className="research-section-search">
+              <Search aria-hidden="true" />
+              <input
+                type="search"
+                value={productRowQuery}
+                onChange={(event) => setProductRowQuery(event.target.value)}
+                placeholder="Search product, configuration, or option"
+                aria-label="Search product research rows"
+              />
+            </label>
+            <div className="research-product-groups">
+              {visibleResearchTargetGroups.map((group) => (
+                <section
+                  className={`research-product-group research-product-group-${group.id.toLowerCase()}`}
+                  key={group.id}
+                >
+                  <header>
+                    <div>
+                      <span className="research-product-mark" aria-hidden="true">
+                        {group.product
+                          .split(' ')
+                          .map((word) => word[0])
+                          .join('')}
+                      </span>
+                      <strong>{group.product}</strong>
+                    </div>
+                    <span>{group.rows.length} rows</span>
+                  </header>
+                  <div className="research-product-row-list">
+                    {group.rows.map((target) => (
+                      <article key={target.id}>
+                        <div className="research-product-row-title">
+                          <strong>
+                            Configuration {target.configurationNumber}
+                          </strong>
+                          <span>{target.options.length} options</span>
+                        </div>
+                        {target.options.length ? (
+                          <div className="research-option-chips">
+                            {target.options.map(([key, value]) => (
+                              <span key={`${key}-${value}`}>
+                                <small>{key}</small>
+                                <strong>{value}</strong>
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="research-base-vehicle">
+                            Base vehicle
+                          </span>
+                        )}
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+            {visibleResearchTargetGroups.length === 0 && (
+              <p className="research-search-empty">
+                No product research rows match “{productRowQuery}”.
               </p>
-            </div>
-            <div className="research-field-grid">
-              <label>
-                Research status
-                <select
-                  value={researchStatus}
-                  onChange={(e) => {
-                    setResearchStatus(
-                      researchStatusSchema.parse(e.target.value),
-                    );
-                  }}
-                >
-                  <option value="DRAFT">Draft</option>
-                  <option value="RESEARCHING">In progress</option>
-                  <option value="COMPLETE">Complete</option>
-                </select>
-              </label>
-              <label>
-                Project conversion
-                <select
-                  value={projectDisposition}
-                  onChange={(e) => {
-                    setProjectDisposition(
-                      projectDispositionSchema.parse(e.target.value),
-                    );
-                  }}
-                >
-                  <option value="PENDING">Pending decision</option>
-                  <option value="PUSH">Push to development</option>
-                  <option value="HOLD">Hold</option>
-                </select>
-              </label>
-            </div>
-            {projectDisposition === 'HOLD' && (
-              <label>
-                Hold reason
-                <textarea
-                  rows={3}
-                  value={holdReason}
-                  onChange={(e) => {
-                    setHoldReason(e.target.value);
-                  }}
-                  placeholder="Demand, factory capacity, missing evidence, or another reason"
-                />
-              </label>
             )}
           </section>
 
-          <section className="research-detail-card">
+          <section className="research-detail-card research-assets-card">
             <div className="section-heading">
               <div>
-                <span>02</span>
-                <h2>Vehicle overview</h2>
+                <h2>Research assets</h2>
               </div>
-              <p>Structured from the vehicle research reference document.</p>
-            </div>
-            <div className="research-field-grid">
-              <label>
-                Generation
-                <Input
-                  value={generation}
-                  onChange={(e) => {
-                    setGeneration(e.target.value);
+              <div className="research-assets-heading-actions">
+                <p>{materials.length} images</p>
+                <ResearchAssetUploader
+                  configuration={groupConfiguration}
+                  vehicleLabel={selectedVehicleIdentity.makeModel}
+                  targets={researchTargets}
+                  onSaveMaterials={async (uploaded) => {
+                    const nextMaterials = [...materials, ...uploaded].slice(-50);
+                    const saved = await saveAssets(nextMaterials);
+                    if (saved) setMaterials(nextMaterials);
+                    return saved;
                   }}
-                  placeholder="Example: Third Generation"
                 />
-              </label>
-              <label>
-                Applicable model years
-                <Input
-                  value={modelYears}
-                  onChange={(e) => {
-                    setModelYears(e.target.value);
-                  }}
-                  placeholder="Example: 2025–2026+"
-                />
-              </label>
-            </div>
-            <label>
-              Overview
-              <textarea
-                rows={5}
-                value={overview}
-                onChange={(e) => {
-                  setOverview(e.target.value);
-                }}
-                placeholder="Platform, body structure, powertrain, refreshes, and important changes"
-              />
-            </label>
-            <label>
-              Trim levels
-              <textarea
-                rows={4}
-                value={trimLevels}
-                onChange={(e) => {
-                  setTrimLevels(e.target.value);
-                }}
-                placeholder="Trim names, year ranges, upholstery, and meaningful differences"
-              />
-            </label>
-          </section>
-
-          <section className="research-detail-card">
-            <div className="section-heading">
-              <div>
-                <span>03</span>
-                <h2>Seating & option matrix</h2>
               </div>
-              <p>
-                Record product-affecting ranges independently, even within one
-                generation.
-              </p>
             </div>
-            <label>
-              Front seating
-              <textarea
-                rows={3}
-                value={frontSeats}
-                onChange={(e) => {
-                  setFrontSeats(e.target.value);
-                }}
-              />
-            </label>
-            <label>
-              Second-row configurations
-              <textarea
-                rows={3}
-                value={secondRow}
-                onChange={(e) => {
-                  setSecondRow(e.target.value);
-                }}
-              />
-            </label>
-            <label>
-              Third-row configurations
-              <textarea
-                rows={3}
-                value={thirdRow}
-                onChange={(e) => {
-                  setThirdRow(e.target.value);
-                }}
-              />
-            </label>
-            <label>
-              Optional features / add-ons
-              <textarea
-                rows={3}
-                value={optionalFeatures}
-                onChange={(e) => {
-                  setOptionalFeatures(e.target.value);
-                }}
-              />
-            </label>
-          </section>
 
-          <section className="research-detail-card">
-            <div className="section-heading material-heading">
-              <div>
-                <span>04</span>
-                <h2>Research evidence</h2>
-              </div>
-              <Button
-                variant="dashed"
-                onClick={() => {
-                  setMaterials((current) => [
-                    ...current,
-                    newResearchMaterial(),
-                  ]);
-                }}
-              >
-                <Plus /> Add evidence
-              </Button>
-            </div>
-            <p className="section-help">
-              One source can carry multiple year, product, seat-position, and
-              vehicle-feature tags.
-            </p>
-            <div className="material-list">
-              {materials.map((item, index) => (
-                <article className="material-card" key={item.id}>
-                  <header>
-                    <strong>Evidence {index + 1}</strong>
-                    <Button
-                      mode="icon"
-                      variant="ghost"
-                      disabled={materials.length === 1}
-                      onClick={() => {
-                        setMaterials((current) =>
-                          current.filter((entry) => entry.id !== item.id),
-                        );
-                      }}
-                    >
-                      <Trash2 />
-                    </Button>
-                  </header>
-                  <label>
-                    Title
-                    <Input
-                      value={item.title}
-                      onChange={(e) => {
-                        updateMaterial(item.id, { title: e.target.value });
-                      }}
-                      placeholder="Example: 2025 Avenir second-row captain chair"
-                    />
-                  </label>
-                  <label>
-                    Source URL
-                    <div className="input-with-icon">
-                      <Link2 />
-                      <Input
-                        type="url"
-                        value={item.sourceUrl}
-                        onChange={(e) => {
-                          updateMaterial(item.id, {
-                            sourceUrl: e.target.value,
-                          });
-                        }}
-                        placeholder="https://..."
-                      />
+            <label className="research-section-search">
+              <Search aria-hidden="true" />
+              <input
+                type="search"
+                value={assetQuery}
+                onChange={(event) => setAssetQuery(event.target.value)}
+                placeholder="Search filename, product, configuration, or tag"
+                aria-label="Search research assets"
+              />
+            </label>
+
+            {materials.length > 0 && (
+              <>
+                <div
+                  className="research-asset-mapping-grid"
+                  aria-busy={assetPageLoading}
+                >
+                  {assetPageLoading
+                    ? Array.from(
+                        {
+                          length: Math.min(
+                            assetPagination.pageSize,
+                            filteredMaterials.length,
+                          ),
+                        },
+                        (_, index) => (
+                          <article
+                            className="research-asset-loading-card"
+                            key={`asset-loading-${String(index)}`}
+                            aria-hidden="true"
+                          >
+                            <div />
+                            <span />
+                            <span />
+                            <span />
+                          </article>
+                        ),
+                      )
+                    : assetPageItems.map((item) => {
+                        const selectedTarget = resolveMaterialTarget(item);
+                        return (
+                  <article key={item.id}>
+                    <div className="research-asset-mapping-preview">
+                      {item.fileData ? (
+                        <img src={item.fileData} alt={item.fileName || item.title} />
+                      ) : (
+                        <span>LINK</span>
+                      )}
                     </div>
-                  </label>
-                  <label className="research-material-upload">
-                    <ImagePlus aria-hidden="true" />
-                    <span>{item.fileName || 'Add asset file'}</span>
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      onChange={(event) => {
-                        readMaterialFile(item.id, event.target.files?.[0]);
-                      }}
-                    />
-                  </label>
-                  {item.fileData && (
-                    <div className="research-material-preview">
-                      <img src={item.fileData} alt={item.fileName} />
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          updateMaterial(item.id, {
-                            fileData: '',
-                            fileName: '',
-                            fileType: '',
-                          });
-                        }}
-                      >
-                        Remove file
-                      </Button>
-                    </div>
-                  )}
-                  <label>
-                    Evidence notes
-                    <textarea
-                      rows={3}
-                      value={item.notes}
-                      onChange={(e) => {
-                        updateMaterial(item.id, { notes: e.target.value });
-                      }}
-                      placeholder="What this source confirms and any uncertainty"
-                    />
-                  </label>
-                  <fieldset>
-                    <legend>Tags</legend>
-                    <Input
-                      aria-label={`Evidence ${String(index + 1)} custom tags`}
-                      value={tagDrafts[item.id] ?? item.tags.join(', ')}
-                      placeholder="Add tags separated by commas"
-                      onChange={(event) => {
-                        const value = event.target.value;
-                        setTagDrafts((current) => ({
-                          ...current,
-                          [item.id]: value,
-                        }));
-                        updateMaterial(item.id, { tags: parseTags(value) });
-                      }}
-                    />
-                    <div className="tag-picker">
-                      {TAG_SUGGESTIONS.map((tag) => (
-                        <button
-                          type="button"
-                          className={item.tags.includes(tag) ? 'selected' : ''}
-                          key={tag}
-                          onClick={() => {
-                            toggleTag(item.id, tag);
-                          }}
+                    <div className="research-asset-mapping-body">
+                      <strong title={item.fileName || item.title}>
+                        {item.fileName || item.title}
+                      </strong>
+                      <div className="research-asset-assignment">
+                        <span>{targetLabel(selectedTarget)}</span>
+                        {item.tags.length > 0 ? (
+                          <div className="research-asset-tag-list">
+                            {item.tags.map((tag) => (
+                              <span key={tag}>{tag}</span>
+                            ))}
+                          </div>
+                        ) : (
+                          <small>No tags</small>
+                        )}
+                      </div>
+                      {editingAssetId === item.id && (
+                        <label>
+                          Configuration
+                          <select
+                            value={editingTargetId}
+                            onChange={(event) =>
+                              setEditingTargetId(event.target.value)
+                            }
+                          >
+                            <option value="" disabled>
+                              Select product and options
+                            </option>
+                            {researchTargetGroups.map((group) => (
+                              <optgroup key={group.id} label={group.product}>
+                                {group.rows.map((target, index) => (
+                                  <option key={target.id} value={target.id}>
+                                    Configuration {index + 1} ·{' '}
+                                    {target.options.length
+                                      ? target.options
+                                          .map(
+                                            ([key, value]) =>
+                                              `${key}: ${value}`,
+                                          )
+                                          .join(' / ')
+                                      : 'Base vehicle'}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ))}
+                          </select>
+                        </label>
+                      )}
+                      <div className="research-asset-card-actions">
+                        {editingAssetId === item.id ? (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingAssetId(null);
+                                setEditingTargetId('');
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              disabled={!editingTargetId || details.saving}
+                              onClick={() =>
+                                void saveAssetConfiguration(item.id)
+                              }
+                            >
+                              <Save /> Save
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingAssetId(item.id);
+                              setEditingTargetId(selectedTarget?.id ?? '');
+                            }}
+                          >
+                            <Pencil /> Edit
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={details.saving}
+                          onClick={() => void removeAsset(item.id)}
                         >
-                          {tag}
-                        </button>
-                      ))}
+                          <Trash2 /> Remove
+                        </Button>
+                      </div>
                     </div>
-                  </fieldset>
-                </article>
-              ))}
-            </div>
+                  </article>
+                        );
+                      })}
+                </div>
+                {!assetPageLoading && filteredMaterials.length === 0 && (
+                  <p className="research-search-empty">
+                    No assets match “{assetQuery}”.
+                  </p>
+                )}
+                <WorkbenchPagination
+                  recordCount={filteredMaterials.length}
+                  pagination={assetPagination}
+                  onPaginationChange={setAssetPagination}
+                  itemLabel="assets"
+                />
+                <p className="research-asset-status" role="status">
+                  {message || details.error}
+                </p>
+              </>
+            )}
           </section>
-
-          <div className="research-save-bar">
-            <p role="status">{message || details.error}</p>
-            <Button
-              variant="primary"
-              disabled={details.saving}
-              onClick={() => void saveResearch()}
-            >
-              <Save /> Save research
-            </Button>
-          </div>
         </main>
 
         <aside className="research-activity-column">
@@ -616,7 +624,6 @@ export function VehicleResearchDetailPage() {
               <UserAvatar
                 user={{
                   id: actor.id,
-                  // Initials come from the name; drop the "(Demo)" suffix.
                   name: actor.name.replace(/\s*\(.*\)$/, ''),
                 }}
                 size="md"
@@ -625,9 +632,7 @@ export function VehicleResearchDetailPage() {
                 aria-label="Leave a comment"
                 rows={2}
                 value={comment}
-                onChange={(e) => {
-                  setComment(e.target.value);
-                }}
+                onChange={(event) => setComment(event.target.value)}
                 placeholder="Leave a comment..."
               />
               <Button
