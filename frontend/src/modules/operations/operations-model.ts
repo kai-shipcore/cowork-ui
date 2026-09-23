@@ -16,6 +16,10 @@ export type TeamId = (typeof TEAM_IDS)[number];
 export const PEOPLE = [
   { id: 'USR-KAI', name: 'Kai (Demo)', team: 'rd', role: 'lead' },
   { id: 'rd-member', name: 'R&D Member (Demo)', team: 'rd', role: 'member' },
+  // Workbench app users, so approval routes can be walked as each approver.
+  { id: 'USR-JH', name: 'JH (Demo)', team: 'rd', role: 'member' },
+  { id: 'USR-YOUNG', name: 'Young (Demo)', team: 'rd', role: 'member' },
+  { id: 'USR-CHRISTIAN', name: 'Christian (Demo)', team: 'rd', role: 'member' },
   {
     id: 'planning-lead',
     name: 'Planning Reviewer (Demo)',
