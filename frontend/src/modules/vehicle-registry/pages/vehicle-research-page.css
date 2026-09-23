@@ -10,3 +10,8 @@
 .vehicle-research-grid [data-column-id='evidence'] button {
   white-space: nowrap;
 }
+
+.vehicle-research-surface {
+  min-width: 0;
+  overflow: hidden;
+}
