@@ -3,6 +3,11 @@
   gap: 20px;
   padding-bottom: 40px;
 }
+.research-back-button {
+  justify-self: start;
+  margin: -4px 0 -6px -10px;
+  color: var(--wb-ink-soft);
+}
 .research-detail-header {
   display: grid;
   gap: 16px;

@@ -17,7 +17,9 @@ import {
   newResearchMaterial,
   projectDispositionSchema,
   RESEARCH_COMMENT_KEY,
+  RESEARCH_COMMENT_SEED,
   RESEARCH_DETAIL_KEY,
+  RESEARCH_DETAIL_SEED,
   researchCommentListSchema,
   researchDetailListSchema,
   researchDetailSchema,
@@ -55,12 +57,12 @@ export function VehicleResearchDetailPage() {
   const details = useRdRecords(
     RESEARCH_DETAIL_KEY,
     researchDetailListSchema,
-    [],
+    RESEARCH_DETAIL_SEED,
   );
   const comments = useRdRecords(
     RESEARCH_COMMENT_KEY,
     researchCommentListSchema,
-    [],
+    RESEARCH_COMMENT_SEED,
   );
   const history = details.records.filter(
     (item) => item.configurationId === configurationId,
@@ -207,15 +209,16 @@ export function VehicleResearchDetailPage() {
 
   return (
     <section className="research-detail-page">
+      <Button
+        className="research-back-button"
+        variant="ghost"
+        onClick={() => {
+          void navigate('/vehicle-research');
+        }}
+      >
+        <ArrowLeft /> Vehicle Research
+      </Button>
       <header className="research-detail-header">
-        <Button
-          variant="ghost"
-          onClick={() => {
-            void navigate('/vehicle-research');
-          }}
-        >
-          <ArrowLeft /> Vehicle Research
-        </Button>
         <div className="research-detail-title-row">
           <div>
             <p>VEHICLE RESEARCH</p>
@@ -526,7 +529,14 @@ export function VehicleResearchDetailPage() {
           >
             <h2 id="research-timeline-title">Timeline</h2>
             <div className="comment-composer">
-              <UserAvatar user={actor} size="md" />
+              <UserAvatar
+                user={{
+                  id: actor.id,
+                  // Initials come from the name; drop the "(Demo)" suffix.
+                  name: actor.name.replace(/\s*\(.*\)$/, ''),
+                }}
+                size="md"
+              />
               <textarea
                 aria-label="Leave a comment"
                 rows={2}
