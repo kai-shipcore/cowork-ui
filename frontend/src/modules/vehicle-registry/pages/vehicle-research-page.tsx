@@ -67,7 +67,7 @@ const INITIAL_CRITERIA: readonly ConfigurationCriterion[] = [
 /** Vehicle and option-combination research registry. */
 export function VehicleResearchPage() {
   const navigate = useNavigate();
-  const [viewParams, setViewParams] = useSearchParams();
+  const [viewParams] = useSearchParams();
   const researchView =
     viewParams.get('view') === 'assets' ? 'assets' : 'registry';
   const { records: researchDetails } = useRdRecords(
@@ -433,15 +433,16 @@ export function VehicleResearchPage() {
 
       <Card className="vehicle-research-surface">
         <ContentTabs
+          key={researchView}
           label="Vehicle research view"
           value={researchView}
           onValueChange={(value) => {
-            setViewParams((current) => {
-              const next = new URLSearchParams(current);
-              if (value === 'assets') next.set('view', 'assets');
-              else next.delete('view');
-              return next;
-            });
+            void navigate(
+              value === 'assets'
+                ? `${ROUTES.vehicleResearch}?view=assets`
+                : ROUTES.vehicleResearch,
+              { replace: true },
+            );
           }}
           items={[
             { value: 'registry', label: 'Research Registry', icon: <List /> },
