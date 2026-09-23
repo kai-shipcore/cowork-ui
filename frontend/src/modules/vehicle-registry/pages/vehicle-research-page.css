@@ -2,20 +2,3 @@
   overflow-x: auto;
   overscroll-behavior-inline: contain;
 }
-
-.research-detail-link {
-  display: grid;
-  width: 100%;
-  gap: 6px;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.research-detail-link > span:last-child {
-  color: var(--primary);
-  font-size: 12px;
-  font-weight: 600;
-}

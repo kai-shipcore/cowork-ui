@@ -244,20 +244,7 @@ export function VehicleResearchPage() {
         configuration.options
           .map(([name, value]) => `${name}: ${value}`)
           .join(' / '),
-      cell: (configuration) => (
-        <button
-          type="button"
-          className="research-detail-link"
-          onClick={() => {
-            void navigate(
-              `/vehicle-research/${encodeURIComponent(configuration.id)}`,
-            );
-          }}
-        >
-          <ConfigChips options={configuration.options} />
-          <span>Open research detail</span>
-        </button>
-      ),
+      cell: (configuration) => <ConfigChips options={configuration.options} />,
     },
     {
       id: 'status',
@@ -427,6 +414,15 @@ export function VehicleResearchPage() {
         columns={columns}
         groups={groups}
         getRowId={(configuration) => configuration.id}
+        onRowClick={(configuration) => {
+          // React Router handles route errors; the click does not await navigation.
+          void navigate(
+            `/vehicle-research/${encodeURIComponent(configuration.id)}`,
+          );
+        }}
+        rowActionLabel={(configuration) =>
+          `${configuration.id} Open research detail`
+        }
         collapsedGroupIds={collapsedVehicles}
         onCollapsedGroupIdsChange={setCollapsedVehicles}
         sorting={{ mode: 'client' }}
