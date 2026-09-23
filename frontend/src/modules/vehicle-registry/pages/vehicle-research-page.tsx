@@ -29,7 +29,12 @@ import { PageHeader } from '@/shared/components/page-header';
 import { StatusBadge } from '@/shared/components/status-badge';
 import { useWorkbenchPagination } from '@/shared/components/workbench-pagination';
 import type { VehicleConfiguration } from '@/shared/types/workbench';
+import { useRdRecords } from '@/modules/rd-workspace/use-rd-records';
 import { useWorkbenchStore } from '@/app/workbench-store';
+import {
+  RESEARCH_DETAIL_KEY,
+  researchDetailListSchema,
+} from '../vehicle-research-detail-model';
 import { groupVehicleResearch } from '../vehicle-research-grid-model';
 import './vehicle-research-page.css';
 
@@ -55,6 +60,11 @@ const INITIAL_CRITERIA: readonly ConfigurationCriterion[] = [
 /** Vehicle and option-combination research registry. */
 export function VehicleResearchPage() {
   const navigate = useNavigate();
+  const { records: researchDetails } = useRdRecords(
+    RESEARCH_DETAIL_KEY,
+    researchDetailListSchema,
+    [],
+  );
   const {
     configurations,
     projects,
@@ -94,6 +104,9 @@ export function VehicleResearchPage() {
     useState<VehicleConfiguration>();
   const [criteria, setCriteria] =
     useState<readonly ConfigurationCriterion[]>(INITIAL_CRITERIA);
+  const latestResearchDetails = new Map(
+    researchDetails.map((detail) => [detail.configurationId, detail]),
+  );
 
   const searchedConfigurations = configurations.filter((configuration) => {
     const matchesQuery = configuration.vehicle
@@ -259,6 +272,37 @@ export function VehicleResearchPage() {
           }
         />
       ),
+    },
+    {
+      id: 'project-conversion',
+      header: 'Project conversion',
+      width: 180,
+      sortValue: (configuration) =>
+        latestResearchDetails.get(configuration.id)?.projectDisposition ??
+        'PENDING',
+      cell: (configuration) => {
+        const disposition =
+          latestResearchDetails.get(configuration.id)?.projectDisposition ??
+          'PENDING';
+        return (
+          <StatusBadge
+            label={
+              disposition === 'PUSH'
+                ? 'Push'
+                : disposition === 'HOLD'
+                  ? 'On Hold'
+                  : 'Not set'
+            }
+            tone={
+              disposition === 'PUSH'
+                ? 'success'
+                : disposition === 'HOLD'
+                  ? 'warning'
+                  : 'neutral'
+            }
+          />
+        );
+      },
     },
     {
       id: 'development',

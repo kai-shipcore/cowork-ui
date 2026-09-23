@@ -47,8 +47,7 @@
   gap: 18px;
   min-width: 0;
 }
-.research-detail-card,
-.comment-composer {
+.research-detail-card {
   display: grid;
   gap: 18px;
   padding: 22px;
@@ -84,7 +83,7 @@
   font-weight: 800;
 }
 .section-heading h2,
-.comment-composer h2 {
+.research-timeline > h2 {
   font-size: 15px;
   font-weight: 750;
 }
@@ -94,8 +93,7 @@
   color: var(--muted-foreground);
   font-size: 12px;
 }
-.research-detail-card label,
-.comment-composer {
+.research-detail-card label {
   color: var(--foreground);
   font-size: 12px;
   font-weight: 650;
@@ -105,8 +103,7 @@
   gap: 7px;
 }
 .research-detail-card textarea,
-.research-detail-card select,
-.comment-composer textarea {
+.research-detail-card select {
   width: 100%;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -118,8 +115,7 @@
   resize: vertical;
 }
 .research-detail-card textarea:focus-visible,
-.research-detail-card select:focus-visible,
-.comment-composer textarea:focus-visible {
+.research-detail-card select:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
@@ -215,16 +211,56 @@
   display: grid;
   gap: 16px;
 }
-.comment-composer h2 {
-  display: flex;
-  align-items: center;
+/* One timeline block: composer on top, feed underneath, no second card header. */
+.research-timeline {
+  display: grid;
   gap: 8px;
 }
-.comment-composer h2 svg {
-  width: 17px;
+.comment-composer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
 }
-.comment-composer button {
+.comment-composer:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 25%, transparent);
+}
+.comment-composer textarea {
+  width: 100%;
+  min-height: 40px;
+  border: 0;
+  padding: 8px 0;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  resize: none;
+}
+.comment-composer textarea:focus-visible {
+  /* The composer border carries the focus ring via :focus-within. */
+  outline: none;
+}
+.comment-composer > button {
+  grid-column: 2;
   justify-self: end;
+}
+.comment-visibility {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  text-align: end;
+}
+.research-timeline-feed {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.research-timeline-feed > header {
+  display: none;
 }
 .research-detail-missing {
   display: grid;

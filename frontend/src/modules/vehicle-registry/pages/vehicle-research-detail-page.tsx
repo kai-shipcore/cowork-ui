@@ -5,16 +5,10 @@ import {
 } from '@coverland-engineering/ui/activity/activity';
 import { Button } from '@coverland-engineering/ui/button';
 import { Input } from '@coverland-engineering/ui/input';
-import {
-  ArrowLeft,
-  Link2,
-  MessageSquare,
-  Plus,
-  Save,
-  Trash2,
-} from 'lucide-react';
+import { ArrowLeft, Link2, Plus, Save, Trash2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ConfigChips } from '@/shared/domain/config-chips';
+import { UserAvatar } from '@/shared/domain/user-picker';
 import { StatusBadge } from '@/shared/components/status-badge';
 import { useRdRecords } from '@/modules/rd-workspace/use-rd-records';
 import { useOperations } from '@/app/operations-store';
@@ -526,31 +520,41 @@ export function VehicleResearchDetailPage() {
         </main>
 
         <aside className="research-activity-column">
-          <div className="comment-composer">
-            <h2>
-              <MessageSquare /> Add comment
-            </h2>
-            <textarea
-              rows={4}
-              value={comment}
-              onChange={(e) => {
-                setComment(e.target.value);
-              }}
-              placeholder="Add a review note, question, or decision context"
+          <section
+            className="research-timeline"
+            aria-labelledby="research-timeline-title"
+          >
+            <h2 id="research-timeline-title">Timeline</h2>
+            <div className="comment-composer">
+              <UserAvatar user={actor} size="md" />
+              <textarea
+                aria-label="Leave a comment"
+                rows={2}
+                value={comment}
+                onChange={(e) => {
+                  setComment(e.target.value);
+                }}
+                placeholder="Leave a comment..."
+              />
+              <Button
+                size="sm"
+                disabled={!comment.trim() || comments.saving}
+                onClick={() => void addComment()}
+              >
+                Post
+              </Button>
+            </div>
+            <p className="comment-visibility">
+              Only you and other staff can see comments
+            </p>
+            <Activity
+              className="research-timeline-feed"
+              entries={activity}
+              title="Activity"
+              emptyMessage="No research activity yet."
+              systemAuthorLabel="Coverland System"
             />
-            <Button
-              disabled={!comment.trim() || comments.saving}
-              onClick={() => void addComment()}
-            >
-              Post comment
-            </Button>
-          </div>
-          <Activity
-            entries={activity}
-            title="Activity Timeline"
-            emptyMessage="No research activity yet."
-            systemAuthorLabel="Coverland System"
-          />
+          </section>
         </aside>
       </div>
     </section>
