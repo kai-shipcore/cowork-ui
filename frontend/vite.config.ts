@@ -13,7 +13,17 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  optimizeDeps: {
+    // Keep linked shared UI changes live during local development.
+    exclude: ['@coverland-engineering/ui/user-picker'],
+  },
   build: {
     chunkSizeWarningLimit: 3000,
+  },
+  server: {
+    // The backend (`pnpm --filter backend dev`) listens on 3100 by default.
+    proxy: {
+      '/api': 'http://127.0.0.1:3100',
+    },
   },
 });

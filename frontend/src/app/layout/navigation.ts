@@ -247,7 +247,7 @@ export const MENU_SIDEBAR_ADMIN: MenuConfig = [
         icon: UserCog,
       },
       {
-        title: 'Approval Flow Management',
+        title: 'Approval Workflows',
         path: ROUTES.adminApprovals,
         icon: ShieldCheck,
       },

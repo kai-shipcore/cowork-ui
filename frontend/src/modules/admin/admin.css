@@ -5,6 +5,11 @@
   gap: 18px;
 }
 
+/* Grid items default to min-width: auto, which would let a wide data grid push the card past the viewport. */
+.admin-page > * {
+  min-width: 0;
+}
+
 .admin-card {
   display: grid;
   gap: 14px;
@@ -54,15 +59,12 @@
   white-space: nowrap;
 }
 
-.admin-toolbar {
+.admin-header-actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px;
-}
-
-.admin-toolbar .search-field {
-  width: 260px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .admin-fields {
@@ -71,8 +73,7 @@
   gap: 14px;
 }
 
-.admin-fields label,
-.admin-inline-form label {
+.admin-fields label {
   display: grid;
   gap: 6px;
   font-size: 12px;
@@ -95,82 +96,60 @@
   font-size: 13px;
 }
 
-.admin-inline-form {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1.4fr) auto;
-  align-items: end;
-  gap: 12px;
-}
-
-.admin-table {
-  width: 100%;
-  border-collapse: collapse;
+.admin-form-error {
+  margin: 0;
+  color: var(--destructive);
   font-size: 12px;
 }
 
-.admin-table th,
-.admin-table td {
-  padding: 10px;
-  border-bottom: 1px solid var(--border);
-  text-align: left;
-  vertical-align: top;
+.admin-type-selector {
+  display: grid;
+  grid-template-columns: auto minmax(260px, 480px) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--muted) 35%, transparent);
 }
 
-.admin-table th {
-  color: var(--muted-foreground);
+.admin-type-selector__label {
+  font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
 }
 
-.admin-table td strong {
-  display: block;
-  font-size: 13px;
-}
-
-.admin-table td small {
+.admin-type-selector p {
+  margin: 0;
   color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
-.admin-table td.is-center {
-  text-align: center;
+.admin-type-selector--in-tabs {
+  margin: 14px 12px 0;
 }
 
-.admin-table input[type='checkbox'] {
+.admin-type-selector--compact {
+  grid-template-columns: minmax(240px, 1fr) auto;
+}
+
+.admin-type-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.admin-approval-tab {
+  margin-top: 0;
+  padding: 14px 12px 16px;
+}
+
+.admin-grant-checkbox {
   width: 15px;
   height: 15px;
   accent-color: var(--primary);
-}
-
-.admin-role-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.admin-chip {
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--card);
-  color: var(--foreground);
-  padding: 3px 10px;
-  font-size: 11px;
-  line-height: 1.4;
-  cursor: pointer;
-}
-
-.admin-chip:hover {
-  border-color: var(--primary);
-}
-
-.admin-chip[aria-pressed='true'] {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: var(--primary-foreground);
-}
-
-.admin-chip:disabled {
-  cursor: default;
-  opacity: 0.6;
 }
 
 .admin-actions {
@@ -183,24 +162,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
   gap: 12px;
-}
-
-.admin-stat {
-  display: grid;
-  gap: 4px;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--muted);
-}
-
-.admin-stat strong {
-  font-size: 20px;
-}
-
-.admin-stat span {
-  color: var(--muted-foreground);
-  font-size: 12px;
 }
 
 .admin-type-row {
@@ -221,7 +182,157 @@
 }
 
 @media (max-width: 900px) {
-  .admin-inline-form {
+  .admin-type-selector {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
+.admin-tab-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px 0 0;
+}
+
+.admin-permission-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.admin-permission-list legend {
+  padding: 0 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.admin-permission-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.admin-permission-option small {
+  display: block;
+  color: var(--muted-foreground);
+  font-weight: 400;
+}
+
+/* Edit/Delete icon pair in a grid's Actions column, centred under the header. */
+.admin-row-actions {
+  display: inline-flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.user-access-sheet {
+  display: grid;
+  gap: 24px;
+}
+
+.user-access-sheet h3,
+.user-access-sheet p {
+  margin: 0;
+}
+
+.user-access-sheet h3 {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.user-access-sheet p,
+.user-access-source {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.user-access-add {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--muted) 35%, transparent);
+}
+
+.user-access-add__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.user-access-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.user-access-list {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.user-access-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px 130px 32px;
+  gap: 10px;
+  align-items: center;
+  min-height: 58px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.user-access-row:last-child {
+  border-bottom: 0;
+}
+
+.user-access-row__name {
+  display: grid;
+  min-width: 0;
+}
+
+.user-access-row__name strong,
+.user-access-row__name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-access-row__name strong {
+  font-size: 13px;
+}
+
+.user-access-row__name span {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .user-access-add__fields,
+  .user-access-row {
     grid-template-columns: 1fr;
   }
+}
+
+/* The grid's default 200px search box is too small for name-and-code searches; widen it on the user management tabs. */
+.admin-user-management
+  [data-slot='flat-data-grid']
+  [data-slot='input-wrapper']:has([aria-label^='Search']) {
+  width: 320px;
+}
+
+.admin-grid-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
 }
