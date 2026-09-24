@@ -19,6 +19,11 @@ export const researchMaterialSchema = z.object({
   productTypeId: z
     .enum(['PT-SC', 'PT-CC', 'PT-FM', 'PT-SWC', 'PT-WS'])
     .default('PT-SC'),
+  productTypeIds: z
+    .array(z.enum(['PT-SC', 'PT-CC', 'PT-FM', 'PT-SWC', 'PT-WS']))
+    .max(5)
+    .default([]),
+  years: z.array(z.number().int().min(1900).max(2200)).max(30).default([]),
   optionSelections: z
     .array(
       z.tuple([
@@ -26,6 +31,21 @@ export const researchMaterialSchema = z.object({
         z.string().trim().min(1).max(200),
       ]),
     )
+    .max(30)
+    .default([]),
+  selectedOptionValues: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(300),
+        productTypeId: z.enum(['PT-SC', 'PT-CC', 'PT-FM', 'PT-SWC', 'PT-WS']),
+        key: z.string().trim().min(1).max(100),
+        value: z.string().trim().min(1).max(200),
+      }),
+    )
+    .max(30)
+    .default([]),
+  vehicleZoneIds: z
+    .array(z.string().trim().min(1).max(100))
     .max(30)
     .default([]),
   researchRowId: z.string().max(200).optional(),
@@ -98,7 +118,11 @@ export function newResearchMaterial(): ResearchMaterial {
     notes: '',
     tags: [],
     productTypeId: 'PT-SC',
+    productTypeIds: [],
+    years: [],
     optionSelections: [],
+    selectedOptionValues: [],
+    vehicleZoneIds: [],
     researchRowId: '',
     targetConfigurationId: '',
     fileData: '',
@@ -135,12 +159,16 @@ export const RESEARCH_DETAIL_SEED: readonly ResearchDetailRecord[] = [
         notes: 'Confirms bucket fronts and 60/40 bench; headrests removable.',
         tags: ['Seat Cover', 'Front seat', 'Second row', 'Hybrid'],
         productTypeId: 'PT-SC',
+        productTypeIds: ['PT-SC'],
+        years: [2024],
         optionSelections: [
           ['Powertrain', 'Hybrid'],
           ['Seats', '5 Seats'],
           ['Front Seat', 'Bucket'],
           ['2nd Row Seat', 'Bench'],
         ],
+        selectedOptionValues: [],
+        vehicleZoneIds: ['ZONE-SC-F', 'ZONE-SC-B'],
         fileData: '',
         fileName: '',
         fileType: '',
@@ -172,12 +200,16 @@ export const RESEARCH_DETAIL_SEED: readonly ResearchDetailRecord[] = [
         notes: 'Confirms bucket fronts and 60/40 bench; headrests removable.',
         tags: ['Seat Cover', 'Front seat', 'Second row', 'Hybrid'],
         productTypeId: 'PT-SC',
+        productTypeIds: ['PT-SC'],
+        years: [2024],
         optionSelections: [
           ['Powertrain', 'Hybrid'],
           ['Seats', '5 Seats'],
           ['Front Seat', 'Bucket'],
           ['2nd Row Seat', 'Bench'],
         ],
+        selectedOptionValues: [],
+        vehicleZoneIds: ['ZONE-SC-F', 'ZONE-SC-B'],
         fileData: '',
         fileName: '',
         fileType: '',
@@ -189,10 +221,14 @@ export const RESEARCH_DETAIL_SEED: readonly ResearchDetailRecord[] = [
         notes: 'Measured 2nd row bench width; no under-seat storage tray.',
         tags: ['Seat Cover', 'Second row', 'Bench'],
         productTypeId: 'PT-SC',
+        productTypeIds: ['PT-SC'],
+        years: [2025],
         optionSelections: [
           ['2nd Row Seat', 'Bench'],
           ['Under-seat Storage', 'No Storage'],
         ],
+        selectedOptionValues: [],
+        vehicleZoneIds: ['ZONE-SC-B'],
         fileData: '',
         fileName: '',
         fileType: '',

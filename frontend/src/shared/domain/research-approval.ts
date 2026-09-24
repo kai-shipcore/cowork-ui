@@ -22,6 +22,11 @@ export const RESEARCH_APPROVAL_TYPE = 'VEHICLE_RESEARCH_HANDOFF';
  */
 export type ResearchDisposition = 'PENDING' | 'REVIEWING' | 'PUSH' | 'HOLD';
 
+export type ResearchApprovalConfiguration = VehicleConfiguration & {
+  sourceConfigurationId?: string;
+  productLabel?: string;
+};
+
 export const RESEARCH_DISPOSITION_LABELS: Record<ResearchDisposition, string> =
   {
     PENDING: 'Not requested',
@@ -74,11 +79,19 @@ export function canStartDevelopment(
   configuration: Pick<VehicleConfiguration, 'researchStatus'>,
   disposition: ResearchDisposition,
 ): boolean {
-  return configuration.researchStatus === 'COMPLETE' && disposition === 'PUSH';
+  return (
+    ['COMPLETE', 'COMPLETED'].includes(configuration.researchStatus) &&
+    disposition === 'PUSH'
+  );
 }
 
-export function researchSnapshot(configuration: VehicleConfiguration): string {
+export function researchSnapshot(
+  configuration: ResearchApprovalConfiguration,
+): string {
   return JSON.stringify({
+    sourceConfigurationId: configuration.sourceConfigurationId,
+    productLabel: configuration.productLabel,
+    productTypeId: configuration.productTypeId,
     vehicle: configuration.vehicle,
     vehicleClass: configuration.vehicleClass,
     options: configuration.options,
@@ -89,17 +102,18 @@ export function researchSnapshot(configuration: VehicleConfiguration): string {
 /** Asks the approvers whether this completed combination goes to development. */
 export function submitResearchApproval(
   state: WorkbenchState,
-  configurationId: string,
+  configurationOrId: ResearchApprovalConfiguration | string,
   actor: string,
   route: ApprovalRoute,
   note = '',
 ): WorkbenchState {
-  const configuration = state.configurations.find(
-    (row) => row.id === configurationId,
-  );
+  const configuration =
+    typeof configurationOrId === 'string'
+      ? state.configurations.find((row) => row.id === configurationOrId)
+      : configurationOrId;
   requireCondition(configuration, 'Research configuration not found.');
   requireCondition(
-    configuration.researchStatus === 'COMPLETE',
+    ['COMPLETE', 'COMPLETED'].includes(configuration.researchStatus),
     'Research must be complete before requesting the project handoff.',
   );
   return submitApproval(
@@ -107,7 +121,7 @@ export function submitResearchApproval(
     {
       approvalTypeId: RESEARCH_APPROVAL_TYPE,
       entityType: 'VEHICLE_RESEARCH',
-      entityId: configurationId,
+      entityId: configuration.id,
       requestedBy: actor,
       submittedData: { snapshot: researchSnapshot(configuration) },
       ...(note.trim() ? { note: note.trim() } : {}),

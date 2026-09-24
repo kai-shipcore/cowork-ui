@@ -16,6 +16,8 @@ import { useWorkbenchStore } from '@/app/workbench-store';
 
 interface ResearchApprovalPanelProps {
   configuration: VehicleConfiguration;
+  sourceConfigurationId?: string;
+  productLabel?: string;
   initialSubmitOpen?: boolean;
 }
 
@@ -26,6 +28,8 @@ interface ResearchApprovalPanelProps {
  */
 export function ResearchApprovalPanel({
   configuration,
+  sourceConfigurationId,
+  productLabel,
   initialSubmitOpen = false,
 }: ResearchApprovalPanelProps) {
   const { approvalRequests, setConfigurations } = useWorkbenchStore();
@@ -36,8 +40,10 @@ export function ResearchApprovalPanel({
   const isComplete = ['COMPLETE', 'COMPLETED'].includes(
     configuration.researchStatus,
   );
+  const hasLinkedProject = configuration.projectGroupIds.length > 0;
   const canSubmit =
     isComplete &&
+    !hasLinkedProject &&
     (!current ||
       current.status === 'REJECTED' ||
       current.status === 'CANCELLED');
@@ -45,7 +51,7 @@ export function ResearchApprovalPanel({
   function completeResearch(): void {
     setConfigurations((rows) =>
       rows.map((row) =>
-        row.id === configuration.id
+        row.id === (sourceConfigurationId ?? configuration.id)
           ? { ...row, researchStatus: 'COMPLETED' }
           : row,
       ),
@@ -57,9 +63,14 @@ export function ResearchApprovalPanel({
       approvalTypeId={RESEARCH_APPROVAL_TYPE}
       requests={requests}
       canSubmit={canSubmit}
-      blockedMessage="Research must be complete before asking whether this combination goes to development."
+      blockedMessage={
+        hasLinkedProject
+          ? 'This research configuration is already linked to a project.'
+          : 'Research must be complete before asking whether this configuration goes to development.'
+      }
       emptyAction={
-        !isComplete && (
+        !isComplete &&
+        !hasLinkedProject && (
           <Button variant="outline" onClick={completeResearch}>
             <CheckCircle2 /> Mark research complete
           </Button>
@@ -81,7 +92,7 @@ export function ResearchApprovalPanel({
         apply((latest) =>
           submitResearchApproval(
             latest,
-            configuration.id,
+            { ...configuration, sourceConfigurationId, productLabel },
             actorId,
             route,
             note,
