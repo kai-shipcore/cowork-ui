@@ -1,219 +1,221 @@
 import { useState, type ReactElement } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
-import { Input } from '@coverland-engineering/ui/input';
-import { ShieldCheck } from 'lucide-react';
+import {
+  FlatDataGrid,
+  type FlatDataGridColumn,
+} from '@coverland-engineering/ui/flat-data-grid';
+import { Save, X } from 'lucide-react';
+import { useSortedPage } from '@/shared/components/use-sorted-page';
 import type { ApprovalGrant } from '@/shared/types/db-workflow';
+import type { AppUser } from '@/shared/types/workbench';
 import { useWorkbenchStore } from '@/app/workbench-store';
+import { UserIdentity } from './components/user-identity';
 import './admin.css';
 
 type GrantFlag = 'canForward' | 'canFinalApprove';
+type GrantFlags = Record<GrantFlag, boolean>;
 
-interface ApprovalAdministrationProps {
-  approvalTypeId: string;
-  onApprovalTypeChange: (approvalTypeId: string) => void;
-}
+const FLAG_LABELS: Record<GrantFlag, string> = {
+  canForward: 'can review',
+  canFinalApprove: 'can finally approve',
+};
 
 /**
- * APPROVAL_MANAGE work: rename or deactivate approval types and decide who may
- * review or finally approve each one. Types themselves are created by
- * developers with the feature that needs them. Changes affect new requests
- * only; a submitted route is frozen.
+ * Who may review or finally approve one approval type. Checkbox changes are
+ * staged per person and written to `user_x_approval_type_grant` together when
+ * saved, so a half-edited row never reaches the store.
  */
 export function ApprovalAdministration({
   approvalTypeId: typeId,
-  onApprovalTypeChange,
-}: ApprovalAdministrationProps): ReactElement {
+}: {
+  approvalTypeId: string;
+}): ReactElement {
   const { appUsers, approvalGrants, approvalTypes, updateWorkbench } =
     useWorkbenchStore();
+  const [query, setQuery] = useState('');
+  const [draft, setDraft] = useState<Record<string, GrantFlags>>({});
+  const [message, setMessage] = useState('');
   const type = approvalTypes.find((row) => row.id === typeId);
-  const [name, setName] = useState(type?.name ?? '');
-
-  function grantOf(userId: string): ApprovalGrant | undefined {
-    return approvalGrants.find(
+  const grantOf = (userId: string): ApprovalGrant | undefined =>
+    approvalGrants.find(
       (grant) => grant.appUserId === userId && grant.approvalTypeId === typeId,
+    );
+  const savedFlags = (userId: string): GrantFlags => {
+    const grant = grantOf(userId);
+    const active = grant?.status === 'ACTIVE';
+    return {
+      canForward: active && grant.canForward,
+      canFinalApprove: active && grant.canFinalApprove,
+    };
+  };
+  const currentFlags = (userId: string): GrantFlags =>
+    draft[userId] ?? savedFlags(userId);
+
+  const changedUserIds = Object.keys(draft).filter((userId) => {
+    const saved = savedFlags(userId);
+    const edited = currentFlags(userId);
+    return (
+      saved.canForward !== edited.canForward ||
+      saved.canFinalApprove !== edited.canFinalApprove
+    );
+  });
+  const isDirty = changedUserIds.length > 0;
+
+  function stageFlag(userId: string, flag: GrantFlag, checked: boolean): void {
+    setDraft((current) => ({
+      ...current,
+      [userId]: { ...currentFlags(userId), [flag]: checked },
+    }));
+    setMessage('');
+  }
+
+  function discard(): void {
+    setDraft({});
+    setMessage('');
+  }
+
+  function save(): void {
+    const edits = changedUserIds.map((userId) => ({
+      userId,
+      flags: currentFlags(userId),
+    }));
+    updateWorkbench((state) => {
+      let approvalGrantsNext = state.approvalGrants;
+      for (const { userId, flags } of edits) {
+        const existing = approvalGrantsNext.find(
+          (grant) =>
+            grant.appUserId === userId && grant.approvalTypeId === typeId,
+        );
+        const enabled = flags.canForward || flags.canFinalApprove;
+        if (existing) {
+          approvalGrantsNext = approvalGrantsNext.map((grant) =>
+            grant.id === existing.id
+              ? enabled
+                ? { ...grant, ...flags, status: 'ACTIVE' }
+                : { ...grant, status: 'INACTIVE' }
+              : grant,
+          );
+        } else if (enabled) {
+          approvalGrantsNext = [
+            ...approvalGrantsNext,
+            {
+              id: crypto.randomUUID(),
+              appUserId: userId,
+              approvalTypeId: typeId,
+              ...flags,
+              status: 'ACTIVE',
+            },
+          ];
+        }
+      }
+      return { ...state, approvalGrants: approvalGrantsNext };
+    });
+    setDraft({});
+    setMessage(
+      `Saved grants for ${String(edits.length)} ${edits.length === 1 ? 'person' : 'people'}.`,
     );
   }
 
-  function hasFlag(userId: string, flag: GrantFlag): boolean {
-    const grant = grantOf(userId);
-    return grant?.status === 'ACTIVE' && grant[flag];
-  }
-
-  /** A grant with neither flag is deactivated rather than deleted, keeping its history. */
-  function toggleFlag(userId: string, flag: GrantFlag, checked: boolean): void {
-    updateWorkbench((state) => {
-      const existing = state.approvalGrants.find(
-        (grant) =>
-          grant.appUserId === userId && grant.approvalTypeId === typeId,
-      );
-      const active = existing?.status === 'ACTIVE';
-      const flags = {
-        canForward: active && existing.canForward,
-        canFinalApprove: active && existing.canFinalApprove,
-        [flag]: checked,
-      };
-      const enabled = flags.canForward || flags.canFinalApprove;
-      if (!existing && !enabled) return state;
-      return {
-        ...state,
-        approvalGrants: existing
-          ? state.approvalGrants.map((grant) =>
-              grant.id === existing.id
-                ? enabled
-                  ? { ...grant, ...flags, status: 'ACTIVE' }
-                  : { ...grant, status: 'INACTIVE' }
-                : grant,
-            )
-          : [
-              ...state.approvalGrants,
-              {
-                id: crypto.randomUUID(),
-                appUserId: userId,
-                approvalTypeId: typeId,
-                ...flags,
-                status: 'ACTIVE',
-              },
-            ],
-      };
-    });
-  }
-
-  function saveName(): void {
-    const next = name.trim();
-    if (!type || !next || next === type.name) return;
-    updateWorkbench((state) => ({
-      ...state,
-      approvalTypes: state.approvalTypes.map((row) =>
-        row.id === type.id ? { ...row, name: next } : row,
-      ),
-    }));
-  }
-
-  function toggleTypeStatus(): void {
-    if (!type) return;
-    updateWorkbench((state) => ({
-      ...state,
-      approvalTypes: state.approvalTypes.map((row) =>
-        row.id === type.id
-          ? { ...row, status: row.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }
-          : row,
-      ),
-    }));
-  }
-
+  const needle = query.trim().toLowerCase();
   const people = appUsers.filter(
-    (user) => user.status === 'ACTIVE' || grantOf(user.id) !== undefined,
+    (user) =>
+      (user.status === 'ACTIVE' || grantOf(user.id) !== undefined) &&
+      (!needle || `${user.name} ${user.email}`.toLowerCase().includes(needle)),
   );
 
+  function flagColumn(
+    flag: GrantFlag,
+    header: string,
+  ): FlatDataGridColumn<AppUser> {
+    return {
+      id: flag,
+      header,
+      width: 180,
+      className: 'text-center',
+      sortValue: (user) => (currentFlags(user.id)[flag] ? 1 : 0),
+      cell: (user) => (
+        <input
+          type="checkbox"
+          className="admin-grant-checkbox"
+          aria-label={`${user.name} ${FLAG_LABELS[flag]}`}
+          checked={currentFlags(user.id)[flag]}
+          disabled={user.status !== 'ACTIVE' || !type}
+          onChange={(event) => {
+            stageFlag(user.id, flag, event.target.checked);
+          }}
+        />
+      ),
+    };
+  }
+
+  const columns: FlatDataGridColumn<AppUser>[] = [
+    {
+      id: 'person',
+      header: 'Person',
+      width: 280,
+      sortValue: (user) => user.name,
+      cell: (user) => <UserIdentity name={user.name} email={user.email} />,
+    },
+    flagColumn('canForward', 'Can review (forward)'),
+    flagColumn('canFinalApprove', 'Can finally approve'),
+  ];
+  const page = useSortedPage(people, columns, `${typeId}|${query}`);
+
   return (
-    <section className="admin-card" aria-labelledby="approval-admin-title">
-      <header>
-        <div>
-          <h2 id="approval-admin-title">Approval types and grants</h2>
-          <p>
-            Who may review and who may finally approve, per approval type.
-            Requires the APPROVAL_MANAGE permission.
-          </p>
-        </div>
-        <span className="admin-badge">
-          <ShieldCheck aria-hidden="true" size={13} /> Applies to new requests
-        </span>
-      </header>
-      <div className="admin-fields">
-        <label>
-          Approval type
-          <select
-            value={typeId}
-            onChange={(event) => {
-              const next = approvalTypes.find(
-                (row) => row.id === event.target.value,
-              );
-              onApprovalTypeChange(event.target.value);
-              setName(next?.name ?? '');
-            }}
-          >
-            {approvalTypes.map((row) => (
-              <option key={row.id} value={row.id}>
-                {row.name} ({row.code})
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Display name
-          <Input
-            value={name}
-            maxLength={80}
-            onChange={(event) => {
-              setName(event.target.value);
-            }}
-            onBlur={saveName}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                saveName();
-              }
-            }}
-          />
-          <small>The code never changes; features refer to it.</small>
-        </label>
-      </div>
-      {type && (
-        <div className="admin-type-row">
-          <code>{type.code}</code>
-          <span className="admin-badge">
-            {type.status === 'ACTIVE' ? 'Active' : 'Inactive · no new requests'}
-          </span>
+    <FlatDataGrid
+      embedded
+      label={`User grants${type ? ` · ${type.name}` : ''}`}
+      columns={columns}
+      rows={page.pageItems}
+      getRowId={(user) => user.id}
+      emptyMessage="No people match this search."
+      toolbarContent={
+        query !== '' && (
           <Button
-            type="button"
-            variant="outline"
             size="sm"
-            onClick={toggleTypeStatus}
+            variant="ghost"
+            onClick={() => {
+              setQuery('');
+            }}
           >
-            {type.status === 'ACTIVE' ? 'Deactivate type' : 'Reactivate type'}
+            <X /> Clear filters
           </Button>
+        )
+      }
+      search={{
+        label: 'Search people',
+        placeholder: 'Search name or email',
+        value: query,
+        onChange: setQuery,
+      }}
+      actions={
+        <>
+          <Button variant="outline" disabled={!isDirty} onClick={discard}>
+            Discard
+          </Button>
+          <Button variant="primary" disabled={!isDirty} onClick={save}>
+            <Save /> Save changes
+            {isDirty && ` (${String(changedUserIds.length)})`}
+          </Button>
+        </>
+      }
+      footer={
+        <div className="admin-grid-footer">
+          <p className="admin-note">
+            Revoking a grant keeps its history and never reroutes an open
+            request.
+          </p>
+          {(isDirty || message) && (
+            <p role="status" className="admin-muted">
+              {isDirty
+                ? `${String(changedUserIds.length)} unsaved change${changedUserIds.length === 1 ? '' : 's'}.`
+                : message}
+            </p>
+          )}
         </div>
-      )}
-      <table className="admin-table">
-        <thead>
-          <tr>
-            <th scope="col">Person</th>
-            <th scope="col">Can review (forward)</th>
-            <th scope="col">Can finally approve</th>
-          </tr>
-        </thead>
-        <tbody>
-          {people.map((user) => (
-            <tr key={user.id}>
-              <td>
-                <strong>{user.name}</strong>
-                <small>
-                  {user.email}
-                  {user.status !== 'ACTIVE' && ' · inactive'}
-                </small>
-              </td>
-              {(['canForward', 'canFinalApprove'] as const).map((flag) => (
-                <td key={flag} className="is-center">
-                  <input
-                    type="checkbox"
-                    aria-label={`${user.name} ${flag === 'canForward' ? 'can review' : 'can finally approve'}`}
-                    checked={hasFlag(user.id, flag)}
-                    disabled={user.status !== 'ACTIVE'}
-                    onChange={(event) => {
-                      toggleFlag(user.id, flag, event.target.checked);
-                    }}
-                  />
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="admin-note">
-        Revoking a grant keeps its history and never reroutes an open request.
-        In this demo the changes live in your browser; the server permission
-        tables decide in shared environments.
-      </p>
-    </section>
+      }
+      pagination={page.pagination}
+      sorting={page.sorting}
+    />
   );
 }

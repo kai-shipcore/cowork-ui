@@ -1,0 +1,23 @@
+{
+  "name": "backend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b && node --env-file=.env dist/main.js",
+    "start": "node --env-file=.env dist/main.js",
+    "db:check": "pnpm build && node --env-file=.env dist/infra/database/check-connection.js",
+    "lint": "eslint src",
+    "test": "tsc -b && node --test \"dist/**/*.test.js\"",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "postgres": "^3.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "eslint": "^9.17.0",
+    "typescript": "^5.7.0"
+  }
+}

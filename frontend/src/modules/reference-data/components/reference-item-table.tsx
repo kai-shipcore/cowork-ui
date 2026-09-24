@@ -90,11 +90,14 @@ export function ReferenceItemTable({
     },
     {
       id: 'actions',
-      header: 'Actions',
+      header: <span className="block w-full text-center">Actions</span>,
       width: 180,
       hideable: false,
+      movable: false,
+      pinnable: false,
+      className: 'text-center',
       cell: (item) => (
-        <div className="table-actions">
+        <div className="flex w-full justify-center gap-2">
           <Button
             size="sm"
             variant="outline"
