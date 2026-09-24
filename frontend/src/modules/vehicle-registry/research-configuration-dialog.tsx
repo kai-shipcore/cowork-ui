@@ -357,7 +357,7 @@ export function ResearchConfigurationDialog({
                     </Select>
                     {editing && (
                       <Button
-                        size="icon-sm"
+                        size="icon"
                         variant="ghost"
                         aria-label={`Remove option ${String(index + 1)}`}
                         onClick={() => {
