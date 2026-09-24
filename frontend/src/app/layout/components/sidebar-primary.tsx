@@ -3,6 +3,7 @@ import { Ellipsis } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { teamFromLocation } from '@/modules/operations/operations-model';
 import {
+  getAdminMenu,
   getResourcesMenu,
   getWorkspaceLinks,
   getWorkspaceMenu,
@@ -32,6 +33,7 @@ export function SidebarPrimary({
   const groups = [
     { title: toolsMenuTitle, items: toolItems },
     { title: 'Resources', items: getResourcesMenu(team) },
+    { title: 'Admin Tools', items: getAdminMenu() },
   ];
   return (
     <nav
