@@ -253,6 +253,18 @@ export const VEHICLE_ZONES: readonly VehicleZone[] = [
     code: 'EX',
     name: 'Exterior',
   }),
+  stamped({
+    id: 'ZONE-SWC-W',
+    productTypeId: 'PT-SWC',
+    code: 'W',
+    name: 'Steering Wheel',
+  }),
+  stamped({
+    id: 'ZONE-WS-F',
+    productTypeId: 'PT-WS',
+    code: 'F',
+    name: 'Front Windshield',
+  }),
 ];
 
 // Migrated out of the hardcoded CONFIGURATION_VALUES constant that used to

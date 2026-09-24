@@ -1,4 +1,10 @@
-import { useState } from 'react';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@coverland-engineering/ui/dialog';
 import { GitPullRequest } from 'lucide-react';
 import { ConfigChips } from '@/shared/domain/config-chips';
 import {
@@ -12,86 +18,76 @@ import { useWorkbenchStore } from '@/app/workbench-store';
 import { ResearchApprovalPanel } from './research-approval-panel';
 import './research-handoff-card.css';
 
-interface ResearchHandoffCardProps {
-  /** Every option combination researched for this make/model. */
-  configurations: readonly VehicleConfiguration[];
-  /** The combination the page was opened for; expanded by default. */
-  selectedId: string;
+interface ResearchHandoffDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  configuration: VehicleConfiguration | null;
+  sourceConfigurationId?: string;
+  productLabel?: string;
+  configurationNumber?: number;
 }
 
-/**
- * Per option combination: research progress, the handoff disposition, and the
- * approval panel for the selected one. Complete never means development by
- * itself; the approvers decide push or hold for each combination.
- */
-export function ResearchHandoffCard({
-  configurations,
-  selectedId,
-}: ResearchHandoffCardProps) {
+/** Approval workflow for one product research configuration. */
+export function ResearchHandoffDialog({
+  open,
+  onOpenChange,
+  configuration,
+  sourceConfigurationId,
+  productLabel,
+  configurationNumber,
+}: ResearchHandoffDialogProps) {
   const { approvalRequests } = useWorkbenchStore();
-  const [openId, setOpenId] = useState(selectedId);
-  const open = configurations.find((row) => row.id === openId);
+  if (!configuration) return null;
+
+  const disposition = researchDisposition(approvalRequests, configuration);
+  const complete = ['COMPLETE', 'COMPLETED'].includes(
+    configuration.researchStatus,
+  );
 
   return (
-    <section className="research-detail-card decision-card research-handoff-card">
-      <div className="section-heading">
-        <div>
-          <span aria-hidden="true">
-            <GitPullRequest />
-          </span>
-          <h2>Project handoff approval</h2>
-        </div>
-        <p>
-          Research completion and the decision to develop are separate. Each
-          combination asks its approvers whether it becomes a project.
-        </p>
-      </div>
-      <ul className="research-handoff-list" aria-label="Option combinations">
-        {configurations.map((configuration) => {
-          const disposition = researchDisposition(
-            approvalRequests,
-            configuration,
-          );
-          return (
-            <li key={configuration.id}>
-              <button
-                type="button"
-                className="research-handoff-row"
-                aria-expanded={openId === configuration.id}
-                onClick={() => {
-                  setOpenId(configuration.id);
-                }}
-              >
-                <span className="research-handoff-id">{configuration.id}</span>
-                <ConfigChips options={configuration.options} />
-                <span className="research-handoff-badges">
-                  <StatusBadge
-                    label={
-                      ['COMPLETE', 'COMPLETED'].includes(
-                        configuration.researchStatus,
-                      )
-                        ? 'Complete'
-                        : 'Researching'
-                    }
-                    tone={
-                      ['COMPLETE', 'COMPLETED'].includes(
-                        configuration.researchStatus,
-                      )
-                        ? 'success'
-                        : 'progress'
-                    }
-                  />
-                  <StatusBadge
-                    label={RESEARCH_DISPOSITION_LABELS[disposition]}
-                    tone={RESEARCH_DISPOSITION_TONES[disposition]}
-                  />
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-      {open && <ResearchApprovalPanel key={open.id} configuration={open} />}
-    </section>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="research-handoff-dialog">
+        <DialogHeader>
+          <DialogTitle>Project handoff approval</DialogTitle>
+          <p>
+            Review whether this completed product research configuration should
+            become a project.
+          </p>
+        </DialogHeader>
+        <DialogBody>
+          <section className="research-handoff-summary">
+            <span aria-hidden="true">
+              <GitPullRequest />
+            </span>
+            <div>
+              <small>RESEARCH CONFIGURATION</small>
+              <h3>
+                {productLabel ?? 'Product'}
+                {configurationNumber
+                  ? ` · Configuration ${String(configurationNumber)}`
+                  : ''}
+              </h3>
+              <p>{configuration.vehicle}</p>
+              <ConfigChips options={configuration.options} />
+            </div>
+            <div className="research-handoff-summary-statuses">
+              <StatusBadge
+                label={complete ? 'Completed' : 'In progress'}
+                tone={complete ? 'success' : 'progress'}
+              />
+              <StatusBadge
+                label={RESEARCH_DISPOSITION_LABELS[disposition]}
+                tone={RESEARCH_DISPOSITION_TONES[disposition]}
+              />
+            </div>
+          </section>
+          <ResearchApprovalPanel
+            configuration={configuration}
+            sourceConfigurationId={sourceConfigurationId}
+            productLabel={productLabel}
+          />
+        </DialogBody>
+      </DialogContent>
+    </Dialog>
   );
 }

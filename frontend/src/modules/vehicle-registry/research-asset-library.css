@@ -205,17 +205,62 @@
 
 .research-asset-wizard-fields {
   display: grid;
-  gap: 16px;
+  gap: 20px;
+  align-content: start;
+}
+
+.research-asset-wizard-fields legend {
+  padding: 0 8px;
+  color: var(--foreground);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.research-asset-wizard-fields legend span {
+  color: var(--muted-foreground);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.research-wizard-choice-group {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--background);
+}
+
+.research-wizard-choice-group > strong {
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.research-asset-wizard-fields fieldset > small {
+  color: var(--muted-foreground);
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .research-asset-wizard-fields > label,
 .research-asset-wizard-fields fieldset {
   display: grid;
-  gap: 8px;
-  border: 0;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--muted) 55%, var(--background));
   color: var(--foreground);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
+}
+
+.research-asset-wizard-fields fieldset:disabled {
+  opacity: 0.62;
 }
 
 .research-asset-wizard-fields select,
@@ -254,31 +299,65 @@
 .research-wizard-tags {
   display: flex;
   flex-wrap: wrap;
+  gap: 9px;
+}
+
+.research-wizard-year-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.research-wizard-year-inputs label {
+  display: grid;
   gap: 7px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.research-wizard-year-inputs input {
+  width: 100%;
 }
 
 .research-wizard-tags button {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 7px 10px;
+  min-height: 40px;
+  gap: 7px;
+  padding: 9px 13px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--background);
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
+  line-height: 1.2;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+.research-wizard-tags button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
+  color: var(--foreground);
+  transform: translateY(-1px);
 }
 
 .research-wizard-tags button[aria-pressed='true'] {
   border-color: var(--primary);
-  background: color-mix(in srgb, var(--primary) 11%, var(--background));
-  color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 24%, transparent);
 }
 
 .research-wizard-tags button svg {
-  width: 13px;
-  height: 13px;
+  width: 16px;
+  height: 16px;
+  stroke-width: 3;
 }
 
 .research-wizard-custom-tag {
@@ -583,7 +662,7 @@
 
 .research-assets-toolbar {
   display: grid;
-  grid-template-columns: minmax(240px, 1.7fr) repeat(6, minmax(110px, 1fr));
+  grid-template-columns: minmax(240px, 1.7fr) repeat(5, minmax(110px, 1fr));
   gap: 10px;
   padding: 14px;
   border: 1px solid var(--border);
@@ -846,6 +925,10 @@
   }
 
   .research-asset-wizard-content {
+    grid-template-columns: 1fr;
+  }
+
+  .research-wizard-year-inputs {
     grid-template-columns: 1fr;
   }
 

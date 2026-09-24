@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
 import { Card } from '@coverland-engineering/ui/card';
 import {
@@ -45,25 +45,35 @@ import {
   type ProductTypeId,
   type VehicleConfiguration,
 } from '@/shared/types/workbench';
+import { useRdRecords } from '@/modules/rd-workspace/use-rd-records';
+import { useOperations } from '@/app/operations-store';
 import { useWorkbenchStore } from '@/app/workbench-store';
 import { ResearchAssetLibrary } from '../research-asset-library';
+import type { ResearchAssetTarget } from '../research-asset-uploader';
+import { ResearchConfigurationDialog } from '../research-configuration-dialog';
+import {
+  RESEARCH_CONFIGURATION_VERSION_KEY,
+  RESEARCH_CONFIGURATION_VERSION_SEED,
+  researchConfigurationVersionListSchema,
+  type ResearchConfigurationVersion,
+  type ResearchConfigurationVersionStatus,
+} from '../research-configuration-version-model';
 import {
   groupVehicleResearch,
   mergeProductResearchRows,
+  vehicleResearchIdentity,
 } from '../vehicle-research-grid-model';
 import '../research-asset-library.css';
 import './vehicle-research-page.css';
 
 const RESEARCH_STATUS_FILTERS = [
-  { label: 'All', value: 'ALL' },
   { label: 'Draft', value: 'DRAFT' },
   { label: 'In Progress', value: 'IN_PROGRESS' },
   { label: 'Pending Approval', value: 'PENDING_APPROVAL' },
   { label: 'Completed', value: 'COMPLETED' },
 ] as const;
-type ResearchStatusFilter = (typeof RESEARCH_STATUS_FILTERS)[number]['value'];
-
-type ResearchLifecycleStatus = Exclude<ResearchStatusFilter, 'ALL'>;
+type ResearchLifecycleStatus =
+  (typeof RESEARCH_STATUS_FILTERS)[number]['value'];
 
 function researchLifecycleStatus(
   status: VehicleConfiguration['researchStatus'],
@@ -86,27 +96,26 @@ interface ProductResearchRow extends VehicleConfiguration {
   years?: string;
 }
 
-const INITIAL_CRITERIA: readonly ConfigurationCriterion[] = [
-  { id: 1, title: 'Powertrain', value: 'Hybrid' },
-  { id: 2, title: 'Front Seat', value: 'Bucket' },
-  { id: 3, title: '2nd Row Seat', value: 'Bench' },
-];
-
 /** Vehicle and option-combination research registry. */
 export function VehicleResearchPage() {
   const navigate = useNavigate();
-  const [viewParams] = useSearchParams();
+  const [viewParams, setViewParams] = useSearchParams();
+  const { actor } = useOperations();
   const [researchView, setResearchView] = useState<'registry' | 'assets'>(() =>
     viewParams.get('view') === 'assets' ? 'assets' : 'registry',
   );
   const {
     configurations,
-    projects,
     setConfigurations,
     vehicleOptionKeys,
     vehicleOptionValues,
     approvalRequests,
   } = useWorkbenchStore();
+  const [configurationProductTypeId, setConfigurationProductTypeId] = useState<
+    ProductTypeId | ''
+  >('');
+  const [configurationYearFrom, setConfigurationYearFrom] = useState('');
+  const [configurationYearTo, setConfigurationYearTo] = useState('');
   // The option dictionary lives in vehicle_option_key /
   // vehicle_option_value; this screen only reads it. Manage it in
   // Vehicle Options.
@@ -114,7 +123,9 @@ export function VehicleResearchPage() {
     Partial<Record<string, readonly string[]>>
   > = Object.fromEntries(
     vehicleOptionKeys
-      .filter((optionKey) => optionKey.productTypeId === 'PT-SC')
+      .filter(
+        (optionKey) => optionKey.productTypeId === configurationProductTypeId,
+      )
       .map((optionKey) => [
         optionKey.name,
         vehicleOptionValues
@@ -126,8 +137,8 @@ export function VehicleResearchPage() {
   const [collapsedVehicles, setCollapsedVehicles] = useState<
     ReadonlySet<string>
   >(new Set());
-  const [status, setStatus] = useState<ResearchStatusFilter>('ALL');
-  const [product, setProduct] = useState('ALL');
+  const [statuses, setStatuses] = useState<readonly string[]>([]);
+  const [products, setProducts] = useState<readonly string[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [manufacturer, setManufacturer] = useState('Toyota');
   const [vehicleClass, setVehicleClass] = useState('SUV');
@@ -137,8 +148,17 @@ export function VehicleResearchPage() {
   const [configurationDialogOpen, setConfigurationDialogOpen] = useState(false);
   const [configurationVehicle, setConfigurationVehicle] =
     useState<VehicleConfiguration>();
-  const [criteria, setCriteria] =
-    useState<readonly ConfigurationCriterion[]>(INITIAL_CRITERIA);
+  const [criteria, setCriteria] = useState<readonly ConfigurationCriterion[]>(
+    [],
+  );
+  const configurationVersions = useRdRecords(
+    RESEARCH_CONFIGURATION_VERSION_KEY,
+    researchConfigurationVersionListSchema,
+    RESEARCH_CONFIGURATION_VERSION_SEED,
+  );
+  const configurationDialogMakeModel = configurationVehicle
+    ? vehicleResearchIdentity(configurationVehicle.vehicle).makeModel
+    : '';
   function dispositionOf(
     configuration: ProductResearchRow,
   ): ResearchDisposition {
@@ -148,66 +168,152 @@ export function VehicleResearchPage() {
     });
   }
 
-  const searchedConfigurations = configurations.filter((configuration) => {
-    const matchesQuery = configuration.vehicle
-      .toLowerCase()
-      .includes(query.toLowerCase());
-    const matchesProduct =
-      product === 'ALL' ||
-      PRODUCT_TYPES.some(
-        (item) =>
-          item.product === product && configuration.productTypeId === item.id,
-      ) ||
-      configuration.projectGroupIds.some(
-        (projectId) =>
-          projects.find((project) => project.id === projectId)?.product ===
-          product,
-      );
-    return matchesQuery && matchesProduct;
-  });
+  const searchedConfigurations = configurations.filter((configuration) =>
+    configuration.vehicle.toLowerCase().includes(query.toLowerCase()),
+  );
+  const currentApprovedVersions = new Map<
+    string,
+    ResearchConfigurationVersion
+  >();
+  for (const version of configurationVersions.records) {
+    if (version.status !== 'APPROVED') continue;
+    const current = currentApprovedVersions.get(
+      version.researchConfigurationId,
+    );
+    if (!current || version.versionNumber > current.versionNumber) {
+      currentApprovedVersions.set(version.researchConfigurationId, version);
+    }
+  }
   const searchedProductRows =
     searchedConfigurations.flatMap<ProductResearchRow>((configuration) => {
-      return PRODUCT_TYPES.map((productType) => {
-        const productTypeId = productType.id;
-        const allowedOptionNames = new Set(
-          vehicleOptionKeys
-            .filter((key) => key.productTypeId === productTypeId)
-            .map((key) => key.name),
-        );
-        return {
-          ...configuration,
-          id: `${configuration.id}:${productTypeId}`,
-          sourceConfigurationId: configuration.id,
-          productTypeId,
-          product: productType.product,
-          options: configuration.options.filter(([key]) =>
-            allowedOptionNames.has(key),
-          ),
-        } satisfies ProductResearchRow;
-      });
+      const applicableProductTypes = configuration.productTypeId
+        ? PRODUCT_TYPES.filter(
+            (productType) => productType.id === configuration.productTypeId,
+          )
+        : PRODUCT_TYPES;
+      return applicableProductTypes.flatMap<ProductResearchRow>(
+        (productType) => {
+          const productTypeId = productType.id;
+          const targetId = `${configuration.id}:${productTypeId}`;
+          const currentVersion = currentApprovedVersions.get(targetId);
+          if (currentVersion?.action === 'DELETE') return [];
+          const allowedOptionNames = new Set(
+            vehicleOptionKeys
+              .filter((key) => key.productTypeId === productTypeId)
+              .map((key) => key.name),
+          );
+          const versionYears = currentVersion?.years ?? [];
+          const sortedYears = [...versionYears].sort(
+            (left, right) => left - right,
+          );
+          const yearLabel = sortedYears.length
+            ? sortedYears[0] === sortedYears[sortedYears.length - 1]
+              ? String(sortedYears[0])
+              : `${String(sortedYears[0])}–${String(sortedYears[sortedYears.length - 1])}`
+            : vehicleResearchIdentity(configuration.vehicle).years;
+          const sourceOptions =
+            currentVersion?.options ?? configuration.options;
+          return [
+            {
+              ...configuration,
+              id: targetId,
+              vehicle: `${yearLabel} ${vehicleResearchIdentity(configuration.vehicle).makeModel}`,
+              sourceConfigurationId: configuration.id,
+              productTypeId,
+              product: productType.product,
+              options: sourceOptions.filter(([key]) =>
+                allowedOptionNames.has(key),
+              ),
+            } satisfies ProductResearchRow,
+          ];
+        },
+      );
     });
   const mergedProductRows = mergeProductResearchRows(searchedProductRows);
+  const selectedConfigurationTargetId = viewParams.get('configuration');
+  const selectedConfigurationRow = mergedProductRows.find(
+    (row) =>
+      `${row.sourceConfigurationId}:${row.productTypeId}` ===
+      selectedConfigurationTargetId,
+  );
+  const selectedConfigurationTarget: ResearchAssetTarget | null =
+    selectedConfigurationRow
+      ? {
+          id: `${selectedConfigurationRow.sourceConfigurationId}:${selectedConfigurationRow.productTypeId}`,
+          configurationId: selectedConfigurationRow.sourceConfigurationId,
+          productTypeId: selectedConfigurationRow.productTypeId,
+          productLabel: selectedConfigurationRow.product,
+          options: selectedConfigurationRow.options,
+        }
+      : null;
+  const selectedMakeModel = selectedConfigurationRow
+    ? vehicleResearchIdentity(selectedConfigurationRow.vehicle).makeModel
+    : '';
+  const selectedAvailableYears = Array.from(
+    new Set(
+      configurations
+        .filter(
+          (item) =>
+            vehicleResearchIdentity(item.vehicle).makeModel ===
+            selectedMakeModel,
+        )
+        .flatMap((item) => {
+          const years = vehicleResearchIdentity(item.vehicle).years;
+          const match = /^(\d{4})(?:[–-](\d{4}))?$/.exec(years);
+          if (!match) return [];
+          const start = Number(match[1]);
+          const end = Number(match[2] ? match[2] : match[1]);
+          return Array.from(
+            { length: Math.max(0, end - start + 1) },
+            (_, index) => start + index,
+          );
+        }),
+    ),
+  ).sort((left, right) => left - right);
+  const productFilteredRows = mergedProductRows.filter(
+    (row) => products.length === 0 || products.includes(row.product),
+  );
+  const productCounts = new Map(
+    PRODUCT_TYPES.map((productType) => [
+      productType.product,
+      mergedProductRows.filter((row) => row.product === productType.product)
+        .length,
+    ]),
+  );
   const statusCounts = new Map(
     RESEARCH_STATUS_FILTERS.map((filter) => [
       filter.value,
-      mergedProductRows.filter(
-        (row) =>
-          filter.value === 'ALL' ||
-          researchLifecycleStatus(row.researchStatus) === filter.value,
+      productFilteredRows.filter(
+        (row) => researchLifecycleStatus(row.researchStatus) === filter.value,
       ).length,
     ]),
   );
-  const productRows = mergedProductRows.filter(
-    (row) =>
-      status === 'ALL' ||
-      researchLifecycleStatus(row.researchStatus) === status,
+  const productTypeOrder = new Map(
+    PRODUCT_TYPES.map((productType, index) => [productType.id, index]),
   );
+  const productRows = productFilteredRows
+    .filter(
+      (row) =>
+        statuses.length === 0 ||
+        statuses.includes(researchLifecycleStatus(row.researchStatus)),
+    )
+    .sort(
+      (left, right) =>
+        (productTypeOrder.get(left.productTypeId) ?? Number.MAX_SAFE_INTEGER) -
+          (productTypeOrder.get(right.productTypeId) ??
+            Number.MAX_SAFE_INTEGER) ||
+        left.years.localeCompare(right.years, undefined, { numeric: true }) ||
+        left.sourceConfigurationId.localeCompare(right.sourceConfigurationId),
+    );
   const vehicleGroups = groupVehicleResearch(productRows);
   const {
     pageItems: pagedVehicleGroups,
     pagination,
     setPagination,
-  } = useWorkbenchPagination(vehicleGroups, `${query}|${status}|${product}`);
+  } = useWorkbenchPagination(
+    vehicleGroups,
+    `${query}|${statuses.join(',')}|${products.join(',')}`,
+  );
 
   function addMockVehicle(): void {
     const newConfiguration: VehicleConfiguration = {
@@ -229,8 +335,80 @@ export function VehicleResearchPage() {
 
   function openConfigurationDialog(configuration: VehicleConfiguration): void {
     setConfigurationVehicle(configuration);
-    setCriteria(INITIAL_CRITERIA);
+    setConfigurationProductTypeId('');
+    setConfigurationYearFrom('');
+    setConfigurationYearTo('');
+    setCriteria([]);
     setConfigurationDialogOpen(true);
+  }
+
+  function selectConfigurationProductType(productTypeId: ProductTypeId): void {
+    setConfigurationProductTypeId(productTypeId);
+    setCriteria([]);
+  }
+
+  function openConfigurationHistory(configuration: ProductResearchRow): void {
+    const next = new URLSearchParams(viewParams);
+    next.set(
+      'configuration',
+      `${configuration.sourceConfigurationId}:${configuration.productTypeId}`,
+    );
+    setViewParams(next);
+  }
+
+  function closeConfigurationHistory(): void {
+    const next = new URLSearchParams(viewParams);
+    next.delete('configuration');
+    setViewParams(next, { replace: true });
+  }
+
+  async function createConfigurationVersion(
+    version: ResearchConfigurationVersion,
+  ) {
+    return configurationVersions.save((current) => {
+      const next =
+        version.status === 'APPROVED'
+          ? current.map((item) =>
+              item.researchConfigurationId ===
+                version.researchConfigurationId && item.status === 'APPROVED'
+                ? { ...item, status: 'SUPERSEDED' as const }
+                : item,
+            )
+          : current;
+      return [...next, version];
+    });
+  }
+
+  async function updateConfigurationVersionStatus(
+    versionId: string,
+    status: ResearchConfigurationVersionStatus,
+  ) {
+    return configurationVersions.save((current) => {
+      const selected = current.find((item) => item.id === versionId);
+      if (!selected) return current;
+      return current.map((item) => {
+        if (
+          status === 'APPROVED' &&
+          item.researchConfigurationId === selected.researchConfigurationId &&
+          item.status === 'APPROVED'
+        ) {
+          return { ...item, status: 'SUPERSEDED' as const };
+        }
+        if (item.id !== versionId) return item;
+        return {
+          ...item,
+          status,
+          reviewedBy:
+            status === 'APPROVED' || status === 'REJECTED'
+              ? actor.name
+              : item.reviewedBy,
+          reviewedAt:
+            status === 'APPROVED' || status === 'REJECTED'
+              ? new Date().toISOString()
+              : item.reviewedAt,
+        };
+      });
+    });
   }
 
   function updateCriterionTitle(criterionId: number, title: string): void {
@@ -276,18 +454,39 @@ export function VehicleResearchPage() {
   }
 
   function saveConfiguration(): void {
-    if (!configurationVehicle || !criteria.length) {
+    if (
+      !configurationVehicle ||
+      !configurationProductTypeId ||
+      !configurationYearFrom ||
+      !configurationYearTo
+    ) {
       return;
     }
-    const newConfiguration: VehicleConfiguration = {
-      id: `c${String(configurations.length + 1).padStart(2, '0')}`,
-      vehicle: configurationVehicle.vehicle,
-      vehicleClass: configurationVehicle.vehicleClass,
-      options: criteria.map((criterion) => [criterion.title, criterion.value]),
-      researchStatus: 'DRAFT',
-      projectGroupIds: [],
-    };
-    setConfigurations((current) => [...current, newConfiguration]);
+    const makeModel = vehicleResearchIdentity(
+      configurationVehicle.vehicle,
+    ).makeModel;
+    const yearFrom = Number(configurationYearFrom);
+    const yearTo = Number(configurationYearTo);
+    if (yearFrom > yearTo) return;
+    const yearLabel =
+      yearFrom === yearTo
+        ? String(yearFrom)
+        : `${String(yearFrom)}–${String(yearTo)}`;
+    const options = criteria.map(
+      (criterion) => [criterion.title, criterion.value] as const,
+    );
+    setConfigurations((current) => [
+      ...current,
+      {
+        id: `c${String(current.length + 1).padStart(2, '0')}`,
+        vehicle: `${yearLabel} ${makeModel}`,
+        vehicleClass: configurationVehicle.vehicleClass,
+        productTypeId: configurationProductTypeId,
+        options,
+        researchStatus: 'DRAFT',
+        projectGroupIds: [],
+      },
+    ]);
     setConfigurationDialogOpen(false);
   }
 
@@ -306,9 +505,7 @@ export function VehicleResearchPage() {
           type="button"
           className="research-detail-link"
           onClick={() => {
-            void navigate(
-              `/vehicle-research/${encodeURIComponent(configuration.sourceConfigurationId)}`,
-            );
+            openConfigurationHistory(configuration);
           }}
         >
           <span
@@ -322,7 +519,7 @@ export function VehicleResearchPage() {
             </span>
           )}
           <ConfigChips options={configuration.options} />
-          <span>Open research detail</span>
+          <span>View configuration &amp; history</span>
         </button>
       ),
     },
@@ -380,22 +577,35 @@ export function VehicleResearchPage() {
               {group.vehicleClass === 'Truck' ? <Truck /> : <CarFront />}
             </span>
             {firstConfiguration && (
-              <Button
-                size="sm"
-                variant="dashed"
-                aria-label={`${group.id} Add configuration`}
-                onClick={() => {
-                  const sourceConfiguration = configurations.find(
-                    (item) =>
-                      item.id === firstConfiguration.sourceConfigurationId,
-                  );
-                  if (sourceConfiguration) {
-                    openConfigurationDialog(sourceConfiguration);
-                  }
-                }}
-              >
-                <Plus /> Configuration
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    void navigate(
+                      `/vehicle-research/${encodeURIComponent(firstConfiguration.sourceConfigurationId)}`,
+                    );
+                  }}
+                >
+                  Open vehicle research
+                </Button>
+                <Button
+                  size="sm"
+                  variant="dashed"
+                  aria-label={`${group.id} Add configuration`}
+                  onClick={() => {
+                    const sourceConfiguration = configurations.find(
+                      (item) =>
+                        item.id === firstConfiguration.sourceConfigurationId,
+                    );
+                    if (sourceConfiguration) {
+                      openConfigurationDialog(sourceConfiguration);
+                    }
+                  }}
+                >
+                  <Plus /> Configuration
+                </Button>
+              </>
             )}
           </>
         ),
@@ -435,12 +645,10 @@ export function VehicleResearchPage() {
               groups={groups}
               getRowId={(configuration) => configuration.id}
               onRowClick={(configuration) => {
-                void navigate(
-                  `/vehicle-research/${encodeURIComponent(configuration.sourceConfigurationId)}`,
-                );
+                openConfigurationHistory(configuration);
               }}
               rowActionLabel={(configuration) =>
-                `${configuration.id} Open research detail`
+                `${configuration.product} View configuration and history`
               }
               collapsedGroupIds={collapsedVehicles}
               onCollapsedGroupIdsChange={setCollapsedVehicles}
@@ -456,63 +664,44 @@ export function VehicleResearchPage() {
                 value: query,
                 onChange: setQuery,
               }}
-              filters={[
+              multiSelectFilters={[
                 {
-                  id: 'product',
-                  label: 'Product filter',
-                  value: product,
-                  onChange: setProduct,
-                  options: [
-                    { value: 'ALL', label: 'All' },
-                    { value: 'Seat Cover', label: 'Seat Cover' },
-                    { value: 'Car Cover', label: 'Car Cover' },
-                    { value: 'Floor Mat', label: 'Floor Mat' },
-                    {
-                      value: 'Steering Wheel Cover',
-                      label: 'Steering Wheel Cover',
-                    },
-                    { value: 'Window Shield', label: 'Window Shield' },
-                  ],
+                  id: 'product-types',
+                  label: 'Product types',
+                  values: products,
+                  onChange: setProducts,
+                  options: PRODUCT_TYPES.map((item) => ({
+                    value: item.product,
+                    label: item.product,
+                    count: productCounts.get(item.product) ?? 0,
+                  })),
+                },
+                {
+                  id: 'statuses',
+                  label: 'Status',
+                  values: statuses,
+                  onChange: setStatuses,
+                  options: RESEARCH_STATUS_FILTERS.map((filter) => ({
+                    value: filter.value,
+                    label: filter.label,
+                    count: statusCounts.get(filter.value) ?? 0,
+                  })),
                 },
               ]}
               toolbarContent={
-                <>
-                  <div
-                    className="stage-tabs"
-                    role="group"
-                    aria-label="Research status"
+                (query || products.length > 0 || statuses.length > 0) && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setQuery('');
+                      setProducts([]);
+                      setStatuses([]);
+                    }}
                   >
-                    {RESEARCH_STATUS_FILTERS.map((filter) => (
-                      <button
-                        type="button"
-                        key={filter.value}
-                        className="stage-tab"
-                        aria-pressed={status === filter.value}
-                        onClick={() => {
-                          setStatus(filter.value);
-                        }}
-                      >
-                        {filter.label}
-                        <span className="stage-tab-count">
-                          {statusCounts.get(filter.value) ?? 0}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                  {(query || product !== 'ALL' || status !== 'ALL') && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setQuery('');
-                        setProduct('ALL');
-                        setStatus('ALL');
-                      }}
-                    >
-                      <X /> Clear filters
-                    </Button>
-                  )}
-                </>
+                    <X /> Clear filters
+                  </Button>
+                )
               }
               actions={
                 <>
@@ -606,7 +795,7 @@ export function VehicleResearchPage() {
               <Input
                 placeholder="Example: RAV4"
                 value={model}
-                onChange={(event) => {
+                onChange={(event: ChangeEvent<HTMLInputElement>) => {
                   setModel(event.target.value);
                 }}
               />
@@ -619,7 +808,7 @@ export function VehicleResearchPage() {
                   max="2100"
                   type="number"
                   value={yearStart}
-                  onChange={(event) => {
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => {
                     setYearStart(event.target.value);
                   }}
                 />
@@ -631,7 +820,7 @@ export function VehicleResearchPage() {
                   max="2100"
                   type="number"
                   value={yearEnd}
-                  onChange={(event) => {
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => {
                     setYearEnd(event.target.value);
                   }}
                 />
@@ -674,79 +863,147 @@ export function VehicleResearchPage() {
           <DialogBody>
             {configurationVehicle && (
               <div className="configuration-vehicle-card">
-                <span>Vehicle</span>
-                <strong>{configurationVehicle.vehicle}</strong>
+                <span>Make + Model</span>
+                <strong>{configurationDialogMakeModel}</strong>
               </div>
             )}
+            <div className="configuration-setup-step">
+              <label>
+                <strong>1. Product type</strong>
+                <Select
+                  value={configurationProductTypeId}
+                  onValueChange={(value: string) => {
+                    selectConfigurationProductType(value as ProductTypeId);
+                  }}
+                >
+                  <SelectTrigger aria-label="Product type">
+                    <SelectValue placeholder="Select product type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRODUCT_TYPES.map((productType) => (
+                      <SelectItem value={productType.id} key={productType.id}>
+                        {productType.product}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+            </div>
+            <fieldset className="configuration-year-step">
+              <legend>2. Year</legend>
+              <div className="configuration-year-inputs">
+                <label>
+                  From
+                  <Input
+                    type="number"
+                    min="1900"
+                    max="2100"
+                    placeholder="e.g. 2023"
+                    value={configurationYearFrom}
+                    onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                      setConfigurationYearFrom(event.target.value);
+                    }}
+                  />
+                </label>
+                <label>
+                  To
+                  <Input
+                    type="number"
+                    min="1900"
+                    max="2100"
+                    placeholder="e.g. 2026"
+                    value={configurationYearTo}
+                    onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                      setConfigurationYearTo(event.target.value);
+                    }}
+                  />
+                </label>
+              </div>
+            </fieldset>
             <div className="configuration-dialog-label">
-              Configuration Title / Value
-              <span>— Only combinations affecting product fitment</span>
+              3. Option values
+              <span>— Only options belonging to the selected product</span>
             </div>
-            <div className="configuration-criteria-list">
-              {criteria.map((criterion, index) => (
-                <div className="configuration-criterion" key={criterion.id}>
-                  <span className="criterion-number">{index + 1}</span>
-                  <Select
-                    value={criterion.title}
-                    onValueChange={(title) => {
-                      updateCriterionTitle(criterion.id, title);
-                    }}
-                  >
-                    <SelectTrigger
-                      aria-label={`Configuration criterion ${String(index + 1)}`}
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.keys(configurationValues).map((title) => (
-                        <SelectItem value={title} key={title}>
-                          {title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={criterion.value}
-                    onValueChange={(value) => {
-                      updateCriterionValue(criterion.id, value);
-                    }}
-                  >
-                    <SelectTrigger
-                      aria-label={`Configuration value ${String(index + 1)}`}
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(configurationValues[criterion.title] ?? []).map(
-                        (value) => (
-                          <SelectItem value={value} key={value}>
-                            {value}
-                          </SelectItem>
-                        ),
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    aria-label={`${String(index + 1)}· Remove criterion`}
-                    mode="icon"
-                    variant="ghost"
-                    onClick={() => {
-                      removeCriterion(criterion.id);
-                    }}
-                    disabled={criteria.length === 1}
-                  >
-                    <X />
-                  </Button>
+            {!configurationProductTypeId ? (
+              <p className="configuration-step-empty">
+                Select a product type before configuring option values.
+              </p>
+            ) : (
+              <>
+                <div className="configuration-criteria-list">
+                  {criteria.map((criterion, index) => (
+                    <div className="configuration-criterion" key={criterion.id}>
+                      <span className="criterion-number">{index + 1}</span>
+                      <Select
+                        value={criterion.title}
+                        onValueChange={(title: string) => {
+                          updateCriterionTitle(criterion.id, title);
+                        }}
+                      >
+                        <SelectTrigger
+                          aria-label={`Configuration criterion ${String(index + 1)}`}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.keys(configurationValues).map((title) => (
+                            <SelectItem value={title} key={title}>
+                              {title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select
+                        value={criterion.value}
+                        onValueChange={(value: string) => {
+                          updateCriterionValue(criterion.id, value);
+                        }}
+                      >
+                        <SelectTrigger
+                          aria-label={`Configuration value ${String(index + 1)}`}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(configurationValues[criterion.title] ?? []).map(
+                            (value) => (
+                              <SelectItem value={value} key={value}>
+                                {value}
+                              </SelectItem>
+                            ),
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        aria-label={`${String(index + 1)}· Remove criterion`}
+                        mode="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          removeCriterion(criterion.id);
+                        }}
+                      >
+                        <X />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <Button
-              className="add-configuration-criterion"
-              variant="dashed"
-              onClick={addCriterion}
-            >
-              <Plus /> Add configuration criterion
-            </Button>
+                {criteria.length === 0 && (
+                  <p className="configuration-step-empty">
+                    Base vehicle — this product has no option values selected.
+                  </p>
+                )}
+                <Button
+                  className="add-configuration-criterion"
+                  variant="dashed"
+                  onClick={addCriterion}
+                  disabled={
+                    criteria.length >= Object.keys(configurationValues).length
+                  }
+                >
+                  <Plus /> Add option value
+                </Button>
+              </>
+            )}
           </DialogBody>
           <DialogFooter className="configuration-dialog-footer">
             <Button
@@ -755,19 +1012,48 @@ export function VehicleResearchPage() {
                 setConfigurationDialogOpen(false);
               }}
             >
-              Cancelled
+              Cancel
             </Button>
             <Button
               className="vehicle-register-submit"
               variant="primary"
               onClick={saveConfiguration}
-              disabled={!criteria.length}
+              disabled={
+                !configurationProductTypeId ||
+                !configurationYearFrom ||
+                !configurationYearTo ||
+                Number(configurationYearFrom) > Number(configurationYearTo) ||
+                criteria.some(
+                  (criterion) => !criterion.title || !criterion.value,
+                )
+              }
             >
               Register configuration
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ResearchConfigurationDialog
+        open={Boolean(selectedConfigurationTarget)}
+        onOpenChange={(open) => {
+          if (!open) closeConfigurationHistory();
+        }}
+        target={selectedConfigurationTarget}
+        availableYears={selectedAvailableYears}
+        researchStatus={selectedConfigurationRow?.researchStatus ?? 'DRAFT'}
+        versions={configurationVersions.records}
+        actor={actor.name}
+        saving={configurationVersions.saving}
+        onCreateVersion={createConfigurationVersion}
+        onUpdateVersionStatus={updateConfigurationVersionStatus}
+        onOpenVehicleResearch={() => {
+          if (!selectedConfigurationRow || !selectedConfigurationTarget) return;
+          void navigate(
+            `/vehicle-research/${encodeURIComponent(selectedConfigurationRow.sourceConfigurationId)}?configuration=${encodeURIComponent(selectedConfigurationTarget.id)}`,
+          );
+        }}
+      />
     </section>
   );
 }

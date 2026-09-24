@@ -32,7 +32,6 @@ interface ResearchAsset {
   model: string;
   years: string;
   format: string;
-  tags: readonly string[];
   productTypeId: ProductTypeId;
   optionSelections: readonly (readonly [string, string])[];
 }
@@ -92,7 +91,6 @@ function researchAssets(
                 sourceUrl: material.sourceUrl,
                 rowLabel: material.fileData ? 'Uploaded asset' : 'Source link',
                 variation: material.notes || material.title,
-                tags: material.tags,
                 productTypeId: material.productTypeId,
                 optionSelections: material.optionSelections,
                 ...identity,
@@ -127,7 +125,6 @@ export function ResearchAssetLibrary({
   const [optionKey, setOptionKey] = useState('ALL');
   const [optionValue, setOptionValue] = useState('ALL');
   const [format, setFormat] = useState('ALL');
-  const [tag, setTag] = useState('ALL');
   const makes = Array.from(new Set(assets.map((asset) => asset.make))).sort();
   const models = Array.from(
     new Set(
@@ -153,9 +150,6 @@ export function ResearchAssetLibrary({
   const formats = Array.from(
     new Set(assets.map((asset) => asset.format)),
   ).sort();
-  const tags = Array.from(
-    new Set(assets.flatMap((asset) => asset.tags)),
-  ).sort();
   const normalizedQuery = query.trim().toLowerCase();
   const visibleAssets = assets.filter((asset) => {
     const optionText = asset.optionSelections.flat().join(' ');
@@ -166,7 +160,6 @@ export function ResearchAssetLibrary({
         asset.configuration.vehicle,
         asset.rowLabel,
         asset.variation,
-        asset.tags.join(' '),
         optionText,
       ]
         .join(' ')
@@ -182,8 +175,7 @@ export function ResearchAssetLibrary({
       (make === 'ALL' || asset.make === make) &&
       (model === 'ALL' || asset.model === model) &&
       (optionKey === 'ALL' && optionValue === 'ALL' ? true : matchesOption) &&
-      (format === 'ALL' || asset.format === format) &&
-      (tag === 'ALL' || asset.tags.includes(tag))
+      (format === 'ALL' || asset.format === format)
     );
   });
 
@@ -282,20 +274,6 @@ export function ResearchAssetLibrary({
             ))}
           </select>
         </label>
-        <label>
-          <span>Tag</span>
-          <select
-            value={tag}
-            onChange={(event) => {
-              setTag(event.target.value);
-            }}
-          >
-            <option value="ALL">All tags</option>
-            {tags.map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
-        </label>
       </div>
 
       {visibleAssets.length ? (
@@ -335,22 +313,6 @@ export function ResearchAssetLibrary({
                       : asset.configuration.options
                   }
                 />
-                {asset.tags.length > 0 && (
-                  <div className="research-asset-tags" aria-label="Asset tags">
-                    {asset.tags.map((item) => (
-                      <button
-                        type="button"
-                        key={item}
-                        aria-pressed={tag === item}
-                        onClick={() => {
-                          setTag(tag === item ? 'ALL' : item);
-                        }}
-                      >
-                        #{item}
-                      </button>
-                    ))}
-                  </div>
-                )}
                 <footer>
                   <Button
                     variant="outline"

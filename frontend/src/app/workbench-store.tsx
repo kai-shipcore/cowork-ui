@@ -747,7 +747,15 @@ function migrateState(
     ),
     shapeCatalogVersion: 1,
     appUsers: stored.appUsers ?? fallback.appUsers,
-    vehicleZones: stored.vehicleZones ?? fallback.vehicleZones,
+    vehicleZones: [
+      ...(stored.vehicleZones ?? []),
+      ...fallback.vehicleZones.filter(
+        (fallbackZone) =>
+          !(stored.vehicleZones ?? []).some(
+            (storedZone) => storedZone.id === fallbackZone.id,
+          ),
+      ),
+    ],
     vehicleOptionKeys: stored.vehicleOptionKeys ?? fallback.vehicleOptionKeys,
     vehicleOptionValues:
       stored.vehicleOptionValues ?? fallback.vehicleOptionValues,
