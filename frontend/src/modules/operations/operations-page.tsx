@@ -10,7 +10,6 @@ import {
 import { RdPerformance } from '@/modules/rd-workspace/rd-performance';
 import { useOperations } from '@/app/operations-store';
 import { useWorkbenchStore } from '@/app/workbench-store';
-import { ApprovalAdministration } from './approval-administration';
 import { ApprovalInbox } from './approval-inbox';
 import {
   isOpen,
@@ -212,14 +211,7 @@ export function OperationsPage() {
         )}
       </div>
     ) : section === 'settings' ? (
-      <PersonalSettings
-        key={actor.id}
-        actor={actor}
-        // APPROVAL_MANAGE is not modelled yet; team leads stand in for it locally.
-        administration={
-          actor.role === 'lead' ? <ApprovalAdministration /> : undefined
-        }
-      >
+      <PersonalSettings key={actor.id} actor={actor}>
         <div className="ops-panel ops-form">
           <h2>Demo work data backup</h2>
           <p>

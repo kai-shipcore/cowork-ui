@@ -28,8 +28,10 @@ import {
 } from './approval-model';
 import { ApprovalRouteBuilder } from './approval-route-builder';
 import { ApprovalRouteStepper } from './approval-route-stepper';
+import { templateSteps } from './approval-route-template';
 import { ApprovalStatusChip } from './approval-status-chip';
 import { useApprovalActor } from './use-approval-actor';
+import { useApprovalRouteTemplates } from './use-approval-route-templates';
 import './approval.css';
 
 interface ApprovalRequestPanelProps {
@@ -77,14 +79,20 @@ export function ApprovalRequestPanel({
   const { appUsers, approvalGrants, approvalSteps, approvalAssignments } =
     useWorkbenchStore();
   const actorId = useApprovalActor();
+  const templates = useApprovalRouteTemplates();
+  const defaultSteps = templateSteps(templates.records, approvalTypeId);
   const current = requests.slice(-1).pop();
   const older = requests.slice(0, -1).reverse();
 
-  /** The frozen route of an earlier request, as a starting point for resubmission. */
+  /**
+   * Where the route editor starts: the earlier request's frozen route when
+   * resubmitting, otherwise the type's default steps from Approval Flow
+   * Management, otherwise an empty final step.
+   */
   function routeOf(
     request: ApprovalRequest | undefined,
   ): readonly ApprovalRouteStepDraft[] {
-    if (!request) return [newRouteStep('FINAL')];
+    if (!request) return defaultSteps ?? [newRouteStep('FINAL')];
     const steps = approvalSteps
       .filter((step) => step.approvalRequestId === request.id)
       .sort((a, b) => a.stepNumber - b.stepNumber)
@@ -317,6 +325,13 @@ export function ApprovalRequestPanel({
           </DialogHeader>
           <DialogBody className="approval-panel">
             {submitSummary}
+            {!current && defaultSteps && (
+              <p className="approval-route-note">
+                Steps pre-filled from the default route for this approval type
+                (Admin Tools → Approval Flow Management). Adjust them if this
+                request needs a different route.
+              </p>
+            )}
             <ApprovalRouteBuilder
               users={appUsers}
               grants={approvalGrants}

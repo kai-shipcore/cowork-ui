@@ -16,6 +16,8 @@ export const ROUTES = {
   productRegistrations: '/product-registrations',
   vehicleOptions: '/vehicle-options',
   referenceData: '/reference-data',
+  adminUsers: '/admin/users',
+  adminApprovals: '/admin/approvals',
   profileDefault: '/profiles/default',
   login: '/login',
 } as const;

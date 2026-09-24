@@ -43,6 +43,16 @@ const PerformanceDashboardPage = lazy(() =>
     (module) => ({ default: module.PerformanceDashboardPage }),
   ),
 );
+const UserManagementPage = lazy(() =>
+  import('@/modules/admin/pages/user-management-page').then((module) => ({
+    default: module.UserManagementPage,
+  })),
+);
+const ApprovalFlowPage = lazy(() =>
+  import('@/modules/admin/pages/approval-flow-page').then((module) => ({
+    default: module.ApprovalFlowPage,
+  })),
+);
 const VehicleResearchPage = lazy(() =>
   import('@/modules/vehicle-registry/pages/vehicle-research-page').then(
     (module) => ({ default: module.VehicleResearchPage }),
@@ -293,6 +303,22 @@ export function AppRouter() {
           element={
             <Suspense fallback={<RouteFallback />}>
               <ReferenceDataPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path={ROUTES.adminUsers}
+          element={
+            <Suspense fallback={<RouteFallback />}>
+              <UserManagementPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path={ROUTES.adminApprovals}
+          element={
+            <Suspense fallback={<RouteFallback />}>
+              <ApprovalFlowPage />
             </Suspense>
           }
         />

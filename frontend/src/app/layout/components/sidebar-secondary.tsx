@@ -2,7 +2,7 @@ import { ScrollArea } from '@coverland-engineering/ui/scroll-area';
 import { Separator } from '@coverland-engineering/ui/separator';
 import { useLocation } from 'react-router-dom';
 import { teamFromLocation } from '@/modules/operations/operations-model';
-import { getResourcesMenu } from '../navigation';
+import { getAdminMenu, getResourcesMenu } from '../navigation';
 import { SidebarPrimaryMenu } from './sidebar-primary-menu';
 import { SidebarResourcesMenu } from './sidebar-resources-menu';
 import { SidebarSearch } from './sidebar-search';
@@ -20,6 +20,8 @@ export function SidebarSecondary({ toolsMenuTitle }: SidebarSecondaryProps) {
       <SidebarPrimaryMenu toolsMenuTitle={toolsMenuTitle} />
       <Separator className="my-2.5" />
       <SidebarResourcesMenu items={getResourcesMenu(team)} />
+      <Separator className="my-2.5" />
+      <SidebarResourcesMenu title="Admin Tools" items={getAdminMenu()} />
       <Separator className="my-2.5" />
     </ScrollArea>
   );

@@ -38,8 +38,8 @@ await test('collapsed R&D rail exposes every tool and resource after a separator
   const html = renderRail({ collapsed: true });
   const groupPosition = html.indexOf('aria-label="R&amp;D Tools"');
   assert.ok(groupPosition > html.indexOf('role="separator"'));
-  assert.equal((html.match(/role="separator"/g) ?? []).length, 2);
-  assert.equal((html.match(/lucide-ellipsis/g) ?? []).length, 2);
+  assert.equal((html.match(/role="separator"/g) ?? []).length, 3);
+  assert.equal((html.match(/lucide-ellipsis/g) ?? []).length, 3);
   assert.match(html, /bg-white/);
   assert.doesNotMatch(html, /data-slot="separator"/);
   for (const item of MENU_SIDEBAR_MAIN.find(
@@ -50,6 +50,9 @@ await test('collapsed R&D rail exposes every tool and resource after a separator
   assert.match(html, /aria-label="Resources"/);
   assert.match(html, /href="\/vehicle-options"/);
   assert.match(html, /href="\/reference-data"/);
+  assert.match(html, /aria-label="Admin Tools"/);
+  assert.match(html, /href="\/admin\/users"/);
+  assert.match(html, /href="\/admin\/approvals"/);
   assert.doesNotMatch(html, /href="\/work\/requests\?team=rd"/);
   assert.doesNotMatch(
     html,
