@@ -404,22 +404,7 @@ export function VehicleResearchPage() {
 
   return (
     <section>
-      <PageHeader
-        description="Register vehicle → Add configuration (option combination) → Complete vehicle research · No F# at this stage"
-        tables={
-          import.meta.env.DEV
-            ? [
-                { name: 'vehicle_research' },
-                { name: 'vehicle_research_x_option_value' },
-                { name: 'vehicle_option_key' },
-                { name: 'vehicle_option_value' },
-                { name: 'vehicle_model' },
-                { name: 'vehicle_make' },
-                { name: 'vehicle_class' },
-              ]
-            : undefined
-        }
-      />
+      <PageHeader />
 
       <Card className="vehicle-research-surface">
         <ContentTabs
