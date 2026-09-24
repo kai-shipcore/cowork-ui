@@ -148,6 +148,13 @@ export const usersApi = api
         queryFn: (input) => local((store) => store.sendInvitation(input)),
         invalidatesTags: [INVITATIONS_TAG],
       }),
+      revokeInvitation: build.mutation<void, string>({
+        query: (userId) => ({
+          url: `/api/v1/auth/users/${encodeURIComponent(userId)}/invitation/revoke`,
+          method: 'POST',
+        }),
+        invalidatesTags: [USERS_TAG, INVITATIONS_TAG],
+      }),
       listPermissions: build.query<PermissionDto[], void>({
         queryFn: () => local((store) => store.listPermissions()),
         providesTags: [PERMISSIONS_TAG],
@@ -228,6 +235,7 @@ export const {
   useDeleteAppRoleMutation,
   useInviteUserMutation,
   useSendInvitationMutation,
+  useRevokeInvitationMutation,
   useListPermissionsQuery,
   useCreatePermissionMutation,
   useUpdatePermissionMutation,

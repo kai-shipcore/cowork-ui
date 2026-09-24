@@ -5,7 +5,7 @@ import {
   FlatDataGrid,
   type FlatDataGridColumn,
 } from '@coverland-engineering/ui/flat-data-grid';
-import { Pencil, Send, ShieldCheck, UserPlus, X } from 'lucide-react';
+import { MailX, Pencil, Send, ShieldCheck, UserPlus, X } from 'lucide-react';
 import { useSortedPage } from '@/shared/components/use-sorted-page';
 import { useOperations } from '@/app/operations-store';
 import type { AppUserDto } from '../app-user-dto';
@@ -19,6 +19,7 @@ import {
   useListAppRolesQuery,
   useListDepartmentsQuery,
   useListUsersQuery,
+  useRevokeInvitationMutation,
   useSendInvitationMutation,
 } from '../users-api';
 import { UserAccessSheet } from './user-access-sheet';
@@ -57,8 +58,12 @@ export function UsersTab() {
   const [dialog, setDialog] = useState<DialogState>({ open: false });
   const [accessUser, setAccessUser] = useState<AppUserDto>();
   const [message, setMessage] = useState('');
+  const [revokedUserIds, setRevokedUserIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const { actor } = useOperations();
   const [sendInvitation] = useSendInvitationMutation();
+  const [revokeInvitation, revokeState] = useRevokeInvitationMutation();
 
   // Until sign-in exists, the invitation is sent from the demo actor's account,
   // falling back to the SYSTEM account so the inviter is always an active user.
@@ -79,7 +84,22 @@ export function UsersTab() {
         appUserId: user.id,
         invitedBy: inviter.id,
       }).unwrap();
+      setRevokedUserIds((current) => {
+        const next = new Set(current);
+        next.delete(user.id);
+        return next;
+      });
       setMessage(`Invitation sent again to ${sent.inviteeEmail}.`);
+    } catch (failure) {
+      setMessage(apiErrorMessage(failure));
+    }
+  }
+
+  async function revoke(user: AppUserDto): Promise<void> {
+    try {
+      await revokeInvitation(user.id).unwrap();
+      setRevokedUserIds((current) => new Set(current).add(user.id));
+      setMessage(`Invitation to ${user.email} revoked.`);
     } catch (failure) {
       setMessage(apiErrorMessage(failure));
     }
@@ -144,52 +164,73 @@ export function UsersTab() {
     {
       id: 'actions',
       header: 'Actions',
-      width: 130,
+      width: 170,
       className: 'text-center',
       hideable: false,
-      cell: (user) => (
-        <div className="admin-row-actions">
-          <Button
-            size="sm"
-            variant="outline"
-            mode="icon"
-            aria-label={`Manage access for ${user.name}`}
-            title="Manage access"
-            onClick={() => {
-              setAccessUser(user);
-            }}
-          >
-            <ShieldCheck />
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            mode="icon"
-            aria-label={`Edit ${user.name}`}
-            title="Edit"
-            onClick={() => {
-              setDialog({ open: true, user });
-            }}
-          >
-            <Pencil />
-          </Button>
-          {user.status === 'INVITED' && (
+      cell: (user) => {
+        const canRevoke =
+          user.status === 'INVITED' && !revokedUserIds.has(user.id);
+        return (
+          <div className="admin-row-actions">
             <Button
               size="sm"
               variant="outline"
               mode="icon"
-              aria-label={`Resend invitation to ${user.name}`}
-              title="Resend invitation"
-              disabled={!inviter}
+              aria-label={`Manage access for ${user.name}`}
+              title="Manage access"
               onClick={() => {
-                void resend(user);
+                setAccessUser(user);
               }}
             >
-              <Send />
+              <ShieldCheck />
             </Button>
-          )}
-        </div>
-      ),
+            <Button
+              size="sm"
+              variant="outline"
+              mode="icon"
+              aria-label={`Edit ${user.name}`}
+              title="Edit"
+              onClick={() => {
+                setDialog({ open: true, user });
+              }}
+            >
+              <Pencil />
+            </Button>
+            {user.status === 'INVITED' && (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  mode="icon"
+                  aria-label={`Resend invitation to ${user.name}`}
+                  title="Resend invitation"
+                  disabled={!inviter}
+                  onClick={() => {
+                    void resend(user);
+                  }}
+                >
+                  <Send />
+                </Button>
+                {canRevoke && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    mode="icon"
+                    aria-label={`Revoke invitation to ${user.name}`}
+                    title="Revoke invitation"
+                    disabled={revokeState.isLoading}
+                    onClick={() => {
+                      void revoke(user);
+                    }}
+                  >
+                    <MailX />
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
