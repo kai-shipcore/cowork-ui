@@ -250,9 +250,9 @@ export function VehicleResearchDetailPage() {
       configurationId: researchGroupId,
       researchStatus:
         latest?.researchStatus ??
-        (configuration?.researchStatus === 'COMPLETE'
-          ? 'COMPLETE'
-          : 'RESEARCHING'),
+        (['COMPLETE', 'COMPLETED'].includes(configuration?.researchStatus ?? '')
+          ? 'COMPLETED'
+          : 'IN_PROGRESS'),
       projectDisposition: latest?.projectDisposition ?? 'PENDING',
       holdReason: latest?.holdReason ?? '',
       generation: latest?.generation ?? '',

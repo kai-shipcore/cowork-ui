@@ -476,9 +476,6 @@ function migrateState(
   stored: Partial<WorkbenchState>,
   fallback: WorkbenchState,
 ): WorkbenchState {
-  const initialConfigurationIds = new Set(
-    fallback.configurations.map((configuration) => configuration.id),
-  );
   const configurations = (stored.configurations ?? fallback.configurations).map(
     (configuration) => {
       const legacy = configuration as LegacyVehicleConfiguration;
@@ -486,10 +483,13 @@ function migrateState(
         ...configuration,
         projectGroupIds: legacy.projectGroupIds ?? legacy.projectGroups ?? [],
       };
-      return !initialConfigurationIds.has(configuration.id) &&
-        configuration.researchStatus === 'RESEARCHING'
-        ? { ...migrated, researchStatus: 'COMPLETE' as const }
-        : migrated;
+      if (configuration.researchStatus === 'COMPLETE') {
+        return { ...migrated, researchStatus: 'COMPLETED' as const };
+      }
+      if (configuration.researchStatus === 'RESEARCHING') {
+        return { ...migrated, researchStatus: 'IN_PROGRESS' as const };
+      }
+      return migrated;
     },
   );
   const projects = (stored.projects ?? fallback.projects).map((project) =>

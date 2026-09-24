@@ -21,7 +21,13 @@ export interface VehicleConfiguration {
   vehicle: string;
   vehicleClass: string;
   options: readonly (readonly [string, string])[];
-  researchStatus: 'RESEARCHING' | 'COMPLETE';
+  researchStatus:
+    | 'DRAFT'
+    | 'IN_PROGRESS'
+    | 'PENDING_APPROVAL'
+    | 'COMPLETED'
+    | 'RESEARCHING'
+    | 'COMPLETE';
   projectGroupIds: readonly string[];
 }
 
