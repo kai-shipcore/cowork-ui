@@ -67,12 +67,16 @@ export function ResearchHandoffCard({
                 <span className="research-handoff-badges">
                   <StatusBadge
                     label={
-                      configuration.researchStatus === 'COMPLETE'
+                      ['COMPLETE', 'COMPLETED'].includes(
+                        configuration.researchStatus,
+                      )
                         ? 'Complete'
                         : 'Researching'
                     }
                     tone={
-                      configuration.researchStatus === 'COMPLETE'
+                      ['COMPLETE', 'COMPLETED'].includes(
+                        configuration.researchStatus,
+                      )
                         ? 'success'
                         : 'progress'
                     }

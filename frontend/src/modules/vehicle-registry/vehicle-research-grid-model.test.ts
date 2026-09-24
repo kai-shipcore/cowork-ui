@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { VehicleConfiguration } from '@/shared/types/workbench';
-import { groupVehicleResearch } from './vehicle-research-grid-model';
+import {
+  groupVehicleResearch,
+  mergeProductResearchRows,
+} from './vehicle-research-grid-model';
 
 function configuration(id: string, vehicle: string): VehicleConfiguration {
   return {
@@ -24,7 +27,7 @@ await test('groups configurations by make and model and preserves rows and proje
   assert.equal(groups.length, 2);
   assert.equal(groups[0]?.id, 'Toyota RAV4');
   assert.equal(groups[0]?.title, 'Toyota RAV4');
-  assert.equal(groups[0]?.description, '2023–2026 · SUV · 2 Configurations');
+  assert.equal(groups[0]?.description, 'SUV · 2 Configurations');
   assert.deepEqual(
     groups[0]?.rows.map((row) => row.id),
     ['a', 'c'],
@@ -43,10 +46,7 @@ await test('different year ranges remain in one make-model group', () => {
   assert.equal(groups.length, 1);
   assert.equal(groups[0]?.id, 'Toyota RAV4');
   assert.equal(groups[0]?.rows.length, 3);
-  assert.equal(
-    groups[0]?.description,
-    '2023–2026, 2020–2022 · SUV · 3 Configurations',
-  );
+  assert.equal(groups[0]?.description, 'SUV · 3 Configurations');
 });
 
 await test('filtered results retain collapse ids but reflect only matching configuration counts', () => {
@@ -60,7 +60,7 @@ await test('filtered results retain collapse ids but reflect only matching confi
     [first, second].filter((row) => row.researchStatus === 'COMPLETE'),
   );
   assert.equal(filtered[0]?.id, all[0]?.id);
-  assert.equal(filtered[0]?.description, '2024 · SUV · 1 Configurations');
+  assert.equal(filtered[0]?.description, 'SUV · 1 Configurations');
   assert.deepEqual(filtered[0]?.rows, [first]);
 });
 
@@ -72,4 +72,24 @@ await test('empty results render no groups and labels without a year remain read
   assert.equal(groups[0]?.title, 'Ford F-150');
   assert.equal(groups[0]?.description, 'Truck · 1 Configurations');
   assert.equal(groups[0]?.vehicleClass, 'Truck');
+});
+
+await test('identical product options merge into a contiguous model-year range', () => {
+  const rows = [
+    configuration('a', '2023 Toyota RAV4'),
+    configuration('b', '2024–2026 Toyota RAV4'),
+    {
+      ...configuration('c', '2022 Toyota RAV4'),
+      options: [['Powertrain', 'Gas']] as const,
+    },
+  ].map((row) => ({
+    ...row,
+    sourceConfigurationId: row.id,
+    productTypeId: 'PT-SC' as const,
+  }));
+  const merged = mergeProductResearchRows(rows);
+  assert.equal(merged.length, 2);
+  assert.equal(merged[0]?.years, '2023–2026');
+  assert.deepEqual(merged[0]?.projectGroupIds, ['project-a', 'project-b']);
+  assert.equal(merged[1]?.years, '2022');
 });

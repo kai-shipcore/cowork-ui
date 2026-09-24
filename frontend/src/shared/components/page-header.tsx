@@ -8,7 +8,7 @@ export type TableRef =
   { name: DatabaseTable; proposed?: false } | { name: string; proposed: true };
 
 interface PageHeaderProps {
-  description: string;
+  description?: string;
   /**
    * Tables backing this screen, for cross-checking against the DDL. Rendered
    * only in development — it is a developer aid, not operator-facing chrome.
@@ -62,7 +62,7 @@ export function PageHeader({ description, tables, actions }: PageHeaderProps) {
     <header className="workbench-page-header">
       <div className="workbench-heading">
         <h1>{pageTitle(pathname, search)}</h1>
-        <p>{description}</p>
+        {description && <p>{description}</p>}
         {tables && <PageTables tables={tables} />}
       </div>
       {actions && <div className="page-actions">{actions}</div>}

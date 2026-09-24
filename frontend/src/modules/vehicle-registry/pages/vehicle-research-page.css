@@ -31,6 +31,12 @@
   letter-spacing: 0.02em;
 }
 
+.research-configuration-years {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .research-product-type-pt-sc {
   background: color-mix(in srgb, #2563eb 12%, var(--background));
   color: #1d4ed8;
@@ -44,6 +50,16 @@
 .research-product-type-pt-fm {
   background: color-mix(in srgb, #0f766e 12%, var(--background));
   color: #0f766e;
+}
+
+.research-product-type-pt-swc {
+  background: color-mix(in srgb, #ea580c 13%, var(--background));
+  color: #c2410c;
+}
+
+.research-product-type-pt-ws {
+  background: color-mix(in srgb, #db2777 12%, var(--background));
+  color: #be185d;
 }
 
 .vehicle-research-surface {

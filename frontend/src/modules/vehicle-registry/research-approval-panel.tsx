@@ -33,7 +33,9 @@ export function ResearchApprovalPanel({
   const apply = useApprovalTransform();
   const requests = researchRequestsFor(approvalRequests, configuration.id);
   const current = requests.slice(-1).pop();
-  const isComplete = configuration.researchStatus === 'COMPLETE';
+  const isComplete = ['COMPLETE', 'COMPLETED'].includes(
+    configuration.researchStatus,
+  );
   const canSubmit =
     isComplete &&
     (!current ||
@@ -44,7 +46,7 @@ export function ResearchApprovalPanel({
     setConfigurations((rows) =>
       rows.map((row) =>
         row.id === configuration.id
-          ? { ...row, researchStatus: 'COMPLETE' }
+          ? { ...row, researchStatus: 'COMPLETED' }
           : row,
       ),
     );

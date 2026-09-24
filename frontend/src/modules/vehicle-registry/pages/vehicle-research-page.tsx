@@ -31,7 +31,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { ConfigChips } from '@/shared/domain/config-chips';
 import {
-  canStartDevelopment,
   RESEARCH_DISPOSITION_LABELS,
   RESEARCH_DISPOSITION_TONES,
   researchDisposition,
@@ -48,16 +47,31 @@ import {
 } from '@/shared/types/workbench';
 import { useWorkbenchStore } from '@/app/workbench-store';
 import { ResearchAssetLibrary } from '../research-asset-library';
-import { groupVehicleResearch } from '../vehicle-research-grid-model';
+import {
+  groupVehicleResearch,
+  mergeProductResearchRows,
+} from '../vehicle-research-grid-model';
 import '../research-asset-library.css';
 import './vehicle-research-page.css';
 
 const RESEARCH_STATUS_FILTERS = [
   { label: 'All', value: 'ALL' },
-  { label: 'Complete', value: 'COMPLETE' },
-  { label: 'Researching', value: 'RESEARCHING' },
+  { label: 'Draft', value: 'DRAFT' },
+  { label: 'In Progress', value: 'IN_PROGRESS' },
+  { label: 'Pending Approval', value: 'PENDING_APPROVAL' },
+  { label: 'Completed', value: 'COMPLETED' },
 ] as const;
 type ResearchStatusFilter = (typeof RESEARCH_STATUS_FILTERS)[number]['value'];
+
+type ResearchLifecycleStatus = Exclude<ResearchStatusFilter, 'ALL'>;
+
+function researchLifecycleStatus(
+  status: VehicleConfiguration['researchStatus'],
+): ResearchLifecycleStatus {
+  if (status === 'COMPLETE') return 'COMPLETED';
+  if (status === 'RESEARCHING') return 'IN_PROGRESS';
+  return status;
+}
 
 interface ConfigurationCriterion {
   id: number;
@@ -69,6 +83,7 @@ interface ProductResearchRow extends VehicleConfiguration {
   sourceConfigurationId: string;
   productTypeId: ProductTypeId;
   product: ProductType;
+  years?: string;
 }
 
 const INITIAL_CRITERIA: readonly ConfigurationCriterion[] = [
@@ -171,16 +186,21 @@ export function VehicleResearchPage() {
         } satisfies ProductResearchRow;
       });
     });
+  const mergedProductRows = mergeProductResearchRows(searchedProductRows);
   const statusCounts = new Map(
     RESEARCH_STATUS_FILTERS.map((filter) => [
       filter.value,
-      searchedProductRows.filter(
-        (row) => filter.value === 'ALL' || row.researchStatus === filter.value,
+      mergedProductRows.filter(
+        (row) =>
+          filter.value === 'ALL' ||
+          researchLifecycleStatus(row.researchStatus) === filter.value,
       ).length,
     ]),
   );
-  const productRows = searchedProductRows.filter(
-    (row) => status === 'ALL' || row.researchStatus === status,
+  const productRows = mergedProductRows.filter(
+    (row) =>
+      status === 'ALL' ||
+      researchLifecycleStatus(row.researchStatus) === status,
   );
   const vehicleGroups = groupVehicleResearch(productRows);
   const {
@@ -199,7 +219,7 @@ export function VehicleResearchPage() {
         ['Seats', '7 Seats'],
         ['2nd Row Seat', 'Captain'],
       ],
-      researchStatus: 'RESEARCHING',
+      researchStatus: 'DRAFT',
       projectGroupIds: [],
     };
     setConfigurations((current) => [...current, newConfiguration]);
@@ -264,21 +284,11 @@ export function VehicleResearchPage() {
       vehicle: configurationVehicle.vehicle,
       vehicleClass: configurationVehicle.vehicleClass,
       options: criteria.map((criterion) => [criterion.title, criterion.value]),
-      researchStatus: 'COMPLETE',
+      researchStatus: 'DRAFT',
       projectGroupIds: [],
     };
     setConfigurations((current) => [...current, newConfiguration]);
     setConfigurationDialogOpen(false);
-  }
-
-  function completeResearch(configuration: VehicleConfiguration): void {
-    setConfigurations((current) =>
-      current.map((item) =>
-        item.id === configuration.id
-          ? { ...item, researchStatus: 'COMPLETE' }
-          : item,
-      ),
-    );
   }
 
   const columns: GroupedDataGridColumn<ProductResearchRow>[] = [
@@ -306,6 +316,11 @@ export function VehicleResearchPage() {
           >
             {configuration.product}
           </span>
+          {configuration.years && (
+            <span className="research-configuration-years">
+              {configuration.years}
+            </span>
+          )}
           <ConfigChips options={configuration.options} />
           <span>Open research detail</span>
         </button>
@@ -315,12 +330,22 @@ export function VehicleResearchPage() {
       id: 'status',
       header: 'Status',
       width: 150,
-      sortValue: (configuration) => configuration.researchStatus,
+      sortValue: (configuration) =>
+        researchLifecycleStatus(configuration.researchStatus),
       cell: (configuration) => (
         <StatusBadge
-          label={configuration.researchStatus}
+          label={researchLifecycleStatus(configuration.researchStatus)}
           tone={
-            configuration.researchStatus === 'COMPLETE' ? 'success' : 'progress'
+            researchLifecycleStatus(configuration.researchStatus) ===
+            'COMPLETED'
+              ? 'success'
+              : researchLifecycleStatus(configuration.researchStatus) ===
+                  'PENDING_APPROVAL'
+                ? 'warning'
+                : researchLifecycleStatus(configuration.researchStatus) ===
+                    'DRAFT'
+                  ? 'neutral'
+                  : 'progress'
           }
         />
       ),
@@ -337,105 +362,6 @@ export function VehicleResearchPage() {
             label={RESEARCH_DISPOSITION_LABELS[disposition]}
             tone={RESEARCH_DISPOSITION_TONES[disposition]}
           />
-        );
-      },
-    },
-    {
-      id: 'development',
-      header: 'Development',
-      width: 420,
-      sortValue: (configuration) => configuration.projectGroupIds.length,
-      cell: (configuration) => {
-        const linkedProjects = configuration.projectGroupIds
-          .map((id) => ({
-            id,
-            project: projects.find((project) => project.id === id),
-          }))
-          .filter(
-            ({ project }) =>
-              !project || project.productTypeId === configuration.productTypeId,
-          );
-        return linkedProjects.length ? (
-          <div className="development-project-list">
-            {linkedProjects.map(({ id, project }) => (
-              <button
-                type="button"
-                className="development-project-card"
-                key={id}
-                onClick={() => {
-                  // React Router handles route errors; the click does not await navigation.
-                  void navigate(
-                    `${ROUTES.vehicleProjects}?project=${encodeURIComponent(id)}`,
-                  );
-                }}
-              >
-                <span>
-                  <strong>{project?.product ?? 'Development'}</strong>
-                  <small>{id}</small>
-                </span>
-                <StatusBadge
-                  label={project?.stage ?? 'PROJECT'}
-                  tone="progress"
-                />
-              </button>
-            ))}
-          </div>
-        ) : canStartDevelopment(configuration, dispositionOf(configuration)) ? (
-          <div className="development-empty-state">
-            <span>No development yet</span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                // React Router handles route errors; the click does not await navigation.
-                void navigate(
-                  `${ROUTES.vehicleProjects}?new=1&configuration=${encodeURIComponent(configuration.sourceConfigurationId)}`,
-                );
-              }}
-            >
-              <Plus /> Start Development
-            </Button>
-          </div>
-        ) : configuration.researchStatus === 'COMPLETE' ? (
-          <div className="development-locked-state">
-            <span>
-              {dispositionOf(configuration) === 'HOLD'
-                ? 'Development on hold'
-                : dispositionOf(configuration) === 'REVIEWING'
-                  ? 'Handoff approval in progress'
-                  : 'Handoff approval not requested'}
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                // React Router handles route errors; the click does not await navigation.
-                void navigate(
-                  `${ROUTES.vehicleResearch}/${encodeURIComponent(configuration.sourceConfigurationId)}`,
-                );
-              }}
-            >
-              {dispositionOf(configuration) === 'PENDING'
-                ? 'Request approval'
-                : 'Open approval'}
-            </Button>
-          </div>
-        ) : (
-          <div className="development-locked-state">
-            <span>Available after Research Complete</span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const sourceConfiguration = configurations.find(
-                  (item) => item.id === configuration.sourceConfigurationId,
-                );
-                if (sourceConfiguration) completeResearch(sourceConfiguration);
-              }}
-            >
-              Research Complete
-            </Button>
-          </div>
         );
       },
     },
@@ -478,22 +404,7 @@ export function VehicleResearchPage() {
 
   return (
     <section>
-      <PageHeader
-        description="Register vehicle → Add configuration (option combination) → Development available after Research Complete · No F# at this stage"
-        tables={
-          import.meta.env.DEV
-            ? [
-                { name: 'vehicle_research' },
-                { name: 'vehicle_research_x_option_value' },
-                { name: 'vehicle_option_key' },
-                { name: 'vehicle_option_value' },
-                { name: 'vehicle_model' },
-                { name: 'vehicle_make' },
-                { name: 'vehicle_class' },
-              ]
-            : undefined
-        }
-      />
+      <PageHeader />
 
       <Card className="vehicle-research-surface">
         <ContentTabs

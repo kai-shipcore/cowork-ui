@@ -2,6 +2,9 @@ import { z } from 'zod';
 
 export const researchStatusSchema = z.enum([
   'DRAFT',
+  'IN_PROGRESS',
+  'PENDING_APPROVAL',
+  'COMPLETED',
   'RESEARCHING',
   'COMPLETE',
 ]);
