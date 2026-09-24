@@ -13,10 +13,17 @@ import { isExternalPath, type MenuItem } from '@/app/layout/navigation';
 
 interface SidebarResourcesMenuProps {
   items: MenuItem[];
+  /** Group heading; the accordion ids derive from it. */
+  title?: string;
 }
 
-export function SidebarResourcesMenu({ items }: SidebarResourcesMenuProps) {
+export function SidebarResourcesMenu({
+  items,
+  title = 'Resources',
+}: SidebarResourcesMenuProps) {
   const { pathname } = useLocation();
+  const groupValue = title.toLowerCase().replace(/\s+/g, '-');
+  const triggerValue = `${groupValue}-trigger`;
 
   // Memoize matchPath to prevent unnecessary re-renders
   const matchPath = useCallback(
@@ -28,11 +35,11 @@ export function SidebarResourcesMenu({ items }: SidebarResourcesMenuProps) {
 
   return (
     <AccordionMenu
-      selectedValue="resource-trigger"
+      selectedValue={triggerValue}
       matchPath={matchPath}
       type="single"
       collapsible
-      defaultValue="resource-trigger"
+      defaultValue={triggerValue}
       className="space-y-7.5 px-2.5"
       classNames={{
         item: 'h-8.5 px-2.5 text-sm font-normal text-foreground hover:text-primary data-[selected=true]:bg-muted data-[selected=true]:text-foreground [&[data-selected=true]_svg]:opacity-100',
@@ -41,16 +48,16 @@ export function SidebarResourcesMenu({ items }: SidebarResourcesMenuProps) {
         subContent: 'ps-0',
       }}
     >
-      <AccordionMenuSub value="resources">
-        <AccordionMenuSubTrigger value="resource-trigger">
-          <span>Resources</span>
+      <AccordionMenuSub value={groupValue}>
+        <AccordionMenuSubTrigger value={triggerValue}>
+          <span>{title}</span>
           <AccordionMenuIndicator />
         </AccordionMenuSubTrigger>
 
         <AccordionMenuSubContent
           type="single"
           collapsible
-          parentValue="resource-trigger"
+          parentValue={triggerValue}
         >
           {items.map((child, index) => (
             <AccordionMenuItem key={index} value={child.path ?? '#'}>

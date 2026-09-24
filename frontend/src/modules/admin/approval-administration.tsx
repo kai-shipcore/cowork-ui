@@ -4,9 +4,14 @@ import { Input } from '@coverland-engineering/ui/input';
 import { ShieldCheck } from 'lucide-react';
 import type { ApprovalGrant } from '@/shared/types/db-workflow';
 import { useWorkbenchStore } from '@/app/workbench-store';
-import '@/shared/domain/approval/approval.css';
+import './admin.css';
 
 type GrantFlag = 'canForward' | 'canFinalApprove';
+
+interface ApprovalAdministrationProps {
+  approvalTypeId: string;
+  onApprovalTypeChange: (approvalTypeId: string) => void;
+}
 
 /**
  * APPROVAL_MANAGE work: rename or deactivate approval types and decide who may
@@ -14,10 +19,12 @@ type GrantFlag = 'canForward' | 'canFinalApprove';
  * developers with the feature that needs them. Changes affect new requests
  * only; a submitted route is frozen.
  */
-export function ApprovalAdministration(): ReactElement {
+export function ApprovalAdministration({
+  approvalTypeId: typeId,
+  onApprovalTypeChange,
+}: ApprovalAdministrationProps): ReactElement {
   const { appUsers, approvalGrants, approvalTypes, updateWorkbench } =
     useWorkbenchStore();
-  const [typeId, setTypeId] = useState(approvalTypes[0]?.id ?? '');
   const type = approvalTypes.find((row) => row.id === typeId);
   const [name, setName] = useState(type?.name ?? '');
 
@@ -99,23 +106,20 @@ export function ApprovalAdministration(): ReactElement {
   );
 
   return (
-    <section
-      className="prefs-section"
-      id="approval-admin"
-      aria-labelledby="approval-admin-title"
-    >
+    <section className="admin-card" aria-labelledby="approval-admin-title">
       <header>
-        <ShieldCheck aria-hidden="true" />
         <div>
-          <h2 id="approval-admin-title">Approval administration</h2>
+          <h2 id="approval-admin-title">Approval types and grants</h2>
           <p>
             Who may review and who may finally approve, per approval type.
             Requires the APPROVAL_MANAGE permission.
           </p>
         </div>
-        <span className="prefs-badge">Applies to new requests</span>
+        <span className="admin-badge">
+          <ShieldCheck aria-hidden="true" size={13} /> Applies to new requests
+        </span>
       </header>
-      <div className="prefs-fields">
+      <div className="admin-fields">
         <label>
           Approval type
           <select
@@ -124,7 +128,7 @@ export function ApprovalAdministration(): ReactElement {
               const next = approvalTypes.find(
                 (row) => row.id === event.target.value,
               );
-              setTypeId(event.target.value);
+              onApprovalTypeChange(event.target.value);
               setName(next?.name ?? '');
             }}
           >
@@ -155,9 +159,9 @@ export function ApprovalAdministration(): ReactElement {
         </label>
       </div>
       {type && (
-        <div className="approval-admin-type">
+        <div className="admin-type-row">
           <code>{type.code}</code>
-          <span className="prefs-badge">
+          <span className="admin-badge">
             {type.status === 'ACTIVE' ? 'Active' : 'Inactive · no new requests'}
           </span>
           <Button
@@ -170,7 +174,7 @@ export function ApprovalAdministration(): ReactElement {
           </Button>
         </div>
       )}
-      <table className="approval-admin-table">
+      <table className="admin-table">
         <thead>
           <tr>
             <th scope="col">Person</th>
@@ -182,11 +186,14 @@ export function ApprovalAdministration(): ReactElement {
           {people.map((user) => (
             <tr key={user.id}>
               <td>
-                {user.name}
-                {user.status !== 'ACTIVE' && ' · inactive'}
+                <strong>{user.name}</strong>
+                <small>
+                  {user.email}
+                  {user.status !== 'ACTIVE' && ' · inactive'}
+                </small>
               </td>
               {(['canForward', 'canFinalApprove'] as const).map((flag) => (
-                <td key={flag}>
+                <td key={flag} className="is-center">
                   <input
                     type="checkbox"
                     aria-label={`${user.name} ${flag === 'canForward' ? 'can review' : 'can finally approve'}`}
@@ -202,7 +209,7 @@ export function ApprovalAdministration(): ReactElement {
           ))}
         </tbody>
       </table>
-      <p className="prefs-note">
+      <p className="admin-note">
         Revoking a grant keeps its history and never reroutes an open request.
         In this demo the changes live in your browser; the server permission
         tables decide in shared environments.

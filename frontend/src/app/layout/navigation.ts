@@ -24,10 +24,12 @@ import {
   RotateCcw,
   Search,
   Settings,
+  ShieldCheck,
   ShoppingCart,
   Store,
   Tags,
   TrendingUp,
+  UserCog,
   Warehouse,
   type LucideIcon,
 } from 'lucide-react';
@@ -234,6 +236,29 @@ export const MENU_SIDEBAR_RESOURCES: MenuConfig = [
   },
 ];
 
+/** Company-wide administration; shown to every team below Resources. */
+export const MENU_SIDEBAR_ADMIN: MenuConfig = [
+  {
+    title: 'Admin Tools',
+    children: [
+      {
+        title: 'User Management',
+        path: ROUTES.adminUsers,
+        icon: UserCog,
+      },
+      {
+        title: 'Approval Flow Management',
+        path: ROUTES.adminApprovals,
+        icon: ShieldCheck,
+      },
+    ],
+  },
+];
+
+export function getAdminMenu(): MenuItem[] {
+  return MENU_SIDEBAR_ADMIN.flatMap((group) => group.children ?? []);
+}
+
 /** Company storefronts; every team gets these under Resources. */
 export const MENU_SIDEBAR_SITE_LINKS: MenuItem[] = [
   {
@@ -294,6 +319,7 @@ export const MENU_SIDEBAR_WORKSPACES: MenuConfig = [
 export const MENU_SIDEBAR_ALL: MenuConfig = [
   ...MENU_SIDEBAR_MAIN,
   ...MENU_SIDEBAR_RESOURCES,
+  ...MENU_SIDEBAR_ADMIN,
 ];
 
 export const MENU_TOOLBAR: MenuConfig = [
