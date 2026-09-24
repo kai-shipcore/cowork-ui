@@ -110,6 +110,20 @@ await test('active tool remains a real link with current-page indication on deta
   assert.match(html, /overflow-y-auto/);
 });
 
+await test('labelled sidebar uses the available height as its scroll boundary', () => {
+  const html = renderToStaticMarkup(
+    createElement(
+      MemoryRouter,
+      undefined,
+      createElement(SidebarSecondary, { toolsMenuTitle: 'R&D Tools' }),
+    ),
+  );
+
+  assert.match(html, /h-full min-h-0 min-w-0 flex-1/);
+  assert.match(html, /overscroll-contain/);
+  assert.doesNotMatch(html, /calc\(100vh/);
+});
+
 function menuLinks(html: string): Map<string, { label: string; icon: string }> {
   const links = new Map<string, { label: string; icon: string }>();
   for (const match of html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)) {

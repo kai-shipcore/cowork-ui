@@ -15,7 +15,10 @@ export function SidebarSecondary({ toolsMenuTitle }: SidebarSecondaryProps) {
   const { pathname, search } = useLocation();
   const team = teamFromLocation(pathname, search);
   return (
-    <ScrollArea className="grow shrink-0 h-[calc(100vh-1rem)] lg:h-[calc(100vh-4rem)] mt-0 mb-2.5">
+    <ScrollArea
+      className="h-full min-h-0 min-w-0 flex-1"
+      viewportClassName="overscroll-contain"
+    >
       <SidebarSearch />
       <SidebarPrimaryMenu toolsMenuTitle={toolsMenuTitle} />
       <Separator className="my-2.5" />
