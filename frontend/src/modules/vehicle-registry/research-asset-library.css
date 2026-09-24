@@ -205,21 +205,26 @@
 
 .research-asset-wizard-fields {
   display: grid;
-  gap: 20px;
+  gap: 0;
   align-content: start;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--background);
 }
 
 .research-asset-wizard-fields legend {
-  padding: 0 8px;
+  margin-bottom: 10px;
+  padding: 0;
   color: var(--foreground);
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: -0.01em;
 }
 
 .research-asset-wizard-fields legend span {
   color: var(--muted-foreground);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
 }
 
@@ -228,8 +233,8 @@
   gap: 10px;
   padding: 12px;
   border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--background);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--muted) 42%, var(--background));
 }
 
 .research-wizard-choice-group > strong {
@@ -250,13 +255,22 @@
   gap: 12px;
   min-width: 0;
   margin: 0;
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--muted) 55%, var(--background));
+  padding: 16px 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
   color: var(--foreground);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
+}
+
+.research-asset-wizard-fields fieldset:first-child {
+  padding-top: 0;
+}
+
+.research-asset-wizard-fields fieldset:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
 }
 
 .research-asset-wizard-fields fieldset:disabled {
@@ -299,6 +313,7 @@
 .research-wizard-tags {
   display: flex;
   flex-wrap: wrap;
+  min-width: 0;
   gap: 9px;
 }
 
@@ -322,7 +337,9 @@
 
 .research-wizard-tags button {
   display: inline-flex;
+  flex: 0 1 auto;
   align-items: center;
+  max-width: 100%;
   min-height: 40px;
   gap: 7px;
   padding: 9px 13px;
@@ -332,26 +349,26 @@
   color: var(--muted-foreground);
   font-size: 13px;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-align: left;
+  white-space: normal;
   transition:
     border-color 120ms ease,
     background-color 120ms ease,
-    color 120ms ease,
-    box-shadow 120ms ease,
-    transform 120ms ease;
+    color 120ms ease;
 }
 
 .research-wizard-tags button:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
-  color: var(--foreground);
-  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--primary) 5%, var(--background));
+  color: var(--primary);
 }
 
 .research-wizard-tags button[aria-pressed='true'] {
   border-color: var(--primary);
-  background: var(--primary);
-  color: var(--primary-foreground);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 24%, transparent);
+  background: color-mix(in srgb, var(--primary) 11%, var(--background));
+  color: var(--primary);
 }
 
 .research-wizard-tags button svg {

@@ -210,10 +210,13 @@ export function VehicleResearchDetailPage() {
         : source
           ? configurationYears(source)
           : [];
+      const optionSummary = target.options.length
+        ? target.options.map(([key, value]) => `${key}: ${value}`).join(' · ')
+        : 'Base vehicle';
       return {
         ...target,
         years,
-        label: `${group.product} · Configuration ${String(index + 1)} · ${years.length ? `${String(years[0])}–${String(years[years.length - 1])}` : 'Year not set'}`,
+        label: `${group.product} · Configuration ${String(index + 1)} · ${years.length ? `${String(years[0])}–${String(years[years.length - 1])}` : 'Year not set'} · ${optionSummary}`,
       };
     }),
   );
