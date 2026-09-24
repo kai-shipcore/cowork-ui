@@ -34,6 +34,11 @@ import { useRdRecords } from '@/modules/rd-workspace/use-rd-records';
 import { useOperations } from '@/app/operations-store';
 import { useWorkbenchStore } from '@/app/workbench-store';
 import {
+  researchAssetRelevance,
+  type ResearchAssetCandidate,
+  type ResearchAssetRelevance,
+} from '../research-asset-relevance';
+import {
   ResearchAssetClassificationFields,
   researchAssetOptionValues,
   ResearchAssetUploader,
@@ -61,6 +66,17 @@ import {
 } from '../vehicle-research-detail-model';
 import { vehicleResearchIdentity } from '../vehicle-research-grid-model';
 import './vehicle-research-detail-page.css';
+
+function configurationYears(configuration: VehicleConfiguration): number[] {
+  const identity = vehicleResearchIdentity(configuration.vehicle);
+  const match = /^(\d{4})(?:[–-](\d{4}))?$/.exec(identity.years);
+  const start = configuration.yearStart ?? Number(match?.[1]);
+  const end = configuration.yearEnd ?? Number(match?.[2] ?? match?.[1]);
+  if (!Number.isInteger(start) || !Number.isInteger(end) || end < start) {
+    return [];
+  }
+  return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+}
 
 export function VehicleResearchDetailPage() {
   const navigate = useNavigate();
@@ -175,6 +191,32 @@ export function VehicleResearchDetailPage() {
       (target) => target.productTypeId === productType.id,
     ),
   })).filter((group) => group.rows.length > 0);
+  const researchCandidates = researchTargetGroups.flatMap((group) =>
+    group.rows.map((target, index) => {
+      const source = vehicleConfigurations.find(
+        (item) => item.id === target.configurationId,
+      );
+      const approvedVersion = configurationVersions.records
+        .filter(
+          (version) =>
+            version.researchConfigurationId === target.id &&
+            version.status === 'APPROVED' &&
+            version.action === 'UPSERT',
+        )
+        .sort((left, right) => right.versionNumber - left.versionNumber)
+        .shift();
+      const years = approvedVersion?.years.length
+        ? approvedVersion.years
+        : source
+          ? configurationYears(source)
+          : [];
+      return {
+        ...target,
+        years,
+        label: `${group.product} · Configuration ${String(index + 1)} · ${years.length ? `${String(years[0])}–${String(years[years.length - 1])}` : 'Year not set'}`,
+      };
+    }),
+  );
 
   useEffect(() => {
     if (!focusedConfigurationId || researchTargets.length === 0) return;
@@ -194,6 +236,8 @@ export function VehicleResearchDetailPage() {
   const [detailView, setDetailView] = useState<'rows' | 'assets'>('rows');
   const [productRowQuery, setProductRowQuery] = useState('');
   const [assetQuery, setAssetQuery] = useState('');
+  const [selectedAssetCandidateId, setSelectedAssetCandidateId] =
+    useState('all');
   const [assetPagination, setAssetPagination] = useState({
     pageIndex: 0,
     pageSize: 5,
@@ -272,10 +316,90 @@ export function VehicleResearchDetailPage() {
         ),
     }))
     .filter((group) => group.rows.length > 0);
+  const selectedAssetCandidate = useMemo<ResearchAssetCandidate | null>(() => {
+    if (selectedAssetCandidateId === 'all') return null;
+    const separatorIndex = selectedAssetCandidateId.indexOf(':');
+    if (separatorIndex < 0) return null;
+    const sourceConfigurationId = selectedAssetCandidateId.slice(
+      0,
+      separatorIndex,
+    );
+    const productTypeId = selectedAssetCandidateId.slice(
+      separatorIndex + 1,
+    ) as ResearchAssetCandidate['productTypeId'];
+    const source = configurations.find(
+      (item) => item.id === sourceConfigurationId,
+    );
+    if (!source) return null;
+    const allowedOptionNames = new Set(
+      vehicleOptionKeys
+        .filter((key) => key.productTypeId === productTypeId)
+        .map((key) => key.name),
+    );
+    const approvedVersion = configurationVersions.records
+      .filter(
+        (version) =>
+          version.researchConfigurationId === selectedAssetCandidateId &&
+          version.status === 'APPROVED' &&
+          version.action === 'UPSERT',
+      )
+      .sort((left, right) => right.versionNumber - left.versionNumber)
+      .shift();
+    const linkedZoneIds = projects
+      .filter((project) => source.projectGroupIds.includes(project.id))
+      .flatMap((project) => project.zoneProjects.map((zone) => zone.zoneId));
+    const zoneIds = linkedZoneIds.length
+      ? linkedZoneIds
+      : vehicleZones
+          .filter((zone) => zone.productTypeId === productTypeId)
+          .map((zone) => zone.id);
+
+    return {
+      id: selectedAssetCandidateId,
+      label:
+        PRODUCT_TYPES.find((item) => item.id === productTypeId)?.product ??
+        productTypeId,
+      years: approvedVersion?.years.length
+        ? approvedVersion.years
+        : configurationYears(source),
+      productTypeId,
+      options:
+        approvedVersion?.options ??
+        source.options.filter(([key]) => allowedOptionNames.has(key)),
+      zoneIds,
+    };
+  }, [
+    configurationVersions.records,
+    configurations,
+    projects,
+    selectedAssetCandidateId,
+    vehicleOptionKeys,
+    vehicleZones,
+  ]);
+  const assetRelevanceById = useMemo(() => {
+    const result = new Map<string, ResearchAssetRelevance>();
+    if (!selectedAssetCandidate) return result;
+    for (const material of materials) {
+      result.set(
+        material.id,
+        researchAssetRelevance(
+          {
+            years: material.years,
+            productTypeIds: material.productTypeIds.length
+              ? material.productTypeIds
+              : [material.productTypeId],
+            options: material.optionSelections,
+            zoneIds: material.vehicleZoneIds,
+          },
+          selectedAssetCandidate,
+        ),
+      );
+    }
+    return result;
+  }, [materials, selectedAssetCandidate]);
   const filteredMaterials = useMemo(() => {
     const query = assetQuery.trim().toLowerCase();
-    if (!query) return materials;
-    return materials.filter((material) => {
+    const matchingQuery = materials.filter((material) => {
       const productLabels = (
         material.productTypeIds.length
           ? material.productTypeIds
@@ -289,7 +413,7 @@ export function VehicleResearchDetailPage() {
         (zoneId) =>
           vehicleZones.find((zone) => zone.id === zoneId)?.name ?? zoneId,
       );
-      return [
+      const matches = [
         material.title,
         material.fileName,
         ...productLabels,
@@ -300,8 +424,23 @@ export function VehicleResearchDetailPage() {
         .join(' ')
         .toLowerCase()
         .includes(query);
+      return !query || matches;
     });
-  }, [assetQuery, materials, vehicleZones]);
+    if (!selectedAssetCandidate) return matchingQuery;
+    return matchingQuery
+      .filter((material) => assetRelevanceById.get(material.id)?.productMatch)
+      .sort(
+        (left, right) =>
+          (assetRelevanceById.get(right.id)?.score ?? 0) -
+          (assetRelevanceById.get(left.id)?.score ?? 0),
+      );
+  }, [
+    assetQuery,
+    assetRelevanceById,
+    materials,
+    selectedAssetCandidate,
+    vehicleZones,
+  ]);
 
   useEffect(() => {
     const lastPageIndex = Math.max(
@@ -334,7 +473,7 @@ export function VehicleResearchDetailPage() {
     setAssetPagination((current) =>
       current.pageIndex === 0 ? current : { ...current, pageIndex: 0 },
     );
-  }, [assetQuery]);
+  }, [assetQuery, selectedAssetCandidateId]);
 
   const activity = useMemo<readonly ActivityEntry[]>(
     () => [
@@ -791,18 +930,43 @@ export function VehicleResearchDetailPage() {
                   </div>
                 </div>
 
-                <label className="research-section-search">
-                  <Search aria-hidden="true" />
-                  <input
-                    type="search"
-                    value={assetQuery}
-                    onChange={(event) => {
-                      setAssetQuery(event.target.value);
-                    }}
-                    placeholder="Search filename, product, option, or zone"
-                    aria-label="Search research assets"
-                  />
-                </label>
+                <div className="research-asset-controls">
+                  <label className="research-candidate-filter">
+                    <span>Configuration (project candidate)</span>
+                    <select
+                      value={selectedAssetCandidateId}
+                      onChange={(event) => {
+                        setSelectedAssetCandidateId(event.target.value);
+                      }}
+                    >
+                      <option value="all">All configurations</option>
+                      {researchCandidates.map((candidate) => (
+                        <option value={candidate.id} key={candidate.id}>
+                          {candidate.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="research-section-search">
+                    <Search aria-hidden="true" />
+                    <input
+                      type="search"
+                      value={assetQuery}
+                      onChange={(event) => {
+                        setAssetQuery(event.target.value);
+                      }}
+                      placeholder="Search filename, product, option, or zone"
+                      aria-label="Search research assets"
+                    />
+                  </label>
+                </div>
+
+                {selectedAssetCandidate && (
+                  <p className="research-relevance-help">
+                    Showing assets for the selected product type, ranked by
+                    matching year, option values, and vehicle zone.
+                  </p>
+                )}
 
                 {materials.length > 0 && (
                   <>
@@ -832,6 +996,7 @@ export function VehicleResearchDetailPage() {
                             ),
                           )
                         : assetPageItems.map((item) => {
+                            const relevance = assetRelevanceById.get(item.id);
                             return (
                               <article key={item.id}>
                                 <div className="research-asset-mapping-preview">
@@ -848,6 +1013,30 @@ export function VehicleResearchDetailPage() {
                                   <strong title={item.fileName || item.title}>
                                     {item.fileName || item.title}
                                   </strong>
+                                  {relevance && (
+                                    <div
+                                      className={`research-asset-relevance research-asset-relevance--${relevance.label
+                                        .split(' ')[0]
+                                        .toLowerCase()}`}
+                                    >
+                                      <div>
+                                        <strong>{relevance.label}</strong>
+                                        <span>{relevance.score}%</span>
+                                      </div>
+                                      <small>
+                                        Year{' '}
+                                        {relevance.yearMatch
+                                          ? 'match'
+                                          : 'different'}
+                                        {' · '}Options {relevance.optionMatches}
+                                        /{relevance.optionTotal}
+                                        {' · '}Zone{' '}
+                                        {relevance.zoneMatch
+                                          ? 'match'
+                                          : 'different'}
+                                      </small>
+                                    </div>
+                                  )}
                                   <div className="research-asset-assignment">
                                     <span>
                                       {item.years.length > 0 &&
