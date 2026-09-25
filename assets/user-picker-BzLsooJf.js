@@ -1,0 +1,1 @@
+import{j as i,bx as n}from"./index-BESZTLX2.js";function t({value:e,users:r,placeholder:s="Assign owner",label:a,onChange:c}){return i.jsx(n,{value:e,users:r,placeholder:s,label:a,onChange:c,searchPlaceholder:"Search name or email…",emptyMessage:"No matching users.",clearLabel:"Assignee cleared"})}export{t as U};
