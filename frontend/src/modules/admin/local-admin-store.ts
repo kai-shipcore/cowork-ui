@@ -379,6 +379,28 @@ function issueInvitation(
   return { document: next, result: toInvitationDto(next, invitation) };
 }
 
+function revokeInvitation(
+  document: AdminDocument,
+  appUserId: string,
+): { document: AdminDocument; result: undefined } {
+  const pendingInvitation = document.invitations.find(
+    (row) => row.appUserId === appUserId && row.status === 'PENDING',
+  );
+  if (!pendingInvitation) notFound('No pending invitation for that user');
+  const at = new Date().toISOString();
+  return {
+    document: {
+      ...document,
+      invitations: document.invitations.map((row) =>
+        row.id === pendingInvitation.id
+          ? { ...row, status: 'REVOKED' as const, closedAt: at, updatedAt: at }
+          : row,
+      ),
+    },
+    result: undefined,
+  };
+}
+
 type StorageLike = Pick<Storage, 'getItem' | 'setItem'>;
 
 /** Every operation the admin screens need, backed by one localStorage document. */
@@ -571,6 +593,10 @@ export function createAdminStore(storage: StorageLike) {
 
     sendInvitation: (input: InvitationInput): InvitationDto =>
       write((document) => issueInvitation(document, input)),
+
+    revokeInvitation: (appUserId: string): void => {
+      write((document) => revokeInvitation(document, appUserId));
+    },
 
     /** Creates the account as INVITED and issues its first invitation together. */
     inviteUser: (input: InviteUserInput): AppUserDto =>

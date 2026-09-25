@@ -370,7 +370,10 @@ export function HuntBoardPage() {
           },
         ]}
       >
-        <ContentTabsPanel value="scan" className="hunt-tab-content">
+        <ContentTabsPanel
+          value="scan"
+          className="hunt-tab-content grid-tab-content"
+        >
           <HuntWorkList
             kind="SCAN"
             rows={scanRows}
@@ -388,7 +391,10 @@ export function HuntBoardPage() {
             }}
           />
         </ContentTabsPanel>
-        <ContentTabsPanel value="fitting" className="hunt-tab-content">
+        <ContentTabsPanel
+          value="fitting"
+          className="hunt-tab-content grid-tab-content"
+        >
           <HuntWorkList
             kind="FITTING"
             rows={fittingRows}
@@ -407,7 +413,10 @@ export function HuntBoardPage() {
           />
         </ContentTabsPanel>
 
-        <ContentTabsPanel value="calendar" className="hunt-tab-content">
+        <ContentTabsPanel
+          value="calendar"
+          className="hunt-tab-content grid-tab-content"
+        >
           <div className="grid-toolbar">
             <div className="grid-toolbar-filters">
               <div className="search-field">
@@ -682,7 +691,10 @@ export function HuntBoardPage() {
           </div>
         </ContentTabsPanel>
 
-        <ContentTabsPanel value="dealers" className="hunt-tab-content">
+        <ContentTabsPanel
+          value="dealers"
+          className="hunt-tab-content grid-tab-content"
+        >
           <div className="grid-toolbar">
             <div className="grid-toolbar-filters">
               <div className="search-field">

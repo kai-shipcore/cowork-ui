@@ -206,7 +206,7 @@ export function ReferenceDataPage() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value={kind} className="mt-0">
+          <TabsContent value={kind} className="grid-tab-content">
             {kind === 'stages' ? (
               <StageDurationSettings />
             ) : isGeneric ? (

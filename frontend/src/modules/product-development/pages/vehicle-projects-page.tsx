@@ -819,9 +819,6 @@ export function VehicleProjectsPage() {
             priority
           </p>
         </div>
-        <Button variant="primary" onClick={openWizard}>
-          <Plus /> New Project
-        </Button>
       </header>
 
       <div className="vp-summary-grid" aria-label="Project summary">
@@ -979,6 +976,13 @@ export function VehicleProjectsPage() {
                 <X /> Clear filters
               </Button>
             )}
+            <Button
+              className="vp-new-project-action"
+              variant="primary"
+              onClick={openWizard}
+            >
+              <Plus /> New Project
+            </Button>
           </div>
         }
         board={
@@ -1072,6 +1076,11 @@ export function VehicleProjectsPage() {
                   <X /> Clear filters
                 </Button>
               )
+            }
+            actions={
+              <Button variant="primary" onClick={openWizard}>
+                <Plus /> New Project
+              </Button>
             }
             emptyMessage="No projects match these filters."
             pagination={{

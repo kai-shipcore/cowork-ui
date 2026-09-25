@@ -427,81 +427,86 @@ export function FitmentsPage() {
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        <FlatDataGrid
-          label={kind === 'parts' ? 'Part fitments' : 'Project fitments'}
-          columns={columns}
-          rows={pageItems}
-          getRowId={(row) => row.id}
-          search={{
-            label: 'Search fitment',
-            placeholder: 'Vehicle / Project / Part / Note',
-            value: query,
-            onChange: (value) => {
-              updateFilter('q', value);
-            },
-          }}
-          toolbarContent={
-            (query || quality !== 'ALL') && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setParams((current) => {
-                    const next = new URLSearchParams(current);
-                    next.delete('q');
-                    next.delete('quality');
-                    return next;
-                  });
+        <div className="grid-tab-content">
+          <FlatDataGrid
+            label={kind === 'parts' ? 'Part fitments' : 'Project fitments'}
+            columns={columns}
+            rows={pageItems}
+            getRowId={(row) => row.id}
+            search={{
+              label: 'Search fitment',
+              placeholder: 'Vehicle / Project / Part / Note',
+              value: query,
+              onChange: (value) => {
+                updateFilter('q', value);
+              },
+            }}
+            toolbarContent={
+              (query || quality !== 'ALL') && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setParams((current) => {
+                      const next = new URLSearchParams(current);
+                      next.delete('q');
+                      next.delete('quality');
+                      return next;
+                    });
+                  }}
+                >
+                  <X /> Clear filters
+                </Button>
+              )
+            }
+            actions={
+              <Select
+                value={quality}
+                onValueChange={(value) => {
+                  updateFilter('quality', value);
                 }}
               >
-                <X /> Clear filters
-              </Button>
-            )
-          }
-          actions={
-            <Select
-              value={quality}
-              onValueChange={(value) => {
-                updateFilter('quality', value);
-              }}
-            >
-              <SelectTrigger aria-label="Quality filter">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All qualities</SelectItem>
-                <SelectItem value="PASS">PASS</SelectItem>
-                <SelectItem value="FAIL">FAIL</SelectItem>
-              </SelectContent>
-            </Select>
-          }
-          emptyMessage={
-            <div className="fitment-empty">
-              <h2>
-                {query || quality !== 'ALL'
-                  ? 'No matching fitments'
-                  : 'No fitment observations yet'}
-              </h2>
-              <p>
-                {query || quality !== 'ALL'
-                  ? 'Try another search or quality filter.'
-                  : 'Record project and part observations in the project quality review. Records will appear here.'}
-              </p>
-            </div>
-          }
-          pagination={{
-            page: pagination.pageIndex + 1,
-            pageSize: pagination.pageSize,
-            totalCount: rows.length,
-            pageSizeOptions: [10, 25, 50],
-            onPageChange: (page) => {
-              setPagination((current) => ({ ...current, pageIndex: page - 1 }));
-            },
-            onPageSizeChange: (pageSize) => {
-              setPagination({ pageIndex: 0, pageSize });
-            },
-          }}
-        />
+                <SelectTrigger aria-label="Quality filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All qualities</SelectItem>
+                  <SelectItem value="PASS">PASS</SelectItem>
+                  <SelectItem value="FAIL">FAIL</SelectItem>
+                </SelectContent>
+              </Select>
+            }
+            emptyMessage={
+              <div className="fitment-empty">
+                <h2>
+                  {query || quality !== 'ALL'
+                    ? 'No matching fitments'
+                    : 'No fitment observations yet'}
+                </h2>
+                <p>
+                  {query || quality !== 'ALL'
+                    ? 'Try another search or quality filter.'
+                    : 'Record project and part observations in the project quality review. Records will appear here.'}
+                </p>
+              </div>
+            }
+            pagination={{
+              page: pagination.pageIndex + 1,
+              pageSize: pagination.pageSize,
+              totalCount: rows.length,
+              pageSizeOptions: [10, 25, 50],
+              onPageChange: (page) => {
+                setPagination((current) => ({
+                  ...current,
+                  pageIndex: page - 1,
+                }));
+              },
+              onPageSizeChange: (pageSize) => {
+                setPagination({ pageIndex: 0, pageSize });
+              },
+            }}
+          />
+        </div>
       </Card>
       <Card className="fitment-detail-card">
         <h2>Record a fitment observation</h2>

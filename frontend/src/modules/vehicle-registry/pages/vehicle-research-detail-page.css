@@ -24,15 +24,10 @@
   display: grid;
   gap: 8px;
 }
-.research-detail-title-row p {
-  color: var(--primary);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-}
 .research-detail-title-row h1 {
-  font-size: clamp(24px, 3vw, 34px);
-  font-weight: 750;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 28px;
   letter-spacing: -0.025em;
 }
 .research-group-summary {

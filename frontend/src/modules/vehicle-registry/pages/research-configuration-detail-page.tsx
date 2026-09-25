@@ -435,7 +435,6 @@ export function ResearchConfigurationDetailPage() {
       <header className="research-detail-header">
         <div className="research-detail-title-row">
           <div>
-            <p>RESEARCH CONFIGURATION</p>
             <h1>{target.productLabel} configuration</h1>
             <span className="research-group-summary">
               {vehicleIdentity.makeModel} · {vehicleIdentity.years}

@@ -154,12 +154,11 @@ html {
   scroll-behavior: smooth;
 }
 
-/** Application zoom **/
+/** Application scale **/
 :root {
-  /* Module stylesheets are px-based, so a root font-size bump would scale only
-     Tailwind utilities. CSS zoom scales the whole document uniformly, matching
-     the 125% browser zoom operators found readable. */
-  --app-zoom: 1.25;
+  /* Metronic's Vite reference renders its type scale at the browser's native
+     100% size. Keep this explicit so popovers and the application share it. */
+  --app-zoom: 1;
 }
 html {
   zoom: var(--app-zoom);

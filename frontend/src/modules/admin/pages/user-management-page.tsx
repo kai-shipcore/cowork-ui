@@ -102,16 +102,16 @@ export function UserManagementPage() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="users" className="mt-0">
+          <TabsContent value="users" className="admin-approval-tab">
             <UsersTab />
           </TabsContent>
-          <TabsContent value="departments" className="mt-0">
+          <TabsContent value="departments" className="admin-approval-tab">
             <DepartmentsTab />
           </TabsContent>
-          <TabsContent value="roles" className="mt-0">
+          <TabsContent value="roles" className="admin-approval-tab">
             <RolesTab />
           </TabsContent>
-          <TabsContent value="permissions" className="mt-0">
+          <TabsContent value="permissions" className="admin-approval-tab">
             <PermissionsTab />
           </TabsContent>
         </Tabs>

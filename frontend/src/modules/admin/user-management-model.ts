@@ -1,4 +1,6 @@
-import type { AppUserDto } from './app-user-dto';
+import type { AppUserDto, InvitationDto } from './app-user-dto';
+
+export type UserDisplayStatus = AppUserDto['status'] | 'REVOKED';
 
 export interface UserFilters {
   query: string;
@@ -6,7 +8,19 @@ export interface UserFilters {
   departmentId: string;
   /** An `app_role.id`, or `'ALL'`. */
   appRoleId: string;
-  status: AppUserDto['status'] | 'ALL';
+  status: UserDisplayStatus | 'ALL';
+}
+
+/** Shows the latest invitation state for accounts that have not activated yet. */
+export function userDisplayStatus(
+  user: AppUserDto,
+  invitations: readonly InvitationDto[],
+): UserDisplayStatus {
+  if (user.status !== 'INVITED') return user.status;
+  const latestInvitation = [...invitations]
+    .reverse()
+    .find((invitation) => invitation.appUserId === user.id);
+  return latestInvitation?.status === 'REVOKED' ? 'REVOKED' : 'INVITED';
 }
 
 /** Directory rows matching the search box and the role and status selects. */

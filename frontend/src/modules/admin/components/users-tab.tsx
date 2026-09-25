@@ -12,12 +12,15 @@ import type { AppUserDto } from '../app-user-dto';
 import {
   filterUsers,
   formatJoinedDate,
+  userDisplayStatus,
+  type UserDisplayStatus,
   type UserFilters,
 } from '../user-management-model';
 import {
   apiErrorMessage,
   useListAppRolesQuery,
   useListDepartmentsQuery,
+  useListInvitationsQuery,
   useListUsersQuery,
   useRevokeInvitationMutation,
   useSendInvitationMutation,
@@ -27,12 +30,13 @@ import { UserDialog } from './user-dialog';
 import { UserIdentity } from './user-identity';
 
 const USER_STATUS: Record<
-  AppUserDto['status'],
+  UserDisplayStatus,
   { label: string; variant: 'success' | 'info' | 'warning' }
 > = {
   ACTIVE: { label: 'Active', variant: 'success' },
   INVITED: { label: 'Invited', variant: 'info' },
   INACTIVE: { label: 'Inactive', variant: 'warning' },
+  REVOKED: { label: 'Revoked', variant: 'warning' },
 };
 
 type DialogState = { open: false } | { open: true; user?: AppUserDto };
@@ -49,6 +53,7 @@ export function UsersTab() {
   const users = useListUsersQuery();
   const departments = useListDepartmentsQuery();
   const roles = useListAppRolesQuery();
+  const invitations = useListInvitationsQuery();
   const [filters, setFilters] = useState<UserFilters>(EMPTY_FILTERS);
   const hasActiveFilter =
     filters.query !== '' ||
@@ -58,9 +63,6 @@ export function UsersTab() {
   const [dialog, setDialog] = useState<DialogState>({ open: false });
   const [accessUser, setAccessUser] = useState<AppUserDto>();
   const [message, setMessage] = useState('');
-  const [revokedUserIds, setRevokedUserIds] = useState<Set<string>>(
-    () => new Set(),
-  );
   const { actor } = useOperations();
   const [sendInvitation] = useSendInvitationMutation();
   const [revokeInvitation, revokeState] = useRevokeInvitationMutation();
@@ -84,11 +86,6 @@ export function UsersTab() {
         appUserId: user.id,
         invitedBy: inviter.id,
       }).unwrap();
-      setRevokedUserIds((current) => {
-        const next = new Set(current);
-        next.delete(user.id);
-        return next;
-      });
       setMessage(`Invitation sent again to ${sent.inviteeEmail}.`);
     } catch (failure) {
       setMessage(apiErrorMessage(failure));
@@ -98,14 +95,20 @@ export function UsersTab() {
   async function revoke(user: AppUserDto): Promise<void> {
     try {
       await revokeInvitation(user.id).unwrap();
-      setRevokedUserIds((current) => new Set(current).add(user.id));
       setMessage(`Invitation to ${user.email} revoked.`);
     } catch (failure) {
       setMessage(apiErrorMessage(failure));
     }
   }
 
-  const visibleUsers = filterUsers(users.data ?? [], filters);
+  const visibleUsers = filterUsers(users.data ?? [], {
+    ...filters,
+    status: 'ALL',
+  }).filter(
+    (user) =>
+      filters.status === 'ALL' ||
+      userDisplayStatus(user, invitations.data ?? []) === filters.status,
+  );
 
   const columns: FlatDataGridColumn<AppUserDto>[] = [
     {
@@ -146,13 +149,16 @@ export function UsersTab() {
       id: 'status',
       header: 'Status',
       width: 100,
-      sortValue: (user) => user.status,
-      cell: (user) => (
-        <Badge variant={USER_STATUS[user.status].variant} appearance="ghost">
-          <BadgeDot />
-          {USER_STATUS[user.status].label}
-        </Badge>
-      ),
+      sortValue: (user) => userDisplayStatus(user, invitations.data ?? []),
+      cell: (user) => {
+        const status = userDisplayStatus(user, invitations.data ?? []);
+        return (
+          <Badge variant={USER_STATUS[status].variant} appearance="ghost">
+            <BadgeDot />
+            {USER_STATUS[status].label}
+          </Badge>
+        );
+      },
     },
     {
       id: 'joined',
@@ -168,8 +174,8 @@ export function UsersTab() {
       className: 'text-center',
       hideable: false,
       cell: (user) => {
-        const canRevoke =
-          user.status === 'INVITED' && !revokedUserIds.has(user.id);
+        const status = userDisplayStatus(user, invitations.data ?? []);
+        const canRevoke = status === 'INVITED';
         return (
           <div className="admin-row-actions">
             <Button
@@ -307,6 +313,7 @@ export function UsersTab() {
               { value: 'ACTIVE', label: 'Active' },
               { value: 'INVITED', label: 'Invited' },
               { value: 'INACTIVE', label: 'Inactive' },
+              { value: 'REVOKED', label: 'Revoked' },
             ],
             onChange: (value) => {
               setFilters((current) => ({

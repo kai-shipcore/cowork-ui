@@ -79,7 +79,7 @@
 
 .metronic-content,
 .mt-login {
-  background: var(--wb-canvas);
+  background: var(--background);
   min-height: calc(100vh - var(--header-height, 60px));
 }
 
@@ -95,21 +95,21 @@
 }
 
 :is(.metronic-content, .mt-login) .workbench-heading > h1 {
-  margin: 2px 0 5px;
+  margin: 2px 0 4px;
   color: var(--foreground);
-  font-size: clamp(25px, 2.3vw, 32px);
-  font-weight: 400;
-  line-height: 1.1;
-  letter-spacing: -0.035em;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 28px;
+  letter-spacing: -0.025em;
   overflow-wrap: anywhere;
 }
 
 :is(.metronic-content, .mt-login) .workbench-heading > p {
   margin: 0;
   color: var(--wb-muted);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 20px;
 }
 
 .metronic-content :is(.dashboard, .ops, .rd-workspace) {

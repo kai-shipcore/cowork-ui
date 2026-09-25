@@ -613,7 +613,7 @@ export function VehicleResearchPage() {
     {
       id: 'configuration',
       header: 'Configuration',
-      width: 480,
+      width: 600,
       hideable: false,
       sortValue: (configuration) =>
         configuration.options
@@ -638,7 +638,6 @@ export function VehicleResearchPage() {
             </span>
           )}
           <ConfigChips options={configuration.options} />
-          <span>View configuration &amp; history</span>
         </button>
       ),
     },
@@ -681,6 +680,16 @@ export function VehicleResearchPage() {
         );
       },
     },
+    {
+      id: 'actions',
+      header: 'Actions',
+      width: 300,
+      className: 'text-center',
+      hideable: false,
+      movable: false,
+      pinnable: false,
+      cell: () => null,
+    },
   ];
   const groups: GroupedDataGridGroup<ProductResearchRow>[] =
     pagedVehicleGroups.map((group) => {
@@ -699,7 +708,7 @@ export function VehicleResearchPage() {
               <>
                 <Button
                   size="sm"
-                  variant="ghost"
+                  variant="dashed"
                   onClick={() => {
                     void navigate(
                       `/vehicle-research/${encodeURIComponent(firstConfiguration.sourceConfigurationId)}`,
@@ -755,7 +764,7 @@ export function VehicleResearchPage() {
             { value: 'assets', label: 'Asset Files', icon: <Files /> },
           ]}
         >
-          <ContentTabsPanel value="registry">
+          <ContentTabsPanel value="registry" className="grid-tab-content">
             <GroupedDataGrid
               embedded
               className="vehicle-research-grid"
@@ -921,7 +930,7 @@ export function VehicleResearchPage() {
               }}
             />
           </ContentTabsPanel>
-          <ContentTabsPanel value="assets">
+          <ContentTabsPanel value="assets" className="grid-tab-content">
             <ResearchAssetLibrary
               configurations={configurations}
               onOpenEvidence={(configurationId) => {
