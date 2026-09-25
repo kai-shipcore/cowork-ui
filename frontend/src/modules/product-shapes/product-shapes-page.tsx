@@ -260,143 +260,145 @@ export function ProductShapesPage() {
             ))}
           </div>
         </div>
-        {view !== 'review' && (
-          <div className="grid-toolbar">
-            <div className="grid-toolbar-filters">
-              <>
-                <div className="search-field">
-                  <Search aria-hidden="true" />
-                  <Input
-                    aria-label="Search Shapes"
-                    placeholder="Search Shape number or ID"
-                    value={query}
-                    onChange={(event) => {
-                      setQuery(event.target.value);
-                    }}
-                  />
-                </div>
-                <Select value={product} onValueChange={setProduct}>
-                  <SelectTrigger
-                    aria-label="Product type filter"
-                    className="filter-select wide"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">All product types</SelectItem>
-                    {PRODUCT_TYPES.map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.product}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger
-                    aria-label="Shape status filter"
-                    className="filter-select"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">All statuses</SelectItem>
-                    {Object.entries(SHAPE_STATUSES).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {(query || product !== 'ALL' || status !== 'ALL') && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setQuery('');
-                      setProduct('ALL');
-                      setStatus('ALL');
-                    }}
-                  >
-                    <X /> Clear filters
-                  </Button>
-                )}
-              </>
+        <div className="grid-tab-content">
+          {view !== 'review' && (
+            <div className="grid-toolbar">
+              <div className="grid-toolbar-filters">
+                <>
+                  <div className="search-field">
+                    <Search aria-hidden="true" />
+                    <Input
+                      aria-label="Search Shapes"
+                      placeholder="Search Shape number or ID"
+                      value={query}
+                      onChange={(event) => {
+                        setQuery(event.target.value);
+                      }}
+                    />
+                  </div>
+                  <Select value={product} onValueChange={setProduct}>
+                    <SelectTrigger
+                      aria-label="Product type filter"
+                      className="filter-select wide"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">All product types</SelectItem>
+                      {PRODUCT_TYPES.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.product}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={status} onValueChange={setStatus}>
+                    <SelectTrigger
+                      aria-label="Shape status filter"
+                      className="filter-select"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">All statuses</SelectItem>
+                      {Object.entries(SHAPE_STATUSES).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {(query || product !== 'ALL' || status !== 'ALL') && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setQuery('');
+                        setProduct('ALL');
+                        setStatus('ALL');
+                      }}
+                    >
+                      <X /> Clear filters
+                    </Button>
+                  )}
+                </>
+              </div>
+              <div className="grid-toolbar-actions">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    // React Router handles route errors; the click does not await navigation.
+                    void navigate('/vehicle-projects');
+                  }}
+                >
+                  Development projects
+                </Button>
+              </div>
             </div>
-            <div className="grid-toolbar-actions">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  // React Router handles route errors; the click does not await navigation.
-                  void navigate('/vehicle-projects');
-                }}
-              >
-                Development projects
-              </Button>
-            </div>
-          </div>
-        )}
-        {view === 'review' ? (
-          <ShapeReviewWorkspace
-            showAll={showAll}
-            query={reviewQuery}
-            onShowAllChange={setShowAll}
-            onQueryChange={setReviewQuery}
-          />
-        ) : (
-          <>
-            <div className="shape-info">
-              <strong>Developed / Confirmed Shapes · Composition</strong>
-              <p>
-                Development Shape → Fitting and quality review → Shape
-                confirmation → Handoff · Parts composition and blueprint
-              </p>
-              <p>
-                Multiple vehicle projects may reference the same Shape. Parts,
-                revisions, and fitting results are managed in each project.
-              </p>
-            </div>
-            <FlatDataGrid
-              embedded
-              label="Shapes"
-              columns={columns}
-              rows={pagedShapes}
-              getRowId={(shape) => shape.id}
-              emptyMessage="No Shapes match your search."
-
-              pagination={{
-                page: pagination.pageIndex + 1,
-                pageSize: pagination.pageSize,
-                totalCount: filtered.length,
-                pageSizeOptions: [5, 10, 25],
-                onPageChange: (page) => {
-                  setPagination((current) => ({
-                    ...current,
-                    pageIndex: page - 1,
-                  }));
-                },
-                onPageSizeChange: (pageSize) => {
-                  setPagination({ pageIndex: 0, pageSize });
-                },
-              }}
-              sorting={{
-                mode: 'manual',
-                value: activeSort
-                  ? {
-                      id: activeSort.id,
-                      direction: activeSort.desc ? 'desc' : 'asc',
-                    }
-                  : null,
-                onChange: (sort) => {
-                  gridTable.setSorting(
-                    sort
-                      ? [{ id: sort.id, desc: sort.direction === 'desc' }]
-                      : [],
-                  );
-                },
-              }}
+          )}
+          {view === 'review' ? (
+            <ShapeReviewWorkspace
+              showAll={showAll}
+              query={reviewQuery}
+              onShowAllChange={setShowAll}
+              onQueryChange={setReviewQuery}
             />
-          </>
-        )}
+          ) : (
+            <>
+              <div className="shape-info">
+                <strong>Developed / Confirmed Shapes · Composition</strong>
+                <p>
+                  Development Shape → Fitting and quality review → Shape
+                  confirmation → Handoff · Parts composition and blueprint
+                </p>
+                <p>
+                  Multiple vehicle projects may reference the same Shape. Parts,
+                  revisions, and fitting results are managed in each project.
+                </p>
+              </div>
+              <FlatDataGrid
+                embedded
+                label="Shapes"
+                columns={columns}
+                rows={pagedShapes}
+                getRowId={(shape) => shape.id}
+                emptyMessage="No Shapes match your search."
+
+                pagination={{
+                  page: pagination.pageIndex + 1,
+                  pageSize: pagination.pageSize,
+                  totalCount: filtered.length,
+                  pageSizeOptions: [5, 10, 25],
+                  onPageChange: (page) => {
+                    setPagination((current) => ({
+                      ...current,
+                      pageIndex: page - 1,
+                    }));
+                  },
+                  onPageSizeChange: (pageSize) => {
+                    setPagination({ pageIndex: 0, pageSize });
+                  },
+                }}
+                sorting={{
+                  mode: 'manual',
+                  value: activeSort
+                    ? {
+                        id: activeSort.id,
+                        direction: activeSort.desc ? 'desc' : 'asc',
+                      }
+                    : null,
+                  onChange: (sort) => {
+                    gridTable.setSorting(
+                      sort
+                        ? [{ id: sort.id, desc: sort.direction === 'desc' }]
+                        : [],
+                    );
+                  },
+                }}
+              />
+            </>
+          )}
+        </div>
       </Card>
       {compositionShape && (
         <ShapeCompositionEditor

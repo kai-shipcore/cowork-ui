@@ -36,8 +36,8 @@
   display: grid;
   gap: 18px;
   padding: 0;
+  background: var(--background);
   color: var(--vp-ink);
-  background: var(--vp-canvas);
 }
 
 /* Dark mode: the page's own palette above is light-only, so re-point every
@@ -79,10 +79,6 @@
   --vp-neutral-bg: var(--secondary);
 }
 
-.dark .vp-page-header > button {
-  color: var(--primary-foreground);
-}
-
 .vp-page-header {
   display: flex;
   align-items: flex-end;
@@ -109,13 +105,6 @@
   font-weight: 800;
   letter-spacing: 0.13em;
   text-transform: uppercase;
-}
-
-.vp-page-header > button {
-  min-height: 38px;
-  border-radius: 8px;
-  background: var(--vp-navy);
-  box-shadow: 0 3px 9px rgb(49 91 125 / 18%);
 }
 
 .vp-summary-grid {
@@ -200,6 +189,10 @@
   border-top: 1px solid var(--vp-line);
   border-bottom: 1px solid var(--vp-line);
   background: var(--vp-toolbar-bg);
+}
+
+.vp-new-project-action {
+  margin-left: auto;
 }
 
 .vp-search {

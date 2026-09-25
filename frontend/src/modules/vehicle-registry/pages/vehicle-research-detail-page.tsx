@@ -617,7 +617,6 @@ export function VehicleResearchDetailPage() {
       <header className="research-detail-header">
         <div className="research-detail-title-row">
           <div>
-            <p>VEHICLE RESEARCH</p>
             <h1>{selectedVehicleIdentity.makeModel}</h1>
             <span className="research-group-summary">
               {researchTargets.length} product research rows ·{' '}

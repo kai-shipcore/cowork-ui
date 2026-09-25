@@ -14,23 +14,47 @@
 }
 
 .research-detail-link {
-  display: grid;
+  display: flex;
+  align-items: center;
   width: 100%;
-  gap: 6px;
+  min-width: max-content;
+  gap: 10px;
+  padding: 3px 0;
   border: 0;
   background: transparent;
   color: inherit;
   text-align: left;
+  white-space: nowrap;
   cursor: pointer;
 }
 
-.research-detail-link > span:last-child {
-  color: var(--primary);
-  font-size: 12px;
-  font-weight: 600;
+.research-detail-link::before {
+  width: 12px;
+  height: 1px;
+  flex: 0 0 12px;
+  background: color-mix(in srgb, var(--primary) 38%, var(--border));
+  content: '';
+}
+
+.research-detail-link .config-chips {
+  flex-wrap: nowrap;
+  margin-top: 0;
+}
+
+.research-detail-link .config-chip strong::before {
+  content: '(';
+}
+
+.research-detail-link .config-chip strong::after {
+  content: ')';
+}
+
+.vehicle-research-grid tbody > tr:not(:has(> td[colspan])) > td:first-child {
+  border-left: 2px solid color-mix(in srgb, var(--primary) 22%, var(--border));
 }
 
 .research-product-type {
+  flex: 0 0 auto;
   width: fit-content;
   padding: 4px 8px;
   border-radius: 999px;
@@ -42,6 +66,7 @@
 }
 
 .research-configuration-years {
+  flex: 0 0 auto;
   color: var(--muted-foreground);
   font-size: 12px;
   font-weight: 600;
