@@ -1,0 +1,1 @@
+const o=[{id:"PT-SC",product:"Seat Cover"},{id:"PT-CC",product:"Car Cover"},{id:"PT-FM",product:"Floor Mat"},{id:"PT-SWC",product:"Steering Wheel Cover"},{id:"PT-WS",product:"Window Shield"}];export{o as P};

@@ -1,0 +1,1 @@
+function s(r,e,a,t){const c=r.getItem(e);return c?a.parse(JSON.parse(c)):t}function d(r,e){const a=s(r,e.key,e.schema,e.defaults),t=e.schema.parse(e.update(a));return r.setItem(e.key,JSON.stringify(t)),t}export{s as r,d as w};
