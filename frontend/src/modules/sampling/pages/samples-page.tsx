@@ -594,78 +594,80 @@ export function SamplesPage() {
             </button>
           </div>
         </div>
-        {view === 'PARTS' && (
-          <p className="sample-view-note">
-            Part Lines = Sample Tracking (SeatCover-Sample-Request) format · One
-            part per row
-          </p>
-        )}
-        {view === 'PARTS' ? (
-          <SampleTrackingTable
-            toolbarContent={filterControls}
-            rows={trackingRows}
-            filterKey={`${query}|${factory}|${status}`}
-            onOpenProject={openProjectSamples}
-            onInspect={(row) => {
-              setInspection({ requestId: row.requestId, itemId: row.id });
-            }}
-            renderInspection={(row) => {
-              const item = sampleRequestItems.find(
-                (item) => item.id === row.id,
-              );
-              return item ? <InspectionResult item={item} compact /> : null;
-            }}
-          />
-        ) : (
-          <>
-            <FlatDataGrid
-              embedded
-              label="Sample Requests"
+        <div className="grid-tab-content">
+          {view === 'PARTS' && (
+            <p className="sample-view-note">
+              Part Lines = Sample Tracking (SeatCover-Sample-Request) format ·
+              One part per row
+            </p>
+          )}
+          {view === 'PARTS' ? (
+            <SampleTrackingTable
               toolbarContent={filterControls}
-              emptyMessage="No matching sample requests. Try changing the search, factory, or status filters."
-              columns={columns}
-              rows={pagedRequests}
-              getRowId={(request) => request.id}
-              onRowClick={(request) => {
-                setInspection({ requestId: request.id });
+              rows={trackingRows}
+              filterKey={`${query}|${factory}|${status}`}
+              onOpenProject={openProjectSamples}
+              onInspect={(row) => {
+                setInspection({ requestId: row.requestId, itemId: row.id });
               }}
-              rowActionLabel={(request) =>
-                `${request.id} Open receipt & inspection`
-              }
-              pagination={{
-                page: pagination.pageIndex + 1,
-                pageSize: pagination.pageSize,
-                totalCount: visibleRequests.length,
-                pageSizeOptions: [5, 10, 25],
-                onPageChange: (page) => {
-                  setPagination((current) => ({
-                    ...current,
-                    pageIndex: page - 1,
-                  }));
-                },
-                onPageSizeChange: (pageSize) => {
-                  setPagination({ pageIndex: 0, pageSize });
-                },
-              }}
-              sorting={{
-                mode: 'manual',
-                value: activeSort
-                  ? {
-                      id: activeSort.id,
-                      direction: activeSort.desc ? 'desc' : 'asc',
-                    }
-                  : null,
-                onChange: (sort) => {
-                  gridTable.setSorting(
-                    sort
-                      ? [{ id: sort.id, desc: sort.direction === 'desc' }]
-                      : [],
-                  );
-                },
+              renderInspection={(row) => {
+                const item = sampleRequestItems.find(
+                  (item) => item.id === row.id,
+                );
+                return item ? <InspectionResult item={item} compact /> : null;
               }}
             />
-          </>
-        )}
+          ) : (
+            <>
+              <FlatDataGrid
+                embedded
+                label="Sample Requests"
+                toolbarContent={filterControls}
+                emptyMessage="No matching sample requests. Try changing the search, factory, or status filters."
+                columns={columns}
+                rows={pagedRequests}
+                getRowId={(request) => request.id}
+                onRowClick={(request) => {
+                  setInspection({ requestId: request.id });
+                }}
+                rowActionLabel={(request) =>
+                  `${request.id} Open receipt & inspection`
+                }
+                pagination={{
+                  page: pagination.pageIndex + 1,
+                  pageSize: pagination.pageSize,
+                  totalCount: visibleRequests.length,
+                  pageSizeOptions: [5, 10, 25],
+                  onPageChange: (page) => {
+                    setPagination((current) => ({
+                      ...current,
+                      pageIndex: page - 1,
+                    }));
+                  },
+                  onPageSizeChange: (pageSize) => {
+                    setPagination({ pageIndex: 0, pageSize });
+                  },
+                }}
+                sorting={{
+                  mode: 'manual',
+                  value: activeSort
+                    ? {
+                        id: activeSort.id,
+                        direction: activeSort.desc ? 'desc' : 'asc',
+                      }
+                    : null,
+                  onChange: (sort) => {
+                    gridTable.setSorting(
+                      sort
+                        ? [{ id: sort.id, desc: sort.direction === 'desc' }]
+                        : [],
+                    );
+                  },
+                }}
+              />
+            </>
+          )}
+        </div>
       </Card>
       {shippingRequest && (
         <ShipmentDialog

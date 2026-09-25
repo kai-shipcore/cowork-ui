@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-invalid-void-type -- RTK Query uses `void` as the argument type of endpoints whose hooks are called without an argument; `undefined` would force every call site to pass one. */
+/* eslint-disable @typescript-eslint/no-invalid-void-type -- RTK Query uses `void` for endpoints invoked without an argument. */
 
 import { api } from '@/services/api';
 import type {
@@ -148,12 +148,16 @@ export const usersApi = api
         queryFn: (input) => local((store) => store.sendInvitation(input)),
         invalidatesTags: [INVITATIONS_TAG],
       }),
+      listInvitations: build.query<InvitationDto[], void>({
+        queryFn: () => local((store) => store.listInvitations()),
+        providesTags: [INVITATIONS_TAG],
+      }),
       revokeInvitation: build.mutation<void, string>({
-        query: (userId) => ({
-          url: `/api/v1/auth/users/${encodeURIComponent(userId)}/invitation/revoke`,
-          method: 'POST',
-        }),
-        invalidatesTags: [USERS_TAG, INVITATIONS_TAG],
+        queryFn: (userId) =>
+          local((store) => {
+            store.revokeInvitation(userId);
+          }),
+        invalidatesTags: [INVITATIONS_TAG],
       }),
       listPermissions: build.query<PermissionDto[], void>({
         queryFn: () => local((store) => store.listPermissions()),
@@ -235,6 +239,7 @@ export const {
   useDeleteAppRoleMutation,
   useInviteUserMutation,
   useSendInvitationMutation,
+  useListInvitationsQuery,
   useRevokeInvitationMutation,
   useListPermissionsQuery,
   useCreatePermissionMutation,

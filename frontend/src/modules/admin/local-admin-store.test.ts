@@ -74,7 +74,8 @@ await test('users must have unique emails and a role from their department', () 
 });
 
 await test('inviting creates an INVITED account with a pending invitation, and resending replaces it', () => {
-  const store = createAdminStore(memoryStorage());
+  const storage = memoryStorage();
+  const store = createAdminStore(storage);
 
   const invited = store.inviteUser({
     name: 'Mina Lee',
@@ -106,6 +107,26 @@ await test('inviting creates an INVITED account with a pending invitation, and r
     store.listInvitations().find((row) => row.id === first.id)?.status,
     'REVOKED',
   );
+
+  store.revokeInvitation(invited.id);
+  assert.equal(
+    createAdminStore(storage)
+      .listInvitations()
+      .find((row) => row.id === again.id)?.status,
+    'REVOKED',
+  );
+  assert.equal(
+    statusOf(() => {
+      store.revokeInvitation(invited.id);
+    }),
+    404,
+  );
+
+  const resentAfterRevoke = store.sendInvitation({
+    appUserId: invited.id,
+    invitedBy: 'usr-kai',
+  });
+  assert.equal(resentAfterRevoke.status, 'PENDING');
 
   assert.equal(
     statusOf(() =>

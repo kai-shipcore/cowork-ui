@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { AppUserDto } from './app-user-dto';
+import type { AppUserDto, InvitationDto } from './app-user-dto';
 import {
   filterUsers,
   formatJoinedDate,
+  userDisplayStatus,
   userInitials,
 } from './user-management-model';
 
@@ -75,6 +76,32 @@ await test('users filter by search text, role and status together', () => {
       status: 'INACTIVE',
     }),
     [],
+  );
+});
+
+await test('an invited user displays the latest revoked invitation state', () => {
+  const user: AppUserDto = { ...DIRECTORY[0], status: 'INVITED' };
+  const invitation: InvitationDto = {
+    id: 'invite-1',
+    appUserId: user.id,
+    inviteeName: user.name,
+    inviteeEmail: user.email,
+    invitedBy: 'inviter-1',
+    inviterName: 'Inviter',
+    status: 'REVOKED',
+    expiresAt: '2026-10-01T10:00:00.000Z',
+    closedAt: '2026-09-25T10:00:00.000Z',
+    createdAt: '2026-09-24T10:00:00.000Z',
+    updatedAt: '2026-09-25T10:00:00.000Z',
+  };
+
+  assert.equal(userDisplayStatus(user, [invitation]), 'REVOKED');
+  assert.equal(
+    userDisplayStatus(user, [
+      invitation,
+      { ...invitation, id: 'invite-2', status: 'PENDING' },
+    ]),
+    'INVITED',
   );
 });
 

@@ -172,7 +172,7 @@ export function PermissionsTab() {
     permissions.isError || roles.isError || rolePermissions.isError;
 
   return (
-    <div className="admin-tab-panel">
+    <>
       <FlatDataGrid
         embedded
         label="Permissions"
@@ -275,6 +275,6 @@ export function PermissionsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

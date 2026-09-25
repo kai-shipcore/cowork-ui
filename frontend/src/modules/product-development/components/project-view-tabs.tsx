@@ -39,8 +39,10 @@ export function ProjectViewTabs({
           { value: 'board', label: 'Stage Board', icon: <Columns3 /> },
         ]}
       >
-        <ContentTabsPanel value="list">{list}</ContentTabsPanel>
-        <ContentTabsPanel value="board">
+        <ContentTabsPanel value="list" className="grid-tab-content">
+          {list}
+        </ContentTabsPanel>
+        <ContentTabsPanel value="board" className="grid-tab-content">
           {boardToolbar}
           {board}
         </ContentTabsPanel>
