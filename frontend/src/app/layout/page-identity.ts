@@ -9,6 +9,12 @@ import { MENU_SIDEBAR_ALL, type MenuItem } from './navigation';
 export function pageTitle(pathname: string, search: string): string {
   if (pathname.startsWith('/fitments/')) return 'Fitment Detail';
   if (pathname.startsWith('/product-shapes/')) return 'Shape Detail';
+  if (
+    pathname.startsWith('/vehicle-research/') &&
+    pathname.includes('/configurations/')
+  )
+    return 'Research Configuration';
+  if (pathname.startsWith('/vehicle-research/')) return 'Vehicle Research';
   const team = teamFromLocation(pathname, search);
   if (pathname === ROUTES.profileDefault) return 'Profile';
   if (pathname === ROUTES.dashboard) return 'Team Overview';

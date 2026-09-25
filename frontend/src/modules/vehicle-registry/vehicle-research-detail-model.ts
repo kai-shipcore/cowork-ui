@@ -239,11 +239,11 @@ export const RESEARCH_DETAIL_SEED: readonly ResearchDetailRecord[] = [
   },
 ];
 
-/** Demo review thread for c01, interleaved with the saved rounds above. */
+/** Demo review thread for the c01 Seat Cover research configuration. */
 export const RESEARCH_COMMENT_SEED: readonly ResearchComment[] = [
   {
     id: 'research-comment-seed-c01-1',
-    configurationId: 'c01',
+    configurationId: 'c01:PT-SC',
     message:
       'Started the hybrid configuration. Need a second source for the 2nd row armrest on LE.',
     author: 'Kai (Demo)',
@@ -252,7 +252,7 @@ export const RESEARCH_COMMENT_SEED: readonly ResearchComment[] = [
   },
   {
     id: 'research-comment-seed-c01-2',
-    configurationId: 'c01',
+    configurationId: 'c01:PT-SC',
     message:
       'Galpin visit booked for 9/17. Will check under-seat storage in person.',
     author: 'R&D Member (Demo)',
@@ -261,7 +261,7 @@ export const RESEARCH_COMMENT_SEED: readonly ResearchComment[] = [
   },
   {
     id: 'research-comment-seed-c01-3',
-    configurationId: 'c01',
+    configurationId: 'c01:PT-SC',
     message:
       'Scan done. No storage tray on any hybrid trim, so c02 stays a separate configuration.',
     author: 'R&D Member (Demo)',
@@ -270,7 +270,7 @@ export const RESEARCH_COMMENT_SEED: readonly ResearchComment[] = [
   },
   {
     id: 'research-comment-seed-c01-4',
-    configurationId: 'c01',
+    configurationId: 'c01:PT-SC',
     message:
       'Research complete and pushed to development. Seat Cover project PG-00124 is linked.',
     author: 'Kai (Demo)',

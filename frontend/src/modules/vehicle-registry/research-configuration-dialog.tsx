@@ -41,6 +41,7 @@ interface ResearchConfigurationDialogProps {
     status: ResearchConfigurationVersionStatus,
   ) => Promise<boolean>;
   onOpenVehicleResearch?: () => void;
+  presentation?: 'dialog' | 'page';
 }
 
 function isConfigurationCompleted(
@@ -66,6 +67,7 @@ export function ResearchConfigurationDialog({
   onCreateVersion,
   onUpdateVersionStatus,
   onOpenVehicleResearch,
+  presentation = 'dialog',
 }: ResearchConfigurationDialogProps) {
   const { vehicleOptionKeys, vehicleOptionValues } = useWorkbenchStore();
   const [editing, setEditing] = useState(false);
@@ -203,9 +205,9 @@ export function ResearchConfigurationDialog({
     parsedYearFrom <= parsedYearTo &&
     options.every(([key, value]) => key.trim() && value.trim());
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="research-configuration-dialog">
+  const content = (
+    <>
+      {presentation === 'dialog' && (
         <DialogHeader>
           <DialogTitle>{target.productLabel} configuration</DialogTitle>
           <p>
@@ -213,350 +215,346 @@ export function ResearchConfigurationDialog({
             history.
           </p>
         </DialogHeader>
-        <DialogBody className="research-configuration-dialog-body">
-          <section className="research-configuration-current">
-            <header>
-              <div>
-                <span>
-                  {selectedVersion
-                    ? `CONFIGURATION VERSION ${String(selectedVersion.versionNumber)}`
-                    : 'RESEARCH CONFIGURATION'}
-                </span>
-                <h3>
-                  {target.productLabel}
-                  {selectedVersion
-                    ? ` · Version ${String(selectedVersion.versionNumber)}`
-                    : ''}
-                </h3>
-              </div>
-              <span className="research-configuration-status">
+      )}
+      <DialogBody className="research-configuration-dialog-body">
+        <section className="research-configuration-current">
+          <header>
+            <div>
+              <span>
                 {selectedVersion
-                  ? versionStatusLabel(selectedVersion.status)
-                  : researchStatus.split('_').join(' ')}
+                  ? `CONFIGURATION VERSION ${String(selectedVersion.versionNumber)}`
+                  : 'RESEARCH CONFIGURATION'}
               </span>
-            </header>
+              <h3>
+                {target.productLabel}
+                {selectedVersion
+                  ? ` · Version ${String(selectedVersion.versionNumber)}`
+                  : ''}
+              </h3>
+            </div>
+            <span className="research-configuration-status">
+              {selectedVersion
+                ? versionStatusLabel(selectedVersion.status)
+                : researchStatus.split('_').join(' ')}
+            </span>
+          </header>
 
-            {selectedVersion ? (
-              <p className="research-version-snapshot-notice">
-                Viewing the exact Year and Option values saved in Version{' '}
-                {selectedVersion.versionNumber}.
-                {selectedVersion.action === 'DELETE' &&
-                  ' This version requests deletion of the configuration shown below.'}
-              </p>
-            ) : approvalRequired ? (
-              <p className="research-version-notice">
-                This configuration completed its initial approval. Further
-                changes create a version that must be approved before becoming
-                current.
-              </p>
-            ) : (
-              <p className="research-version-snapshot-notice">
-                Until this configuration is completed, saved versions become
-                current immediately and do not require approval.
-              </p>
-            )}
+          {selectedVersion ? (
+            <p className="research-version-snapshot-notice">
+              Viewing the exact Year and Option values saved in Version{' '}
+              {selectedVersion.versionNumber}.
+              {selectedVersion.action === 'DELETE' &&
+                ' This version requests deletion of the configuration shown below.'}
+            </p>
+          ) : approvalRequired ? (
+            <p className="research-version-notice">
+              This configuration completed its initial approval. Further changes
+              create a version that must be approved before becoming current.
+            </p>
+          ) : (
+            <p className="research-version-snapshot-notice">
+              Until this configuration is completed, saved versions become
+              current immediately and do not require approval.
+            </p>
+          )}
 
-            <fieldset disabled={!editing}>
-              <legend>Year</legend>
-              <div className="research-configuration-year-inputs">
-                <label>
-                  From
-                  <Input
-                    type="number"
-                    min={1900}
-                    max={2100}
-                    placeholder="e.g. 2023"
-                    value={yearFrom}
-                    onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                      setYearFrom(event.target.value);
+          <fieldset disabled={!editing}>
+            <legend>Year</legend>
+            <div className="research-configuration-year-inputs">
+              <label>
+                From
+                <Input
+                  type="number"
+                  min={1900}
+                  max={2100}
+                  placeholder="e.g. 2023"
+                  value={yearFrom}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                    setYearFrom(event.target.value);
+                  }}
+                />
+              </label>
+              <label>
+                To
+                <Input
+                  type="number"
+                  min={1900}
+                  max={2100}
+                  placeholder="e.g. 2026"
+                  value={yearTo}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                    setYearTo(event.target.value);
+                  }}
+                />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset disabled={!editing}>
+            <legend>Option values</legend>
+            <div className="research-configuration-option-editor">
+              {options.map(([key, value], index) => (
+                <div key={`${String(index)}-${key}-${value}`}>
+                  <Select
+                    value={key}
+                    onValueChange={(nextKey: string) => {
+                      updateOption(index, 0, nextKey);
                     }}
-                  />
-                </label>
-                <label>
-                  To
-                  <Input
-                    type="number"
-                    min={1900}
-                    max={2100}
-                    placeholder="e.g. 2026"
-                    value={yearTo}
-                    onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                      setYearTo(event.target.value);
-                    }}
-                  />
-                </label>
-              </div>
-            </fieldset>
-
-            <fieldset disabled={!editing}>
-              <legend>Option values</legend>
-              <div className="research-configuration-option-editor">
-                {options.map(([key, value], index) => (
-                  <div key={`${String(index)}-${key}-${value}`}>
-                    <Select
-                      value={key}
-                      onValueChange={(nextKey: string) => {
-                        updateOption(index, 0, nextKey);
-                      }}
+                  >
+                    <SelectTrigger
+                      aria-label={`Option ${String(index + 1)} name`}
                     >
-                      <SelectTrigger
-                        aria-label={`Option ${String(index + 1)} name`}
-                      >
-                        <SelectValue placeholder="Select option" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {productOptionKeys
-                          .filter(
-                            (optionKey) =>
-                              optionKey.name === key ||
-                              !options.some(
-                                ([selectedKey]) =>
-                                  selectedKey === optionKey.name,
-                              ),
-                          )
-                          .map((optionKey) => (
-                            <SelectItem
-                              value={optionKey.name}
-                              key={optionKey.id}
-                            >
-                              {optionKey.name}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                    <Select
-                      value={value}
-                      onValueChange={(nextValue: string) => {
-                        updateOption(index, 1, nextValue);
-                      }}
-                      disabled={!key}
-                    >
-                      <SelectTrigger
-                        aria-label={`Option ${String(index + 1)} value`}
-                      >
-                        <SelectValue placeholder="Select value" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {vehicleOptionValues
-                          .filter(
-                            (optionValue) =>
-                              optionValue.vehicleOptionKeyId ===
-                              productOptionKeys.find(
-                                (optionKey) => optionKey.name === key,
-                              )?.id,
-                          )
-                          .map((optionValue) => (
-                            <SelectItem
-                              value={optionValue.value}
-                              key={optionValue.id}
-                            >
-                              {optionValue.value}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                    {editing && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        aria-label={`Remove option ${String(index + 1)}`}
-                        onClick={() => {
-                          setOptions((current) =>
-                            current.filter(
-                              (_, optionIndex) => optionIndex !== index,
+                      <SelectValue placeholder="Select option" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {productOptionKeys
+                        .filter(
+                          (optionKey) =>
+                            optionKey.name === key ||
+                            !options.some(
+                              ([selectedKey]) => selectedKey === optionKey.name,
                             ),
-                          );
-                        }}
-                      >
-                        <X />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                {options.length === 0 && (
-                  <span className="research-base-vehicle">Base vehicle</span>
-                )}
-              </div>
-              {editing && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setOptions((current) => [...current, ['', '']]);
-                  }}
-                  disabled={options.length >= productOptionKeys.length}
-                >
-                  <Plus /> Add option
-                </Button>
-              )}
-            </fieldset>
-
-            <div className="research-configuration-actions">
-              {selectedVersion ? (
-                <Button variant="outline" onClick={showCurrentConfiguration}>
-                  Back to current configuration
-                </Button>
-              ) : editing ? (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setEditing(false);
+                        )
+                        .map((optionKey) => (
+                          <SelectItem value={optionKey.name} key={optionKey.id}>
+                            {optionKey.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={value}
+                    onValueChange={(nextValue: string) => {
+                      updateOption(index, 1, nextValue);
                     }}
+                    disabled={!key}
                   >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    disabled={!valid || saving}
-                    onClick={() => void createVersion('DELETE')}
-                  >
-                    <Trash2 /> Create deletion version
-                  </Button>
-                  <Button
-                    variant="primary"
-                    disabled={!valid || saving}
-                    onClick={() => void createVersion('UPSERT')}
-                  >
-                    <Save /> Save new version
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  variant="primary"
-                  disabled={Boolean(pendingVersion)}
-                  onClick={() => {
-                    setEditing(true);
-                  }}
-                >
-                  <Plus /> Create new version
-                </Button>
+                    <SelectTrigger
+                      aria-label={`Option ${String(index + 1)} value`}
+                    >
+                      <SelectValue placeholder="Select value" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vehicleOptionValues
+                        .filter(
+                          (optionValue) =>
+                            optionValue.vehicleOptionKeyId ===
+                            productOptionKeys.find(
+                              (optionKey) => optionKey.name === key,
+                            )?.id,
+                        )
+                        .map((optionValue) => (
+                          <SelectItem
+                            value={optionValue.value}
+                            key={optionValue.id}
+                          >
+                            {optionValue.value}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  {editing && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`Remove option ${String(index + 1)}`}
+                      onClick={() => {
+                        setOptions((current) =>
+                          current.filter(
+                            (_, optionIndex) => optionIndex !== index,
+                          ),
+                        );
+                      }}
+                    >
+                      <X />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              {options.length === 0 && (
+                <span className="research-base-vehicle">Base vehicle</span>
               )}
             </div>
-          </section>
+            {editing && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setOptions((current) => [...current, ['', '']]);
+                }}
+                disabled={options.length >= productOptionKeys.length}
+              >
+                <Plus /> Add option
+              </Button>
+            )}
+          </fieldset>
 
-          <section className="research-configuration-history">
-            <header>
-              <History aria-hidden="true" />
-              <div>
-                <h3>Configuration history</h3>
-                <p>{targetVersions.length} saved versions</p>
-              </div>
-            </header>
-            {targetVersions.length > 0 ? (
-              <div className="research-version-list">
-                {targetVersions.map((version) => (
-                  <article
-                    key={version.id}
-                    data-selected={selectedVersionId === version.id}
+          <div className="research-configuration-actions">
+            {selectedVersion ? (
+              <Button variant="outline" onClick={showCurrentConfiguration}>
+                Back to current configuration
+              </Button>
+            ) : editing ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEditing(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="ghost"
+                  disabled={!valid || saving}
+                  onClick={() => void createVersion('DELETE')}
+                >
+                  <Trash2 /> Create deletion version
+                </Button>
+                <Button
+                  variant="primary"
+                  disabled={!valid || saving}
+                  onClick={() => void createVersion('UPSERT')}
+                >
+                  <Save /> Save new version
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="primary"
+                disabled={Boolean(pendingVersion)}
+                onClick={() => {
+                  setEditing(true);
+                }}
+              >
+                <Plus /> Create new version
+              </Button>
+            )}
+          </div>
+        </section>
+
+        <section className="research-configuration-history">
+          <header>
+            <History aria-hidden="true" />
+            <div>
+              <h3>Configuration history</h3>
+              <p>{targetVersions.length} saved versions</p>
+            </div>
+          </header>
+          {targetVersions.length > 0 ? (
+            <div className="research-version-list">
+              {targetVersions.map((version) => (
+                <article
+                  key={version.id}
+                  data-selected={selectedVersionId === version.id}
+                >
+                  <button
+                    type="button"
+                    className="research-version-card-select"
+                    aria-pressed={selectedVersionId === version.id}
+                    onClick={() => {
+                      showVersion(version);
+                    }}
                   >
-                    <button
-                      type="button"
-                      className="research-version-card-select"
-                      aria-pressed={selectedVersionId === version.id}
-                      onClick={() => {
-                        showVersion(version);
-                      }}
-                    >
-                      <span className="research-version-card-heading">
-                        <strong>Version {version.versionNumber}</strong>
-                        <span
-                          className={`research-version-status research-version-status-${version.status.toLowerCase()}`}
-                        >
-                          {versionStatusLabel(version.status)}
-                        </span>
+                    <span className="research-version-card-heading">
+                      <strong>Version {version.versionNumber}</strong>
+                      <span
+                        className={`research-version-status research-version-status-${version.status.toLowerCase()}`}
+                      >
+                        {versionStatusLabel(version.status)}
                       </span>
-                      <span className="research-version-card-summary">
-                        {version.action === 'DELETE'
-                          ? 'Delete configuration'
-                          : `${version.years.join(', ')} · ${String(version.options.length)} options`}
-                      </span>
-                      {version.action === 'DELETE' && (
-                        <span className="research-version-delete-snapshot">
-                          Snapshot: {version.years.join(', ')} ·{' '}
-                          {version.options.length
-                            ? `${String(version.options.length)} options`
-                            : 'Base vehicle'}
-                        </span>
-                      )}
-                      <span className="research-version-option-preview">
-                        {version.options.length > 0
-                          ? version.options
-                              .map(([key, value]) => `${key}: ${value}`)
-                              .join(' · ')
+                    </span>
+                    <span className="research-version-card-summary">
+                      {version.action === 'DELETE'
+                        ? 'Delete configuration'
+                        : `${version.years.join(', ')} · ${String(version.options.length)} options`}
+                    </span>
+                    {version.action === 'DELETE' && (
+                      <span className="research-version-delete-snapshot">
+                        Snapshot: {version.years.join(', ')} ·{' '}
+                        {version.options.length
+                          ? `${String(version.options.length)} options`
                           : 'Base vehicle'}
                       </span>
-                      <small>{version.changeSummary}</small>
-                    </button>
-                    <footer>
-                      <span>
-                        {version.actor} ·{' '}
-                        {new Date(version.createdAt).toLocaleString()}
-                      </span>
-                      {version.status === 'DRAFT' && (
+                    )}
+                    <span className="research-version-option-preview">
+                      {version.options.length > 0
+                        ? version.options
+                            .map(([key, value]) => `${key}: ${value}`)
+                            .join(' · ')
+                        : 'Base vehicle'}
+                    </span>
+                    <small>{version.changeSummary}</small>
+                  </button>
+                  <footer>
+                    <span>
+                      {version.actor} ·{' '}
+                      {new Date(version.createdAt).toLocaleString()}
+                    </span>
+                    {version.status === 'DRAFT' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          void onUpdateVersionStatus(
+                            version.id,
+                            'PENDING_APPROVAL',
+                          )
+                        }
+                      >
+                        Submit for approval
+                      </Button>
+                    )}
+                    {version.status === 'PENDING_APPROVAL' && (
+                      <span className="research-version-review-actions">
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() =>
-                            void onUpdateVersionStatus(
-                              version.id,
-                              'PENDING_APPROVAL',
-                            )
+                            void onUpdateVersionStatus(version.id, 'REJECTED')
                           }
                         >
-                          Submit for approval
+                          Reject
                         </Button>
-                      )}
-                      {version.status === 'PENDING_APPROVAL' && (
-                        <span className="research-version-review-actions">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              void onUpdateVersionStatus(version.id, 'REJECTED')
-                            }
-                          >
-                            Reject
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="primary"
-                            onClick={() =>
-                              void onUpdateVersionStatus(version.id, 'APPROVED')
-                            }
-                          >
-                            Approve
-                          </Button>
-                        </span>
-                      )}
-                    </footer>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="research-version-empty">
-                <History aria-hidden="true" />
-                <p>No saved versions yet.</p>
-                <span>The current values are the initial configuration.</span>
-              </div>
-            )}
-            {targetVersions.length > 0 &&
-              latestVersion.status === 'APPROVED' && (
-                <p className="research-version-current-note">
-                  Version {latestVersion.versionNumber}{' '}
-                  {latestVersion.action === 'DELETE'
-                    ? 'is the approved deletion version.'
-                    : 'is the current approved version.'}
-                </p>
-              )}
-          </section>
-        </DialogBody>
-        <DialogFooter>
-          {onOpenVehicleResearch && (
-            <Button variant="ghost" onClick={onOpenVehicleResearch}>
-              Open full vehicle research
-            </Button>
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          onClick={() =>
+                            void onUpdateVersionStatus(version.id, 'APPROVED')
+                          }
+                        >
+                          Approve
+                        </Button>
+                      </span>
+                    )}
+                  </footer>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="research-version-empty">
+              <History aria-hidden="true" />
+              <p>No saved versions yet.</p>
+              <span>The current values are the initial configuration.</span>
+            </div>
           )}
+          {targetVersions.length > 0 && latestVersion.status === 'APPROVED' && (
+            <p className="research-version-current-note">
+              Version {latestVersion.versionNumber}{' '}
+              {latestVersion.action === 'DELETE'
+                ? 'is the approved deletion version.'
+                : 'is the current approved version.'}
+            </p>
+          )}
+        </section>
+      </DialogBody>
+      <DialogFooter>
+        {onOpenVehicleResearch && (
+          <Button variant="ghost" onClick={onOpenVehicleResearch}>
+            Open full vehicle research
+          </Button>
+        )}
+        {presentation === 'dialog' && (
           <Button
             variant="outline"
             onClick={() => {
@@ -565,7 +563,19 @@ export function ResearchConfigurationDialog({
           >
             Close
           </Button>
-        </DialogFooter>
+        )}
+      </DialogFooter>
+    </>
+  );
+
+  if (presentation === 'page') {
+    return <section className="research-configuration-page">{content}</section>;
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="research-configuration-dialog">
+        {content}
       </DialogContent>
     </Dialog>
   );

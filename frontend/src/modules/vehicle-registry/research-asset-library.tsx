@@ -1,6 +1,14 @@
 import { useMemo, useState, type ReactElement } from 'react';
 import { Button } from '@coverland-engineering/ui/button';
-import { Download, ExternalLink, FileImage, Link2, Search } from 'lucide-react';
+import {
+  Check,
+  Download,
+  ExternalLink,
+  FileImage,
+  Filter,
+  Link2,
+  Search,
+} from 'lucide-react';
 import { ConfigChips } from '@/shared/domain/config-chips';
 import {
   PRODUCT_TYPES,
@@ -31,9 +39,24 @@ interface ResearchAsset {
   make: string;
   model: string;
   years: string;
+  yearValues: readonly number[];
   format: string;
   productTypeId: ProductTypeId;
+  productTypeIds: readonly ProductTypeId[];
   optionSelections: readonly (readonly [string, string])[];
+}
+
+interface FilterOption {
+  value: string;
+  label: string;
+}
+
+interface MultiFilterProps {
+  label: string;
+  allLabel: string;
+  options: readonly FilterOption[];
+  selected: readonly string[];
+  onChange: (selected: string[]) => void;
 }
 
 const PRODUCT_LABELS = Object.fromEntries(
@@ -54,6 +77,99 @@ function assetFormat(photo: string, filename: string) {
   if (mime) return mime.toUpperCase().replace('JPEG', 'JPG');
   const extension = filename.split('.').pop();
   return extension ? extension.toUpperCase() : 'IMAGE';
+}
+
+function yearRangeValues(years: string): number[] {
+  const match = /^(\d{4})(?:[–-](\d{4}))?$/.exec(years);
+  if (!match) return [];
+  const [, startValue, endValue] = match as unknown as [
+    string,
+    string,
+    string?,
+  ];
+  const start = Number(startValue);
+  const end = Number(endValue ?? startValue);
+  return Array.from(
+    { length: Math.max(0, end - start + 1) },
+    (_, index) => start + index,
+  );
+}
+
+function MultiFilter({
+  label,
+  allLabel,
+  options,
+  selected,
+  onChange,
+}: MultiFilterProps): ReactElement {
+  const [filterQuery, setFilterQuery] = useState('');
+  const normalizedFilterQuery = filterQuery.trim().toLowerCase();
+  const visibleOptions = normalizedFilterQuery
+    ? options.filter((option) =>
+        option.label.toLowerCase().includes(normalizedFilterQuery),
+      )
+    : options;
+
+  return (
+    <div className="research-assets-multi-filter">
+      <details name="research-asset-filters">
+        <summary>
+          <Filter aria-hidden="true" />
+          <span>{label}</span>
+          {selected.length > 0 && <b>{selected.length}</b>}
+        </summary>
+        <div>
+          <label className="research-assets-filter-search">
+            <Search aria-hidden="true" />
+            <input
+              type="search"
+              aria-label={`Search ${label.toLowerCase()}`}
+              placeholder={`Search ${label.toLowerCase()}`}
+              value={filterQuery}
+              onChange={(event) => {
+                setFilterQuery(event.target.value);
+              }}
+            />
+          </label>
+          <button
+            type="button"
+            className="research-assets-filter-all"
+            onClick={() => {
+              onChange([]);
+            }}
+          >
+            <span aria-hidden="true">{selected.length === 0 && <Check />}</span>
+            {allLabel}
+          </button>
+          {visibleOptions.map((option) => {
+            const checked = selected.includes(option.value);
+            return (
+              <button
+                type="button"
+                key={option.value}
+                aria-pressed={checked}
+                onClick={() => {
+                  onChange(
+                    checked
+                      ? selected.filter((value) => value !== option.value)
+                      : [...selected, option.value],
+                  );
+                }}
+              >
+                <span aria-hidden="true">{checked && <Check />}</span>
+                {option.label}
+              </button>
+            );
+          })}
+          {visibleOptions.length === 0 && (
+            <span className="research-assets-filter-empty">
+              No matching {label.toLowerCase()}
+            </span>
+          )}
+        </div>
+      </details>
+    </div>
+  );
 }
 
 function latestEvidence(records: readonly ResearchDetailRecord[]) {
@@ -82,6 +198,9 @@ function researchAssets(
             );
             if (!configuration) return [];
             const identity = vehicleIdentity(configuration.vehicle);
+            const productTypeIds = material.productTypeIds.length
+              ? material.productTypeIds
+              : [material.productTypeId];
             return [
               {
                 id: `${evidence.id}-${material.id}`,
@@ -92,8 +211,12 @@ function researchAssets(
                 rowLabel: material.fileData ? 'Uploaded asset' : 'Source link',
                 variation: material.notes || material.title,
                 productTypeId: material.productTypeId,
+                productTypeIds,
                 optionSelections: material.optionSelections,
                 ...identity,
+                yearValues: material.years.length
+                  ? material.years
+                  : yearRangeValues(identity.years),
                 format: material.fileData
                   ? assetFormat(material.fileData, material.fileName)
                   : 'LINK',
@@ -120,19 +243,37 @@ export function ResearchAssetLibrary({
     [configurations, records],
   );
   const [query, setQuery] = useState('');
-  const [make, setMake] = useState('ALL');
-  const [model, setModel] = useState('ALL');
-  const [optionKey, setOptionKey] = useState('ALL');
-  const [optionValue, setOptionValue] = useState('ALL');
-  const [format, setFormat] = useState('ALL');
-  const makes = Array.from(new Set(assets.map((asset) => asset.make))).sort();
-  const models = Array.from(
-    new Set(
-      assets
-        .filter((asset) => make === 'ALL' || asset.make === make)
-        .map((asset) => asset.model),
-    ),
+  const [selectedMakes, setSelectedMakes] = useState<string[]>([]);
+  const [selectedModels, setSelectedModels] = useState<string[]>([]);
+  const [selectedYears, setSelectedYears] = useState<string[]>([]);
+  const [selectedProductTypes, setSelectedProductTypes] = useState<string[]>(
+    [],
+  );
+  const [selectedOptionKeys, setSelectedOptionKeys] = useState<string[]>([]);
+  const [selectedOptionValues, setSelectedOptionValues] = useState<string[]>(
+    [],
+  );
+  const [selectedFormats, setSelectedFormats] = useState<string[]>([]);
+  const years = Array.from(
+    new Set(assets.flatMap((asset) => asset.yearValues)),
+  ).sort((left, right) => left - right);
+  const yearMatchingAssets = assets.filter(
+    (asset) =>
+      selectedYears.length === 0 ||
+      asset.yearValues.some((year) => selectedYears.includes(String(year))),
+  );
+  const makes = Array.from(
+    new Set(yearMatchingAssets.map((asset) => asset.make)),
   ).sort();
+  const makeMatchingAssets = yearMatchingAssets.filter(
+    (asset) => selectedMakes.length === 0 || selectedMakes.includes(asset.make),
+  );
+  const models = Array.from(
+    new Set(makeMatchingAssets.map((asset) => asset.model)),
+  ).sort();
+  const productTypes = PRODUCT_TYPES.filter((productType) =>
+    assets.some((asset) => asset.productTypeIds.includes(productType.id)),
+  );
   const optionKeys = Array.from(
     new Set(
       assets.flatMap((asset) => asset.optionSelections.map(([key]) => key)),
@@ -142,7 +283,11 @@ export function ResearchAssetLibrary({
     new Set(
       assets.flatMap((asset) =>
         asset.optionSelections
-          .filter(([key]) => optionKey === 'ALL' || key === optionKey)
+          .filter(
+            ([key]) =>
+              selectedOptionKeys.length === 0 ||
+              selectedOptionKeys.includes(key),
+          )
           .map(([, value]) => value),
       ),
     ),
@@ -150,6 +295,59 @@ export function ResearchAssetLibrary({
   const formats = Array.from(
     new Set(assets.map((asset) => asset.format)),
   ).sort();
+
+  function changeYears(nextYears: string[]): void {
+    const matchingAssets = assets.filter(
+      (asset) =>
+        nextYears.length === 0 ||
+        asset.yearValues.some((year) => nextYears.includes(String(year))),
+    );
+    const allowedMakes = new Set(matchingAssets.map((asset) => asset.make));
+    const nextMakes = selectedMakes.filter((make) => allowedMakes.has(make));
+    const allowedModels = new Set(
+      matchingAssets
+        .filter(
+          (asset) => nextMakes.length === 0 || nextMakes.includes(asset.make),
+        )
+        .map((asset) => asset.model),
+    );
+    setSelectedYears(nextYears);
+    setSelectedMakes(nextMakes);
+    setSelectedModels((current) =>
+      current.filter((model) => allowedModels.has(model)),
+    );
+  }
+
+  function changeMakes(nextMakes: string[]): void {
+    const allowedModels = new Set(
+      yearMatchingAssets
+        .filter(
+          (asset) => nextMakes.length === 0 || nextMakes.includes(asset.make),
+        )
+        .map((asset) => asset.model),
+    );
+    setSelectedMakes(nextMakes);
+    setSelectedModels((current) =>
+      current.filter((model) => allowedModels.has(model)),
+    );
+  }
+
+  function changeOptionKeys(nextOptionKeys: string[]): void {
+    const allowedValues = new Set(
+      assets.flatMap((asset) =>
+        asset.optionSelections
+          .filter(
+            ([key]) =>
+              nextOptionKeys.length === 0 || nextOptionKeys.includes(key),
+          )
+          .map(([, value]) => value),
+      ),
+    );
+    setSelectedOptionKeys(nextOptionKeys);
+    setSelectedOptionValues((current) =>
+      current.filter((value) => allowedValues.has(value)),
+    );
+  }
   const normalizedQuery = query.trim().toLowerCase();
   const visibleAssets = assets.filter((asset) => {
     const optionText = asset.optionSelections.flat().join(' ');
@@ -167,15 +365,26 @@ export function ResearchAssetLibrary({
         .includes(normalizedQuery);
     const matchesOption = asset.optionSelections.some(
       ([key, value]) =>
-        (optionKey === 'ALL' || key === optionKey) &&
-        (optionValue === 'ALL' || value === optionValue),
+        (selectedOptionKeys.length === 0 || selectedOptionKeys.includes(key)) &&
+        (selectedOptionValues.length === 0 ||
+          selectedOptionValues.includes(value)),
     );
     return (
       matchesQuery &&
-      (make === 'ALL' || asset.make === make) &&
-      (model === 'ALL' || asset.model === model) &&
-      (optionKey === 'ALL' && optionValue === 'ALL' ? true : matchesOption) &&
-      (format === 'ALL' || asset.format === format)
+      (selectedMakes.length === 0 || selectedMakes.includes(asset.make)) &&
+      (selectedModels.length === 0 || selectedModels.includes(asset.model)) &&
+      (selectedYears.length === 0 ||
+        asset.yearValues.some((year) =>
+          selectedYears.includes(String(year)),
+        )) &&
+      (selectedProductTypes.length === 0 ||
+        asset.productTypeIds.some((productTypeId) =>
+          selectedProductTypes.includes(productTypeId),
+        )) &&
+      (selectedOptionKeys.length === 0 && selectedOptionValues.length === 0
+        ? true
+        : matchesOption) &&
+      (selectedFormats.length === 0 || selectedFormats.includes(asset.format))
     );
   });
 
@@ -202,78 +411,63 @@ export function ResearchAssetLibrary({
             }}
           />
         </label>
-        <label>
-          <span>Make</span>
-          <select
-            value={make}
-            onChange={(event) => {
-              setMake(event.target.value);
-              setModel('ALL');
-            }}
-          >
-            <option value="ALL">All makes</option>
-            {makes.map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Model</span>
-          <select
-            value={model}
-            onChange={(event) => {
-              setModel(event.target.value);
-            }}
-          >
-            <option value="ALL">All models</option>
-            {models.map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Option</span>
-          <select
-            value={optionKey}
-            onChange={(event) => {
-              setOptionKey(event.target.value);
-              setOptionValue('ALL');
-            }}
-          >
-            <option value="ALL">All options</option>
-            {optionKeys.map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Value</span>
-          <select
-            value={optionValue}
-            onChange={(event) => {
-              setOptionValue(event.target.value);
-            }}
-          >
-            <option value="ALL">All values</option>
-            {optionValues.map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>File type</span>
-          <select
-            value={format}
-            onChange={(event) => {
-              setFormat(event.target.value);
-            }}
-          >
-            <option value="ALL">All types</option>
-            {formats.map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
-        </label>
+        <MultiFilter
+          label="Year"
+          allLabel="All years"
+          options={years.map((item) => ({
+            value: String(item),
+            label: String(item),
+          }))}
+          selected={selectedYears}
+          onChange={changeYears}
+        />
+        <MultiFilter
+          label="Make"
+          allLabel={selectedYears.length ? 'All matching makes' : 'All makes'}
+          options={makes.map((item) => ({ value: item, label: item }))}
+          selected={selectedMakes}
+          onChange={changeMakes}
+        />
+        <MultiFilter
+          label="Model"
+          allLabel={selectedMakes.length ? 'All matching models' : 'All models'}
+          options={models.map((item) => ({ value: item, label: item }))}
+          selected={selectedModels}
+          onChange={setSelectedModels}
+        />
+        <MultiFilter
+          label="Product types"
+          allLabel="All product types"
+          options={productTypes.map((item) => ({
+            value: item.id,
+            label: item.product,
+          }))}
+          selected={selectedProductTypes}
+          onChange={setSelectedProductTypes}
+        />
+        <MultiFilter
+          label="Options"
+          allLabel="All options"
+          options={optionKeys.map((item) => ({ value: item, label: item }))}
+          selected={selectedOptionKeys}
+          onChange={changeOptionKeys}
+        />
+        <MultiFilter
+          label="Values"
+          allLabel={
+            selectedOptionKeys.length ? 'All matching values' : 'All values'
+          }
+          options={optionValues.map((item) => ({ value: item, label: item }))}
+          selected={selectedOptionValues}
+          onChange={setSelectedOptionValues}
+        />
+        <MultiFilter
+          label="File types"
+          allLabel="All types"
+          options={formats.map((item) => ({ value: item, label: item }))}
+          selected={selectedFormats}
+          onChange={setSelectedFormats}
+        />
       </div>
 
       {visibleAssets.length ? (

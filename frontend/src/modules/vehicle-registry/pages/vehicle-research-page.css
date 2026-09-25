@@ -3,6 +3,16 @@
   overscroll-behavior-inline: contain;
 }
 
+.vehicle-research-grid thead th:last-child,
+.vehicle-research-grid tbody td:last-child:has(> button) {
+  display: none;
+}
+
+.vehicle-research-grid colgroup col:last-child {
+  width: 0 !important;
+  visibility: collapse;
+}
+
 .research-detail-link {
   display: grid;
   width: 100%;
