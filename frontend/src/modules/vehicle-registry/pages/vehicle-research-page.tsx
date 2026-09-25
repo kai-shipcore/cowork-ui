@@ -96,6 +96,29 @@ interface ProductResearchRow extends VehicleConfiguration {
   years?: string;
 }
 
+function researchVehicleParts(vehicle: string) {
+  const { makeModel } = vehicleResearchIdentity(vehicle);
+  const [make = '', ...modelParts] = makeModel.split(/\s+/);
+  return { make, model: modelParts.join(' ') };
+}
+
+function yearsInLabel(label: string): readonly string[] {
+  return label.split(',').flatMap((range) => {
+    const match = /^(\d{4})(?:[–-](\d{4}))?$/.exec(range.trim());
+    if (!match) return [];
+    const [, startValue, endValue] = match as unknown as [
+      string,
+      string,
+      string?,
+    ];
+    const start = Number(startValue);
+    const end = Number(endValue ?? startValue);
+    return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) =>
+      String(start + index),
+    );
+  });
+}
+
 /** Vehicle and option-combination research registry. */
 export function VehicleResearchPage() {
   const navigate = useNavigate();
@@ -139,6 +162,10 @@ export function VehicleResearchPage() {
   >(new Set());
   const [statuses, setStatuses] = useState<readonly string[]>([]);
   const [products, setProducts] = useState<readonly string[]>([]);
+  const [handoffs, setHandoffs] = useState<readonly string[]>([]);
+  const [years, setYears] = useState<readonly string[]>([]);
+  const [makes, setMakes] = useState<readonly string[]>([]);
+  const [models, setModels] = useState<readonly string[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [manufacturer, setManufacturer] = useState('Toyota');
   const [vehicleClass, setVehicleClass] = useState('SUV');
@@ -168,9 +195,6 @@ export function VehicleResearchPage() {
     });
   }
 
-  const searchedConfigurations = configurations.filter((configuration) =>
-    configuration.vehicle.toLowerCase().includes(query.toLowerCase()),
-  );
   const currentApprovedVersions = new Map<
     string,
     ResearchConfigurationVersion
@@ -184,8 +208,8 @@ export function VehicleResearchPage() {
       currentApprovedVersions.set(version.researchConfigurationId, version);
     }
   }
-  const searchedProductRows =
-    searchedConfigurations.flatMap<ProductResearchRow>((configuration) => {
+  const currentProductRows = configurations.flatMap<ProductResearchRow>(
+    (configuration) => {
       const applicableProductTypes = configuration.productTypeId
         ? PRODUCT_TYPES.filter(
             (productType) => productType.id === configuration.productTypeId,
@@ -228,8 +252,9 @@ export function VehicleResearchPage() {
           ];
         },
       );
-    });
-  const mergedProductRows = mergeProductResearchRows(searchedProductRows);
+    },
+  );
+  const mergedProductRows = mergeProductResearchRows(currentProductRows);
   const selectedConfigurationTargetId = viewParams.get('configuration');
   const selectedConfigurationRow = mergedProductRows.find(
     (row) =>
@@ -270,13 +295,51 @@ export function VehicleResearchPage() {
         }),
     ),
   ).sort((left, right) => left - right);
-  const productFilteredRows = mergedProductRows.filter(
+  const availableYears = Array.from(
+    new Set(mergedProductRows.flatMap((row) => yearsInLabel(row.years))),
+  ).sort((left, right) => Number(left) - Number(right));
+  const yearFilteredRows = mergedProductRows.filter(
+    (row) =>
+      years.length === 0 ||
+      yearsInLabel(row.years).some((year) => years.includes(year)),
+  );
+  const availableMakes = Array.from(
+    new Set(
+      yearFilteredRows.map((row) => researchVehicleParts(row.vehicle).make),
+    ),
+  ).sort((left, right) => left.localeCompare(right));
+  const makeFilteredRows = yearFilteredRows.filter(
+    (row) =>
+      makes.length === 0 ||
+      makes.includes(researchVehicleParts(row.vehicle).make),
+  );
+  const availableModels = Array.from(
+    new Set(
+      makeFilteredRows.map((row) => researchVehicleParts(row.vehicle).model),
+    ),
+  )
+    .filter(Boolean)
+    .sort((left, right) => left.localeCompare(right));
+  const vehicleFilteredRows = makeFilteredRows.filter(
+    (row) =>
+      models.length === 0 ||
+      models.includes(researchVehicleParts(row.vehicle).model),
+  );
+  const normalizedQuery = query.trim().toLowerCase();
+  const searchedProductRows = vehicleFilteredRows.filter((row) => {
+    if (!normalizedQuery) return true;
+    const { make, model } = researchVehicleParts(row.vehicle);
+    return `${row.years} ${make} ${model}`
+      .toLowerCase()
+      .includes(normalizedQuery);
+  });
+  const productFilteredRows = searchedProductRows.filter(
     (row) => products.length === 0 || products.includes(row.product),
   );
   const productCounts = new Map(
     PRODUCT_TYPES.map((productType) => [
       productType.product,
-      mergedProductRows.filter((row) => row.product === productType.product)
+      searchedProductRows.filter((row) => row.product === productType.product)
         .length,
     ]),
   );
@@ -288,14 +351,30 @@ export function VehicleResearchPage() {
       ).length,
     ]),
   );
+  const statusFilteredRows = productFilteredRows.filter(
+    (row) =>
+      statuses.length === 0 ||
+      statuses.includes(researchLifecycleStatus(row.researchStatus)),
+  );
+  const handoffOrder: readonly ResearchDisposition[] = [
+    'PUSH',
+    'REVIEWING',
+    'HOLD',
+    'PENDING',
+  ];
+  const handoffCounts = new Map(
+    handoffOrder.map((disposition) => [
+      disposition,
+      statusFilteredRows.filter((row) => dispositionOf(row) === disposition)
+        .length,
+    ]),
+  );
   const productTypeOrder = new Map(
     PRODUCT_TYPES.map((productType, index) => [productType.id, index]),
   );
-  const productRows = productFilteredRows
+  const productRows = statusFilteredRows
     .filter(
-      (row) =>
-        statuses.length === 0 ||
-        statuses.includes(researchLifecycleStatus(row.researchStatus)),
+      (row) => handoffs.length === 0 || handoffs.includes(dispositionOf(row)),
     )
     .sort(
       (left, right) =>
@@ -312,8 +391,50 @@ export function VehicleResearchPage() {
     setPagination,
   } = useWorkbenchPagination(
     vehicleGroups,
-    `${query}|${statuses.join(',')}|${products.join(',')}`,
+    `${query}|${years.join(',')}|${makes.join(',')}|${models.join(',')}|${statuses.join(',')}|${products.join(',')}|${handoffs.join(',')}`,
   );
+
+  function changeYears(nextYears: readonly string[]): void {
+    const rowsForYears = mergedProductRows.filter(
+      (row) =>
+        nextYears.length === 0 ||
+        yearsInLabel(row.years).some((year) => nextYears.includes(year)),
+    );
+    const allowedMakes = new Set(
+      rowsForYears.map((row) => researchVehicleParts(row.vehicle).make),
+    );
+    const nextMakes = makes.filter((make) => allowedMakes.has(make));
+    const allowedModels = new Set(
+      rowsForYears
+        .filter(
+          (row) =>
+            nextMakes.length === 0 ||
+            nextMakes.includes(researchVehicleParts(row.vehicle).make),
+        )
+        .map((row) => researchVehicleParts(row.vehicle).model),
+    );
+    setYears(nextYears);
+    setMakes(nextMakes);
+    setModels((current) =>
+      current.filter((modelName) => allowedModels.has(modelName)),
+    );
+  }
+
+  function changeMakes(nextMakes: readonly string[]): void {
+    const allowedModels = new Set(
+      yearFilteredRows
+        .filter(
+          (row) =>
+            nextMakes.length === 0 ||
+            nextMakes.includes(researchVehicleParts(row.vehicle).make),
+        )
+        .map((row) => researchVehicleParts(row.vehicle).model),
+    );
+    setMakes(nextMakes);
+    setModels((current) =>
+      current.filter((modelName) => allowedModels.has(modelName)),
+    );
+  }
 
   function addMockVehicle(): void {
     const newConfiguration: VehicleConfiguration = {
@@ -348,12 +469,10 @@ export function VehicleResearchPage() {
   }
 
   function openConfigurationHistory(configuration: ProductResearchRow): void {
-    const next = new URLSearchParams(viewParams);
-    next.set(
-      'configuration',
-      `${configuration.sourceConfigurationId}:${configuration.productTypeId}`,
+    const researchConfigurationId = `${configuration.sourceConfigurationId}:${configuration.productTypeId}`;
+    void navigate(
+      `/vehicle-research/${encodeURIComponent(configuration.sourceConfigurationId)}/configurations/${encodeURIComponent(researchConfigurationId)}`,
     );
-    setViewParams(next);
   }
 
   function closeConfigurationHistory(): void {
@@ -659,12 +778,52 @@ export function VehicleResearchPage() {
                 primarySoft: 'var(--wb-soft-blue)',
               }}
               search={{
-                label: 'Search make or model',
-                placeholder: 'Search make / model',
+                label: 'Search year, make, or model',
+                placeholder: 'Search year / make / model',
                 value: query,
                 onChange: setQuery,
               }}
               multiSelectFilters={[
+                {
+                  id: 'years',
+                  label: 'Year',
+                  values: years,
+                  onChange: changeYears,
+                  options: availableYears.map((year) => ({
+                    value: year,
+                    label: year,
+                    count: mergedProductRows.filter((row) =>
+                      yearsInLabel(row.years).includes(year),
+                    ).length,
+                  })),
+                },
+                {
+                  id: 'makes',
+                  label: 'Make',
+                  values: makes,
+                  onChange: changeMakes,
+                  options: availableMakes.map((make) => ({
+                    value: make,
+                    label: make,
+                    count: yearFilteredRows.filter(
+                      (row) => researchVehicleParts(row.vehicle).make === make,
+                    ).length,
+                  })),
+                },
+                {
+                  id: 'models',
+                  label: 'Model',
+                  values: models,
+                  onChange: setModels,
+                  options: availableModels.map((modelName) => ({
+                    value: modelName,
+                    label: modelName,
+                    count: makeFilteredRows.filter(
+                      (row) =>
+                        researchVehicleParts(row.vehicle).model === modelName,
+                    ).length,
+                  })),
+                },
                 {
                   id: 'product-types',
                   label: 'Product types',
@@ -687,16 +846,37 @@ export function VehicleResearchPage() {
                     count: statusCounts.get(filter.value) ?? 0,
                   })),
                 },
+                {
+                  id: 'project-handoff',
+                  label: 'Project handoff',
+                  values: handoffs,
+                  onChange: setHandoffs,
+                  options: handoffOrder.map((disposition) => ({
+                    value: disposition,
+                    label: RESEARCH_DISPOSITION_LABELS[disposition],
+                    count: handoffCounts.get(disposition) ?? 0,
+                  })),
+                },
               ]}
               toolbarContent={
-                (query || products.length > 0 || statuses.length > 0) && (
+                (query ||
+                  years.length > 0 ||
+                  makes.length > 0 ||
+                  models.length > 0 ||
+                  products.length > 0 ||
+                  statuses.length > 0 ||
+                  handoffs.length > 0) && (
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => {
                       setQuery('');
+                      setYears([]);
+                      setMakes([]);
+                      setModels([]);
                       setProducts([]);
                       setStatuses([]);
+                      setHandoffs([]);
                     }}
                   >
                     <X /> Clear filters

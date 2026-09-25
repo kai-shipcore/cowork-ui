@@ -8,6 +8,11 @@ import { PageHeader } from './page-header';
 await test('route headings show only the title and description and preserve actions', () => {
   for (const [path, title] of [
     ['/vehicle-research', 'Vehicle Research'],
+    ['/vehicle-research/c01', 'Vehicle Research'],
+    [
+      '/vehicle-research/c01/configurations/c01%3APT-SC',
+      'Research Configuration',
+    ],
     ['/products', 'Product Catalog'],
     ['/profiles/default', 'Profile'],
     ['/work/settings?team=rd', 'Personal Settings'],

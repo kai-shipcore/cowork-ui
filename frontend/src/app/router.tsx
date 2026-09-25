@@ -63,6 +63,11 @@ const VehicleResearchDetailPage = lazy(() =>
     (module) => ({ default: module.VehicleResearchDetailPage }),
   ),
 );
+const ResearchConfigurationDetailPage = lazy(() =>
+  import('@/modules/vehicle-registry/pages/research-configuration-detail-page').then(
+    (module) => ({ default: module.ResearchConfigurationDetailPage }),
+  ),
+);
 const VehicleProjectsPage = lazy(() =>
   import('@/modules/product-development/pages/vehicle-projects-page').then(
     (module) => ({ default: module.VehicleProjectsPage }),
@@ -223,6 +228,14 @@ export function AppRouter() {
           element={
             <Suspense fallback={<RouteFallback />}>
               <VehicleResearchPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path={ROUTES.researchConfigurationDetail}
+          element={
+            <Suspense fallback={<RouteFallback />}>
+              <ResearchConfigurationDetailPage />
             </Suspense>
           }
         />

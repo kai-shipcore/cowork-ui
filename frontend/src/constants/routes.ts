@@ -5,6 +5,8 @@ export const ROUTES = {
   ecommerceDashboard: '/dashboard/ecommerce',
   performanceDashboard: '/performance-dashboard',
   vehicleResearch: '/vehicle-research',
+  researchConfigurationDetail:
+    '/vehicle-research/:configurationId/configurations/:researchConfigurationId',
   vehicleResearchDetail: '/vehicle-research/:configurationId',
   vehicleProjects: '/vehicle-projects',
   productShapes: '/product-shapes',
