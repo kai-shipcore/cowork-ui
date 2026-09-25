@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@coverland-engineering/ui/select';
-import { CarFront, Files, List, Plus, Truck, X } from 'lucide-react';
+import { Files, List, Plus, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { ConfigChips } from '@/shared/domain/config-chips';
@@ -613,7 +613,7 @@ export function VehicleResearchPage() {
     {
       id: 'configuration',
       header: 'Configuration',
-      width: 600,
+      width: 720,
       hideable: false,
       sortValue: (configuration) =>
         configuration.options
@@ -644,7 +644,7 @@ export function VehicleResearchPage() {
     {
       id: 'status',
       header: 'Status',
-      width: 150,
+      width: 120,
       sortValue: (configuration) =>
         researchLifecycleStatus(configuration.researchStatus),
       cell: (configuration) => (
@@ -668,7 +668,7 @@ export function VehicleResearchPage() {
     {
       id: 'project-conversion',
       header: 'Project handoff',
-      width: 180,
+      width: 150,
       sortValue: (configuration) => dispositionOf(configuration),
       cell: (configuration) => {
         const disposition = dispositionOf(configuration);
@@ -683,7 +683,7 @@ export function VehicleResearchPage() {
     {
       id: 'actions',
       header: 'Actions',
-      width: 300,
+      width: 260,
       className: 'text-center',
       hideable: false,
       movable: false,
@@ -701,9 +701,6 @@ export function VehicleResearchPage() {
         rows: group.rows,
         meta: (
           <>
-            <span className="research-vehicle-icon" aria-hidden="true">
-              {group.vehicleClass === 'Truck' ? <Truck /> : <CarFront />}
-            </span>
             {firstConfiguration && (
               <>
                 <Button
@@ -715,7 +712,7 @@ export function VehicleResearchPage() {
                     );
                   }}
                 >
-                  Open vehicle research
+                  Open {group.title} Research
                 </Button>
                 <Button
                   size="sm"
