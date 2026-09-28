@@ -57,8 +57,14 @@ export function researchRequestsFor(
 
 export function researchDisposition(
   requests: readonly ApprovalRequest[],
-  configuration: Pick<VehicleConfiguration, 'id' | 'projectGroupIds'>,
+  configuration: Pick<
+    VehicleConfiguration,
+    'id' | 'projectGroupIds' | 'researchStatus'
+  >,
 ): ResearchDisposition {
+  if (!['COMPLETE', 'COMPLETED'].includes(configuration.researchStatus)) {
+    return 'PENDING';
+  }
   const latest = researchRequestsFor(requests, configuration.id)
     .slice(-1)
     .pop();
