@@ -93,8 +93,10 @@ import {
 import workbenchSeed from './workbench-seed.json';
 
 const STORAGE_KEY = 'coverland-rd-workbench-v1';
+const DEMO_DATA_VERSION = 3;
 
 export interface WorkbenchState {
+  demoDataVersion?: number;
   shapeAssignments: readonly ShapeAssignment[];
   fitmentQualities: readonly FitmentQuality[];
   approvalRequests: readonly ApprovalRequest[];
@@ -185,6 +187,7 @@ interface WorkbenchStore extends WorkbenchState {
 /** Hand-written reference data; fills any collection the seed snapshot lacks. */
 function baselineState(): WorkbenchState {
   return {
+    demoDataVersion: DEMO_DATA_VERSION,
     shapeAssignments: SHAPE_ASSIGNMENTS,
     fitmentQualities: [],
     approvalRequests: [],
@@ -476,22 +479,32 @@ function migrateState(
   stored: Partial<WorkbenchState>,
   fallback: WorkbenchState,
 ): WorkbenchState {
-  const configurations = (stored.configurations ?? fallback.configurations).map(
-    (configuration) => {
-      const legacy = configuration as LegacyVehicleConfiguration;
-      const migrated = {
-        ...configuration,
-        projectGroupIds: legacy.projectGroupIds ?? legacy.projectGroups ?? [],
-      };
-      if (configuration.researchStatus === 'COMPLETE') {
-        return { ...migrated, researchStatus: 'COMPLETED' as const };
-      }
-      if (configuration.researchStatus === 'RESEARCHING') {
-        return { ...migrated, researchStatus: 'IN_PROGRESS' as const };
-      }
-      return migrated;
-    },
+  const migratedConfigurations = (
+    stored.configurations ?? fallback.configurations
+  ).map((configuration) => {
+    const legacy = configuration as LegacyVehicleConfiguration;
+    const migrated = {
+      ...configuration,
+      projectGroupIds: legacy.projectGroupIds ?? legacy.projectGroups ?? [],
+    };
+    if (configuration.researchStatus === 'COMPLETE') {
+      return { ...migrated, researchStatus: 'COMPLETED' as const };
+    }
+    if (configuration.researchStatus === 'RESEARCHING') {
+      return { ...migrated, researchStatus: 'IN_PROGRESS' as const };
+    }
+    return migrated;
+  });
+  const demo2028Configuration = fallback.configurations.find(
+    (configuration) => configuration.id === 'c08',
   );
+  const configurations =
+    demo2028Configuration &&
+    !migratedConfigurations.some(
+      (configuration) => configuration.id === demo2028Configuration.id,
+    )
+      ? [...migratedConfigurations, demo2028Configuration]
+      : migratedConfigurations;
   const projects = (stored.projects ?? fallback.projects).map((project) =>
     migrateProject(project as LegacyVehicleProject),
   );
@@ -730,6 +743,7 @@ function migrateState(
       }));
     });
   return {
+    demoDataVersion: DEMO_DATA_VERSION,
     configurations,
     projects,
     visits,

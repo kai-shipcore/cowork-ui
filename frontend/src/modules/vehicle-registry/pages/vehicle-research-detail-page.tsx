@@ -47,7 +47,7 @@ import {
   ResearchAssetUploader,
   type ResearchAssetMetadata,
   type ResearchAssetTarget,
-} from '../research-asset-uploader';
+} from '../research-asset-uploader-adapter';
 import {
   RESEARCH_CONFIGURATION_VERSION_KEY,
   RESEARCH_CONFIGURATION_VERSION_SEED,
@@ -60,14 +60,19 @@ import {
   researchDetailSchema,
   type ResearchMaterial,
 } from '../vehicle-research-detail-model';
-import { vehicleResearchIdentity } from '../vehicle-research-grid-model';
+import {
+  vehicleResearchIdentity,
+  yearsFromLabel,
+} from '../vehicle-research-grid-model';
 import './vehicle-research-detail-page.css';
 
 function configurationYears(configuration: VehicleConfiguration): number[] {
   const identity = vehicleResearchIdentity(configuration.vehicle);
-  const match = /^(\d{4})(?:[–-](\d{4}))?$/.exec(identity.years);
-  const start = configuration.yearStart ?? Number(match?.[1]);
-  const end = configuration.yearEnd ?? Number(match?.[2] ?? match?.[1]);
+  if (configuration.yearStart === undefined) {
+    return yearsFromLabel(identity.years);
+  }
+  const start = configuration.yearStart;
+  const end = configuration.yearEnd ?? start;
   if (!Number.isInteger(start) || !Number.isInteger(end) || end < start) {
     return [];
   }

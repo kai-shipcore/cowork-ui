@@ -48,9 +48,9 @@ import {
 import { useRdRecords } from '@/modules/rd-workspace/use-rd-records';
 import { useOperations } from '@/app/operations-store';
 import { useWorkbenchStore } from '@/app/workbench-store';
-import { ResearchAssetLibrary } from '../research-asset-library';
-import type { ResearchAssetTarget } from '../research-asset-uploader';
-import { ResearchConfigurationDialog } from '../research-configuration-dialog';
+import { ResearchAssetLibraryAdapter } from '../research-asset-library-adapter';
+import type { ResearchAssetTarget } from '../research-asset-uploader-adapter';
+import { ResearchConfigurationDialog } from '../research-configuration-manager-adapter';
 import {
   RESEARCH_CONFIGURATION_VERSION_KEY,
   RESEARCH_CONFIGURATION_VERSION_SEED,
@@ -59,9 +59,11 @@ import {
   type ResearchConfigurationVersionStatus,
 } from '../research-configuration-version-model';
 import {
+  formatYearRanges,
   groupVehicleResearch,
   mergeProductResearchRows,
   vehicleResearchIdentity,
+  yearsFromLabel,
 } from '../vehicle-research-grid-model';
 import '../research-asset-library.css';
 import './vehicle-research-page.css';
@@ -227,13 +229,8 @@ export function VehicleResearchPage() {
               .map((key) => key.name),
           );
           const versionYears = currentVersion?.years ?? [];
-          const sortedYears = [...versionYears].sort(
-            (left, right) => left - right,
-          );
-          const yearLabel = sortedYears.length
-            ? sortedYears[0] === sortedYears[sortedYears.length - 1]
-              ? String(sortedYears[0])
-              : `${String(sortedYears[0])}–${String(sortedYears[sortedYears.length - 1])}`
+          const yearLabel = versionYears.length
+            ? formatYearRanges(versionYears)
             : vehicleResearchIdentity(configuration.vehicle).years;
           const sourceOptions =
             currentVersion?.options ?? configuration.options;
@@ -271,30 +268,9 @@ export function VehicleResearchPage() {
           options: selectedConfigurationRow.options,
         }
       : null;
-  const selectedMakeModel = selectedConfigurationRow
-    ? vehicleResearchIdentity(selectedConfigurationRow.vehicle).makeModel
-    : '';
-  const selectedAvailableYears = Array.from(
-    new Set(
-      configurations
-        .filter(
-          (item) =>
-            vehicleResearchIdentity(item.vehicle).makeModel ===
-            selectedMakeModel,
-        )
-        .flatMap((item) => {
-          const years = vehicleResearchIdentity(item.vehicle).years;
-          const match = /^(\d{4})(?:[–-](\d{4}))?$/.exec(years);
-          if (!match) return [];
-          const start = Number(match[1]);
-          const end = Number(match[2] ? match[2] : match[1]);
-          return Array.from(
-            { length: Math.max(0, end - start + 1) },
-            (_, index) => start + index,
-          );
-        }),
-    ),
-  ).sort((left, right) => left - right);
+  const selectedAvailableYears = selectedConfigurationRow
+    ? yearsFromLabel(selectedConfigurationRow.years)
+    : [];
   const availableYears = Array.from(
     new Set(mergedProductRows.flatMap((row) => yearsInLabel(row.years))),
   ).sort((left, right) => Number(left) - Number(right));
@@ -928,7 +904,7 @@ export function VehicleResearchPage() {
             />
           </ContentTabsPanel>
           <ContentTabsPanel value="assets" className="grid-tab-content">
-            <ResearchAssetLibrary
+            <ResearchAssetLibraryAdapter
               configurations={configurations}
               onOpenEvidence={(configurationId) => {
                 void navigate(

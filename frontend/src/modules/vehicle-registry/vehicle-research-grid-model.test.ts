@@ -74,10 +74,11 @@ await test('empty results render no groups and labels without a year remain read
   assert.equal(groups[0]?.vehicleClass, 'Truck');
 });
 
-await test('identical product options merge into a contiguous model-year range', () => {
+await test('identical product options merge across non-contiguous model years', () => {
   const rows = [
     configuration('a', '2023 Toyota RAV4'),
     configuration('b', '2024–2026 Toyota RAV4'),
+    configuration('d', '2028 Toyota RAV4'),
     {
       ...configuration('c', '2022 Toyota RAV4'),
       options: [['Powertrain', 'Gas']] as const,
@@ -89,7 +90,11 @@ await test('identical product options merge into a contiguous model-year range',
   }));
   const merged = mergeProductResearchRows(rows);
   assert.equal(merged.length, 2);
-  assert.equal(merged[0]?.years, '2023–2026');
-  assert.deepEqual(merged[0]?.projectGroupIds, ['project-a', 'project-b']);
+  assert.equal(merged[0]?.years, '2023–2026, 2028');
+  assert.deepEqual(merged[0]?.projectGroupIds, [
+    'project-a',
+    'project-b',
+    'project-d',
+  ]);
   assert.equal(merged[1]?.years, '2022');
 });
