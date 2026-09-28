@@ -1,8 +1,13 @@
 import { CircleHelp } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
-type Guide = { title: string; purpose: string; steps: string[]; check: string };
-const guides: Record<string, Guide> = {
+interface Guide {
+  title: string;
+  purpose: string;
+  steps: string[];
+  check: string;
+}
+const guides: Partial<Record<string, Guide>> = {
   '/dashboard': {
     title: 'Home',
     purpose: 'See overdue work and next actions at a glance.',
@@ -15,7 +20,7 @@ const guides: Record<string, Guide> = {
       'Unscheduled fittings after sample receipt, unassigned visits, and pending handoffs require different actions.',
   },
   '/vehicle-research': {
-    title: 'Vehicle Research',
+    title: 'Research Vehicle',
     purpose: 'Define the vehicles and configurations to develop.',
     steps: [
       'Find vehicles by model year, model, and options.',

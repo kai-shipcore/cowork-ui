@@ -498,7 +498,7 @@ export function VehicleResearchDetailPage() {
       <section className="research-detail-missing">
         <h1>Research record not found</h1>
         <Button onClick={() => void navigate('/vehicle-research')}>
-          Back to Vehicle Research
+          Back to Research Vehicle
         </Button>
       </section>
     );
@@ -616,7 +616,7 @@ export function VehicleResearchDetailPage() {
         variant="ghost"
         onClick={() => void navigate('/vehicle-research')}
       >
-        <ArrowLeft /> Vehicle Research
+        <ArrowLeft /> Research Vehicle
       </Button>
 
       <header className="research-detail-header">

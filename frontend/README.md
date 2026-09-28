@@ -58,7 +58,7 @@ The five additional components are imported from the linked Storybook package:
   The mobile navigation sheet and centered dialogs are not detail panels.
 - `StatusBadge`: the existing shared import delegates to the library across
   business modules. Business labels and semantic tones remain caller-owned.
-- `MetadataChips`: `ConfigChips` adapts vehicle option pairs in Vehicle Research,
+- `MetadataChips`: `ConfigChips` adapts vehicle option pairs in Research Vehicle,
   Vehicle Projects, project details and Unique Vehicles; no options render nothing.
 
 Check locally on port 5174: toggle Product/Sample summary filters; choose and

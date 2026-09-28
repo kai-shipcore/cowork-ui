@@ -268,7 +268,7 @@ export const VEHICLE_ZONES: readonly VehicleZone[] = [
 ];
 
 // Migrated out of the hardcoded CONFIGURATION_VALUES constant that used to
-// live in the Vehicle Research screen. Car Cover charts are untitled, so they
+// live in the Research Vehicle screen. Car Cover charts are untitled, so they
 // carry the single generic `Submodel` key (DDL note on vehicle_option_key).
 const OPTION_DICTIONARY: readonly (readonly [
   ProductTypeId,
