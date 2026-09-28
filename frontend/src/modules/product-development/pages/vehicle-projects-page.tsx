@@ -243,23 +243,23 @@ export function VehicleProjectsPage() {
   );
   const { configurations, projects, setConfigurations, setProjects, appUsers } =
     useWorkbenchStore();
-  const [stageFilter, setStageFilter] = useState<ProjectStageFilter>('ALL');
-  const [product, setProduct] = useState('ALL');
-  const [managerFilter, setManagerFilter] = useState('ALL');
-  const [priorityFilter, setPriorityFilter] = useState('ALL');
+  const [stageFilters, setStageFilters] = useState<ProjectStageFilter[]>([]);
+  const [products, setProducts] = useState<string[]>([]);
+  const [managerFilters, setManagerFilters] = useState<string[]>([]);
+  const [priorityFilters, setPriorityFilters] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   const hasActiveFilter =
     query !== '' ||
-    product !== 'ALL' ||
-    stageFilter !== 'ALL' ||
-    managerFilter !== 'ALL' ||
-    priorityFilter !== 'ALL';
+    products.length > 0 ||
+    stageFilters.length > 0 ||
+    managerFilters.length > 0 ||
+    priorityFilters.length > 0;
   function clearFilters(): void {
     setQuery('');
-    setProduct('ALL');
-    setStageFilter('ALL');
-    setManagerFilter('ALL');
-    setPriorityFilter('ALL');
+    setProducts([]);
+    setStageFilters([]);
+    setManagerFilters([]);
+    setPriorityFilters([]);
   }
   const selectedProject = searchParams.get('project') ?? undefined;
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -274,7 +274,8 @@ export function VehicleProjectsPage() {
 
   const [wizardMessage, setWizardMessage] = useState('');
   const searchedProjects = projects.flatMap((project) => {
-    const matchesProduct = product === 'ALL' || project.product === product;
+    const matchesProduct =
+      products.length === 0 || products.includes(project.product);
     if (!matchesProduct) return [];
     const normalizedQuery = query.trim().toLowerCase();
     const vehicleMatches =
@@ -284,12 +285,12 @@ export function VehicleProjectsPage() {
     const zoneProjects = project.zoneProjects.filter((zone) => {
       const manager = userName(appUsers, zone.managerId);
       const matchesManager =
-        managerFilter === 'ALL' || zone.managerId === managerFilter;
+        managerFilters.length === 0 || managerFilters.includes(zone.managerId);
       const matchesPriority =
-        priorityFilter === 'ALL' ||
-        (priorityFilter === 'CRITICAL' &&
+        priorityFilters.length === 0 ||
+        (priorityFilters.includes('CRITICAL') &&
           (zone.priority === 'URGENT' || zone.priority === 'HIGH')) ||
-        (zone.priority ?? 'NORMAL') === priorityFilter;
+        priorityFilters.includes(zone.priority ?? 'NORMAL');
       const matchesQuery =
         !normalizedQuery ||
         vehicleMatches ||
@@ -314,8 +315,12 @@ export function VehicleProjectsPage() {
     ]),
   );
   const stageProjects = searchedProjects.flatMap((project) => {
-    const zoneProjects = project.zoneProjects.filter((zoneProject) =>
-      matchesStageFilter(project, zoneProject, stageFilter),
+    const zoneProjects = project.zoneProjects.filter(
+      (zoneProject) =>
+        stageFilters.length === 0 ||
+        stageFilters.some((filter) =>
+          matchesStageFilter(project, zoneProject, filter),
+        ),
     );
     return zoneProjects.length ? [{ ...project, zoneProjects }] : [];
   });
@@ -331,7 +336,7 @@ export function VehicleProjectsPage() {
     setPagination,
   } = useWorkbenchPagination(
     visibleProjects,
-    `${stageFilter}|${product}|${managerFilter}|${priorityFilter}|${query}|${healthFilter}`,
+    `${stageFilters.join(',')}|${products.join(',')}|${managerFilters.join(',')}|${priorityFilters.join(',')}|${query}|${healthFilter}`,
   );
   const detailProject = projects.find(
     (project) => project.id === selectedProject,
@@ -691,7 +696,7 @@ export function VehicleProjectsPage() {
         const health = projectHealth(zone, currentDate);
         return (
           <span
-            className={`vp-health-badge health-${health.value}${health.value === 'late' ? ' vp-overdue-row-marker' : ''}`}
+            className={`vp-health-badge health-${health.value}`}
             title={health.reason}
           >
             {healthLabel(zone, currentDate)}
@@ -878,10 +883,10 @@ export function VehicleProjectsPage() {
         <button
           type="button"
           className="vp-summary-card vp-summary-priority"
-          aria-pressed={priorityFilter === 'CRITICAL'}
+          aria-pressed={priorityFilters.includes('CRITICAL')}
           onClick={() => {
-            setPriorityFilter(
-              priorityFilter === 'CRITICAL' ? 'ALL' : 'CRITICAL',
+            setPriorityFilters(
+              priorityFilters.includes('CRITICAL') ? [] : ['CRITICAL'],
             );
           }}
         >
@@ -909,9 +914,11 @@ export function VehicleProjectsPage() {
             <label className="vp-select-field">
               <span>Category</span>
               <select
-                value={product}
+                value={products.length === 1 ? products[0] : 'ALL'}
                 onChange={(event) => {
-                  setProduct(event.target.value);
+                  setProducts(
+                    event.target.value === 'ALL' ? [] : [event.target.value],
+                  );
                 }}
               >
                 <option value="ALL">All products</option>
@@ -923,12 +930,16 @@ export function VehicleProjectsPage() {
             <label className="vp-select-field">
               <span>Stage</span>
               <select
-                value={stageFilter}
+                value={stageFilters.length === 1 ? stageFilters[0] : 'ALL'}
                 onChange={(event) => {
                   const filter = PROJECT_STAGE_FILTERS.find(
                     (entry) => entry.value === event.target.value,
                   );
-                  if (filter) setStageFilter(filter.value);
+                  if (filter) {
+                    setStageFilters(
+                      filter.value === 'ALL' ? [] : [filter.value],
+                    );
+                  }
                 }}
               >
                 {PROJECT_STAGE_FILTERS.map((filter) => (
@@ -941,9 +952,11 @@ export function VehicleProjectsPage() {
             <label className="vp-select-field">
               <span>Manager</span>
               <select
-                value={managerFilter}
+                value={managerFilters.length === 1 ? managerFilters[0] : 'ALL'}
                 onChange={(event) => {
-                  setManagerFilter(event.target.value);
+                  setManagerFilters(
+                    event.target.value === 'ALL' ? [] : [event.target.value],
+                  );
                 }}
               >
                 <option value="ALL">All managers</option>
@@ -959,11 +972,13 @@ export function VehicleProjectsPage() {
                 <button
                   type="button"
                   className={`vp-priority vp-priority-${priority.toLowerCase()}`}
-                  aria-pressed={priorityFilter === priority}
+                  aria-pressed={priorityFilters.includes(priority)}
                   key={priority}
                   onClick={() => {
-                    setPriorityFilter(
-                      priorityFilter === priority ? 'ALL' : priority,
+                    setPriorityFilters((current) =>
+                      current.includes(priority)
+                        ? current.filter((value) => value !== priority)
+                        : [...current, priority],
                     );
                   }}
                 >
@@ -1001,11 +1016,16 @@ export function VehicleProjectsPage() {
             columns={projectGridColumns}
             groups={projectGridGroups}
             getRowId={({ zone }) => zone.id}
+            onRowClick={({ project, zone }) => {
+              openProject(project.id, zone.code);
+            }}
+            rowActionLabel={({ zone }) => `Open zone project ${zone.id}`}
+            columnFeatures={{ visibility: false }}
             sorting={{ mode: 'client' }}
             colors={{
-              primary: 'var(--wb-blue)',
+              primary: '#315B7D',
               primaryForeground: '#FFFFFF',
-              primarySoft: 'var(--wb-soft-blue)',
+              primarySoft: '#EAF1F6',
             }}
             search={{
               label: 'Search projects',
@@ -1013,55 +1033,56 @@ export function VehicleProjectsPage() {
               value: query,
               onChange: setQuery,
             }}
-            filters={[
+            multiSelectFilters={[
               {
                 id: 'product',
-                label: 'Product filter',
-                value: product,
-                onChange: setProduct,
-                options: [
-                  { value: 'ALL', label: 'All products' },
-                  ...PRODUCT_CHOICES.map((choice) => ({
-                    value: choice.name,
-                    label: choice.name,
-                  })),
-                ],
+                label: 'Product',
+                values: products,
+                onChange: setProducts,
+                options: PRODUCT_CHOICES.map((choice) => ({
+                  value: choice.name,
+                  label: choice.name,
+                })),
               },
               {
                 id: 'stage',
-                label: 'Stage filter',
-                value: stageFilter,
-                onChange: (value) => {
-                  const filter = PROJECT_STAGE_FILTERS.find(
-                    (entry) => entry.value === value,
-                  );
-                  if (filter) setStageFilter(filter.value);
+                label: 'Stage',
+                values: stageFilters,
+                onChange: (values) => {
+                  const filters = values.flatMap((value) => {
+                    const filter = PROJECT_STAGE_FILTERS.find(
+                      (entry) => entry.value === value,
+                    );
+                    return filter && filter.value !== 'ALL'
+                      ? [filter.value]
+                      : [];
+                  });
+                  setStageFilters(filters);
                 },
-                options: PROJECT_STAGE_FILTERS.map((filter) => ({
+                options: PROJECT_STAGE_FILTERS.filter(
+                  (filter) => filter.value !== 'ALL',
+                ).map((filter) => ({
                   value: filter.value,
-                  label: `${filter.label} (${String(stageCounts.get(filter.value) ?? 0)})`,
+                  label: filter.label,
+                  count: stageCounts.get(filter.value) ?? 0,
                 })),
               },
               {
                 id: 'manager',
-                label: 'Manager filter',
-                value: managerFilter,
-                onChange: setManagerFilter,
-                options: [
-                  { value: 'ALL', label: 'All managers' },
-                  ...managerOptions.map((managerId) => ({
-                    value: managerId,
-                    label: userName(appUsers, managerId),
-                  })),
-                ],
+                label: 'Manager',
+                values: managerFilters,
+                onChange: setManagerFilters,
+                options: managerOptions.map((managerId) => ({
+                  value: managerId,
+                  label: userName(appUsers, managerId),
+                })),
               },
               {
                 id: 'priority',
-                label: 'Priority filter',
-                value: priorityFilter,
-                onChange: setPriorityFilter,
+                label: 'Priority',
+                values: priorityFilters,
+                onChange: setPriorityFilters,
                 options: [
-                  { value: 'ALL', label: 'All priorities' },
                   { value: 'CRITICAL', label: 'Urgent & High' },
                   { value: 'URGENT', label: 'Urgent' },
                   { value: 'HIGH', label: 'High' },
