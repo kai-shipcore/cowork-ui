@@ -15,36 +15,55 @@ export interface MergeableProductResearchRow extends VehicleConfiguration {
 }
 
 export function vehicleResearchIdentity(vehicle: string) {
-  const match = /^(\d{4}(?:[–-]\d{4})?)\s+(.+)$/.exec(vehicle.trim());
+  const match =
+    /^((?:\d{4}(?:[–-]\d{4})?)(?:,\s*\d{4}(?:[–-]\d{4})?)*)\s+(.+)$/.exec(
+      vehicle.trim(),
+    );
   return {
     years: match?.[1] ?? '',
     makeModel: match?.[2] ?? vehicle.trim(),
   };
 }
 
-function yearRangeLabel(values: readonly string[]): string {
-  const ranges = values
-    .map((value) => /^(\d{4})(?:[–-](\d{4}))?$/.exec(value))
-    .filter((match): match is RegExpExecArray => Boolean(match))
-    .map((match) => {
-      const parts = match[0].split(/[–-]/);
-      const start = Number(parts[0]);
-      return {
-        start,
-        end: parts.length > 1 ? Number(parts[1]) : start,
-      };
-    })
-    .sort((left, right) => left.start - right.start || left.end - right.end);
+export function yearsFromLabel(label: string): number[] {
+  if (!label.trim()) return [];
+  const years: number[] = [];
+  for (const part of label.split(',')) {
+    const match = /^(\d{4})(?:[–-](\d{4}))?$/.exec(part.trim());
+    if (!match) return [];
+    const [, startValue, endValue] = match as unknown as [
+      string,
+      string,
+      string?,
+    ];
+    const start = Number(startValue);
+    const end = Number(endValue ?? startValue);
+    if (start < 1900 || end > 2100 || end < start) return [];
+    years.push(
+      ...Array.from({ length: end - start + 1 }, (_, index) => start + index),
+    );
+  }
+  return Array.from(new Set(years)).sort((left, right) => left - right);
+}
+
+export function formatYearRanges(values: readonly (number | string)[]): string {
+  const years = Array.from(
+    new Set(
+      values.flatMap((value) =>
+        typeof value === 'number' ? [value] : yearsFromLabel(value),
+      ),
+    ),
+  ).sort((left, right) => left - right);
   const merged: { start: number; end: number }[] = [];
-  for (const range of ranges) {
+  for (const year of years) {
     if (merged.length > 0) {
       const previous = merged[merged.length - 1];
-      if (range.start <= previous.end + 1) {
-        previous.end = Math.max(previous.end, range.end);
+      if (year <= previous.end + 1) {
+        previous.end = Math.max(previous.end, year);
         continue;
       }
     }
-    merged.push({ ...range });
+    merged.push({ start: year, end: year });
   }
   return merged
     .map(({ start, end }) =>
@@ -71,7 +90,7 @@ export function mergeProductResearchRows<T extends MergeableProductResearchRow>(
   }
   return Array.from(mergedRows.values(), (matchingRows) => {
     const first = matchingRows[0];
-    const years = yearRangeLabel(
+    const years = formatYearRanges(
       matchingRows
         .map((row) => vehicleResearchIdentity(row.vehicle).years)
         .filter(Boolean),

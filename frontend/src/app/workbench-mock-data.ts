@@ -591,6 +591,22 @@ export const VEHICLE_CONFIGURATIONS: readonly VehicleConfiguration[] = [
     researchStatus: 'COMPLETE',
     projectGroupIds: ['PG-00118'],
   },
+  {
+    id: 'c08',
+    productTypeId: 'PT-SC',
+    vehicle: '2028 Toyota RAV4',
+    vehicleClass: 'SUV',
+    options: [
+      ['Powertrain', 'Hybrid'],
+      ['Seats', '5 Seats'],
+      ['Front Seat', 'Bucket'],
+      ['2nd Row Seat', 'Bench'],
+      ['Headrest', 'Adjustable'],
+      ['Under-seat Storage', 'No Storage'],
+    ],
+    researchStatus: 'COMPLETE',
+    projectGroupIds: [],
+  },
 ];
 
 export const VEHICLE_PROJECTS: readonly VehicleProjectGroup[] = [

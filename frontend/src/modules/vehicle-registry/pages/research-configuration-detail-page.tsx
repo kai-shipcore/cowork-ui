@@ -6,22 +6,19 @@ import {
 } from '@coverland-engineering/ui/activity/activity';
 import { Button } from '@coverland-engineering/ui/button';
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@coverland-engineering/ui/dialog';
-import { ArrowLeft, ExternalLink, GitPullRequest, Images } from 'lucide-react';
+  ResearchAssetGallery,
+  type ResearchAssetGalleryItem,
+} from '@coverland-engineering/ui/vehicle-research/research-asset-gallery';
+import { ResearchAssetPreviewDialog } from '@coverland-engineering/ui/vehicle-research/research-asset-preview-dialog';
+import { ResearchConfigurationHeader } from '@coverland-engineering/ui/vehicle-research/research-configuration-header';
+import { ResearchHandoffPanel } from '@coverland-engineering/ui/vehicle-research/research-handoff-panel';
+import { ArrowLeft, ExternalLink, Images } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ConfigChips } from '@/shared/domain/config-chips';
 import {
   RESEARCH_DISPOSITION_LABELS,
   RESEARCH_DISPOSITION_TONES,
   researchDisposition,
 } from '@/shared/domain/research-approval';
-import { StatusBadge } from '@/shared/components/status-badge';
 import {
   PRODUCT_TYPES,
   type VehicleConfiguration,
@@ -34,8 +31,8 @@ import {
   researchAssetRelevance,
   type ResearchAssetCandidate,
 } from '../research-asset-relevance';
-import type { ResearchAssetTarget } from '../research-asset-uploader';
-import { ResearchConfigurationDialog } from '../research-configuration-dialog';
+import type { ResearchAssetTarget } from '../research-asset-uploader-adapter';
+import { ResearchConfigurationDialog } from '../research-configuration-manager-adapter';
 import {
   RESEARCH_CONFIGURATION_VERSION_KEY,
   RESEARCH_CONFIGURATION_VERSION_SEED,
@@ -52,15 +49,21 @@ import {
   researchDetailListSchema,
   type ResearchMaterial,
 } from '../vehicle-research-detail-model';
-import { vehicleResearchIdentity } from '../vehicle-research-grid-model';
+import {
+  formatYearRanges,
+  vehicleResearchIdentity,
+  yearsFromLabel,
+} from '../vehicle-research-grid-model';
 import '../research-handoff-card.css';
 import './vehicle-research-detail-page.css';
 
 function configurationYears(configuration: VehicleConfiguration): number[] {
   const identity = vehicleResearchIdentity(configuration.vehicle);
-  const match = /^(\d{4})(?:[–-](\d{4}))?$/.exec(identity.years);
-  const start = configuration.yearStart ?? Number(match?.[1]);
-  const end = configuration.yearEnd ?? Number(match?.[2] ?? match?.[1]);
+  if (configuration.yearStart === undefined) {
+    return yearsFromLabel(identity.years);
+  }
+  const start = configuration.yearStart;
+  const end = configuration.yearEnd ?? start;
   if (!Number.isInteger(start) || !Number.isInteger(end) || end < start) {
     return [];
   }
@@ -77,6 +80,7 @@ export function ResearchConfigurationDetailPage() {
   const { actor } = useOperations();
   const {
     configurations,
+    setConfigurations,
     vehicleOptionKeys,
     vehicleZones,
     projects,
@@ -148,6 +152,41 @@ export function ResearchConfigurationDetailPage() {
       .filter((key) => key.productTypeId === productType?.id)
       .map((key) => key.name),
   );
+  const approvedVersionFor = (sourceId: string) =>
+    firstItem(
+      configurationVersions.records
+        .filter(
+          (version) =>
+            version.researchConfigurationId ===
+              `${sourceId}:${productTypeId}` &&
+            version.status === 'APPROVED' &&
+            version.action === 'UPSERT',
+        )
+        .sort((left, right) => right.versionNumber - left.versionNumber),
+    );
+  const optionSignature = (options: readonly (readonly [string, string])[]) =>
+    [...options]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, value]) => `${key}\u0000${value}`)
+      .join('\u0001');
+  const effectiveOptions = (configuration: VehicleConfiguration) =>
+    approvedVersionFor(configuration.id)?.options ??
+    configuration.options.filter(([key]) => allowedOptionNames.has(key));
+  const sourceOptions = sourceConfiguration
+    ? (approvedVersion?.options ?? effectiveOptions(sourceConfiguration))
+    : [];
+  const matchingSourceConfigurations =
+    sourceConfiguration && productType
+      ? configurations.filter(
+          (configuration) =>
+            vehicleResearchIdentity(configuration.vehicle).makeModel ===
+              vehicleResearchIdentity(sourceConfiguration.vehicle).makeModel &&
+            (!configuration.productTypeId ||
+              configuration.productTypeId === productType.id) &&
+            optionSignature(effectiveOptions(configuration)) ===
+              optionSignature(sourceOptions),
+        )
+      : [];
   const target: ResearchAssetTarget | null =
     sourceConfiguration && productType
       ? {
@@ -155,18 +194,19 @@ export function ResearchConfigurationDetailPage() {
           configurationId,
           productTypeId: productType.id,
           productLabel: productType.product,
-          options:
-            approvedVersion?.options ??
-            sourceConfiguration.options.filter(([key]) =>
-              allowedOptionNames.has(key),
-            ),
+          options: sourceOptions,
         }
       : null;
-  const availableYears = approvedVersion?.years.length
-    ? approvedVersion.years
-    : sourceConfiguration
-      ? configurationYears(sourceConfiguration)
-      : [];
+  const availableYears = Array.from(
+    new Set(
+      matchingSourceConfigurations.flatMap((configuration) => {
+        const version = approvedVersionFor(configuration.id);
+        return version?.years.length
+          ? version.years
+          : configurationYears(configuration);
+      }),
+    ),
+  ).sort((left, right) => left - right);
   const activity = useMemo<readonly ActivityEntry[]>(
     () => [
       ...configurationVersions.records
@@ -367,6 +407,26 @@ export function ResearchConfigurationDetailPage() {
   const researchComplete = ['COMPLETE', 'COMPLETED'].includes(
     handoffConfiguration.researchStatus,
   );
+  const currentResearchStatus =
+    sourceConfiguration.researchStatus === 'COMPLETE'
+      ? 'COMPLETED'
+      : sourceConfiguration.researchStatus === 'RESEARCHING'
+        ? 'IN_PROGRESS'
+        : sourceConfiguration.researchStatus;
+  function changeResearchStatus(
+    status: 'DRAFT' | 'IN_PROGRESS' | 'PENDING_APPROVAL' | 'COMPLETED',
+  ): void {
+    const matchingIds = new Set(
+      matchingSourceConfigurations.map((configuration) => configuration.id),
+    );
+    setConfigurations((current) =>
+      current.map((configuration) =>
+        matchingIds.has(configuration.id)
+          ? { ...configuration, researchStatus: status }
+          : configuration,
+      ),
+    );
+  }
   const researchGroupId = vehicleConfigurations[0]?.id ?? configurationId;
   const researchHistory = researchDetails.records.filter(
     (detail) => detail.configurationId === researchGroupId,
@@ -417,6 +477,22 @@ export function ResearchConfigurationDetailPage() {
     })
     .filter(({ relevance }) => relevance.productMatch)
     .sort((left, right) => right.relevance.score - left.relevance.score);
+  const assetGalleryItems: readonly ResearchAssetGalleryItem[] =
+    relatedAssets.map(({ material, relevance }) => ({
+      id: material.id,
+      title: material.fileName || material.title,
+      previewSrc: material.fileData || undefined,
+      previewAlt: material.fileName || material.title,
+      relevanceLabel: relevance.label,
+      relevanceScore: relevance.score,
+      relevanceDetail: `Year ${relevance.yearMatch ? 'match' : 'different'} · Options ${String(relevance.optionMatches)}/${String(relevance.optionTotal)} · Zone ${relevance.zoneMatch ? 'match' : 'different'}`,
+      meta: `${material.years.length ? material.years.join(', ') : 'Year not set'} · ${String(material.vehicleZoneIds.length)} ${material.vehicleZoneIds.length === 1 ? 'zone' : 'zones'}`,
+      relevanceTone: relevance.label.toLowerCase().startsWith('exact')
+        ? 'exact'
+        : relevance.label.toLowerCase().startsWith('strong')
+          ? 'strong'
+          : 'related',
+    }));
 
   return (
     <section className="research-detail-page research-configuration-detail-page">
@@ -432,16 +508,37 @@ export function ResearchConfigurationDetailPage() {
         <ArrowLeft /> {vehicleIdentity.makeModel}
       </Button>
 
-      <header className="research-detail-header">
-        <div className="research-detail-title-row">
-          <div>
-            <h1>{target.productLabel} configuration</h1>
-            <span className="research-group-summary">
-              {vehicleIdentity.makeModel} · {vehicleIdentity.years}
-            </span>
-          </div>
-        </div>
-      </header>
+      <ResearchConfigurationHeader
+        vehicle={vehicleIdentity.makeModel}
+        years={formatYearRanges(availableYears) || vehicleIdentity.years}
+        productType={target.productLabel}
+        status={currentResearchStatus}
+        statusOptions={[
+          { value: 'DRAFT', label: 'Draft' },
+          { value: 'IN_PROGRESS', label: 'In progress' },
+          { value: 'PENDING_APPROVAL', label: 'Pending approval' },
+          {
+            value: 'COMPLETED',
+            label: 'Complete',
+            approvalRequired: true,
+          },
+        ]}
+        onStatusChange={(status) => {
+          changeResearchStatus(
+            status as
+              'DRAFT' | 'IN_PROGRESS' | 'PENDING_APPROVAL' | 'COMPLETED',
+          );
+        }}
+        onCompletionApprovalRequest={() => {
+          changeResearchStatus('PENDING_APPROVAL');
+        }}
+        onCompletionApprove={() => {
+          changeResearchStatus('COMPLETED');
+        }}
+        onCompletionReject={() => {
+          changeResearchStatus('IN_PROGRESS');
+        }}
+      />
 
       <div className="research-configuration-management-layout">
         <div className="research-configuration-management-main">
@@ -464,129 +561,36 @@ export function ResearchConfigurationDetailPage() {
             }
           />
 
-          <section className="research-configuration-assets-card">
-            <header>
-              <div>
-                <span aria-hidden="true">
-                  <Images />
-                </span>
-                <div>
-                  <h2>Research assets</h2>
-                  <p>
-                    Evidence matching this configuration, ranked by relevance.
-                  </p>
-                </div>
-              </div>
-              <strong>{relatedAssets.length} matched</strong>
-            </header>
-            {relatedAssets.length ? (
-              <div className="research-configuration-asset-grid">
-                {relatedAssets.map(({ material, relevance }) => (
-                  <button
-                    type="button"
-                    className="research-configuration-asset-card"
-                    key={material.id}
-                    onClick={() => {
-                      setPreviewAsset(material);
-                    }}
-                  >
-                    <span className="research-configuration-asset-preview">
-                      {material.fileData ? (
-                        <img
-                          src={material.fileData}
-                          alt={material.fileName || material.title}
-                        />
-                      ) : (
-                        <Images />
-                      )}
-                    </span>
-                    <span className="research-configuration-asset-content">
-                      <strong>{material.fileName || material.title}</strong>
-                      <span
-                        className={`research-asset-relevance research-asset-relevance--${relevance.label
-                          .split(' ')[0]
-                          .toLowerCase()}`}
-                      >
-                        <span>
-                          <strong>{relevance.label}</strong>
-                          <b>{relevance.score}%</b>
-                        </span>
-                        <small>
-                          Year {relevance.yearMatch ? 'match' : 'different'} ·{' '}
-                          Options {relevance.optionMatches}/
-                          {relevance.optionTotal} · Zone{' '}
-                          {relevance.zoneMatch ? 'match' : 'different'}
-                        </small>
-                      </span>
-                      <span className="research-configuration-asset-meta">
-                        {material.years.length
-                          ? material.years.join(', ')
-                          : 'Year not set'}
-                        {' · '}
-                        {material.vehicleZoneIds.length}{' '}
-                        {material.vehicleZoneIds.length === 1
-                          ? 'zone'
-                          : 'zones'}
-                      </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="research-configuration-assets-empty">
-                <Images />
-                <strong>No matching assets</strong>
-                <span>
-                  Assets classified for {target.productLabel} will appear here.
-                </span>
-              </div>
-            )}
-          </section>
+          <ResearchAssetGallery
+            items={assetGalleryItems}
+            productLabel={target.productLabel}
+            onAssetClick={(item) => {
+              setPreviewAsset(
+                relatedAssets.find(({ material }) => material.id === item.id)
+                  ?.material ?? null,
+              );
+            }}
+          />
 
-          <section className="research-configuration-handoff-card">
-            <header>
-              <div className="research-configuration-handoff-title">
-                <span aria-hidden="true">
-                  <GitPullRequest />
-                </span>
-                <div>
-                  <h2>Project handoff approval</h2>
-                  <p>
-                    Decide whether this completed research configuration should
-                    become a project.
-                  </p>
-                </div>
-              </div>
-              <div className="research-handoff-summary-statuses">
-                <StatusBadge
-                  label={researchComplete ? 'Completed' : 'In progress'}
-                  tone={researchComplete ? 'success' : 'progress'}
-                />
-                <StatusBadge
-                  label={RESEARCH_DISPOSITION_LABELS[handoffDisposition]}
-                  tone={RESEARCH_DISPOSITION_TONES[handoffDisposition]}
-                />
-              </div>
-            </header>
-            <div className="research-configuration-handoff-summary">
-              <div>
-                <small>PROJECT CANDIDATE</small>
-                <strong>{target.productLabel}</strong>
-                <span>
-                  {vehicleIdentity.makeModel} ·{' '}
-                  {availableYears.length
-                    ? `${String(availableYears[0])}–${String(availableYears[availableYears.length - 1])}`
-                    : vehicleIdentity.years}
-                </span>
-              </div>
-              <ConfigChips options={target.options} />
-            </div>
+          <ResearchHandoffPanel
+            vehicle={`${vehicleIdentity.makeModel} · ${formatYearRanges(availableYears) || vehicleIdentity.years}`}
+            productLabel={target.productLabel}
+            options={target.options}
+            researchStatus={{
+              label: researchComplete ? 'Completed' : 'In progress',
+              tone: researchComplete ? 'success' : 'progress',
+            }}
+            handoffStatus={{
+              label: RESEARCH_DISPOSITION_LABELS[handoffDisposition],
+              tone: RESEARCH_DISPOSITION_TONES[handoffDisposition],
+            }}
+          >
             <ResearchApprovalPanel
               configuration={handoffConfiguration}
               sourceConfigurationId={configurationId}
               productLabel={target.productLabel}
             />
-          </section>
+          </ResearchHandoffPanel>
         </div>
         <aside className="research-activity-column">
           <Activity
@@ -606,131 +610,126 @@ export function ResearchConfigurationDetailPage() {
         </aside>
       </div>
 
-      <Dialog
+      <ResearchAssetPreviewDialog
+        className="research-configuration-asset-dialog"
         open={Boolean(previewAsset)}
         onOpenChange={(open) => {
           if (!open) setPreviewAsset(null);
         }}
-      >
-        <DialogContent className="research-configuration-asset-dialog">
-          <DialogHeader>
-            <DialogTitle>
-              {previewAsset?.fileName ?? previewAsset?.title ?? 'Asset preview'}
-            </DialogTitle>
-            <p>Research evidence linked to this configuration.</p>
-          </DialogHeader>
-          {previewAsset && (
-            <DialogBody className="research-configuration-asset-dialog-body">
-              <div className="research-asset-preview-media">
-                {previewAsset.fileData ? (
-                  <img
-                    src={previewAsset.fileData}
-                    alt={previewAsset.fileName || previewAsset.title}
-                  />
-                ) : (
-                  <div>
-                    <Images />
-                    <strong>No uploaded preview</strong>
-                    <span>This asset is saved as a research link.</span>
-                    {previewAsset.sourceUrl && (
-                      <a
-                        href={previewAsset.sourceUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <ExternalLink /> Open source
-                      </a>
-                    )}
-                  </div>
-                )}
+        title={previewAsset?.fileName ?? previewAsset?.title ?? 'Asset preview'}
+        preview={
+          previewAsset ? (
+            <div className="research-asset-preview-media">
+              {previewAsset.fileData ? (
+                <img
+                  src={previewAsset.fileData}
+                  alt={previewAsset.fileName || previewAsset.title}
+                />
+              ) : (
+                <div>
+                  <Images />
+                  <strong>No uploaded preview</strong>
+                  <span>This asset is saved as a research link.</span>
+                  {previewAsset.sourceUrl && (
+                    <a
+                      href={previewAsset.sourceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <ExternalLink /> Open source
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : null
+        }
+        details={
+          previewAsset ? (
+            <dl className="research-configuration-asset-dialog-meta">
+              <div>
+                <dt>Year</dt>
+                <dd>
+                  {previewAsset.years.length
+                    ? previewAsset.years.join(', ')
+                    : 'Not set'}
+                </dd>
               </div>
-              <dl className="research-configuration-asset-dialog-meta">
-                <div>
-                  <dt>Year</dt>
-                  <dd>
-                    {previewAsset.years.length
-                      ? previewAsset.years.join(', ')
-                      : 'Not set'}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Options</dt>
-                  <dd className="research-asset-preview-option-groups">
-                    {previewOptionGroups.length ? (
-                      previewOptionGroups.map((group) => (
-                        <section
-                          className={`research-asset-preview-option-group research-asset-preview-option-group-${group.productTypeId.toLowerCase()}`}
-                          key={group.productTypeId}
-                        >
-                          <header>
-                            <span aria-hidden="true">
-                              {group.productLabel
-                                .split(' ')
-                                .map((word) => word[0])
-                                .join('')}
+              <div>
+                <dt>Options</dt>
+                <dd className="research-asset-preview-option-groups">
+                  {previewOptionGroups.length ? (
+                    previewOptionGroups.map((group) => (
+                      <section
+                        className={`research-asset-preview-option-group research-asset-preview-option-group-${group.productTypeId.toLowerCase()}`}
+                        key={group.productTypeId}
+                      >
+                        <header>
+                          <span aria-hidden="true">
+                            {group.productLabel
+                              .split(' ')
+                              .map((word) => word[0])
+                              .join('')}
+                          </span>
+                          <strong>{group.productLabel}</strong>
+                          <small>
+                            {group.options.length}{' '}
+                            {group.options.length === 1 ? 'option' : 'options'}
+                          </small>
+                        </header>
+                        <div>
+                          {group.options.map(([key, value]) => (
+                            <span
+                              key={`${group.productTypeId}-${key}-${value}`}
+                            >
+                              <small>{key}</small>
+                              <strong>{value}</strong>
                             </span>
-                            <strong>{group.productLabel}</strong>
-                            <small>
-                              {group.options.length}{' '}
-                              {group.options.length === 1
-                                ? 'option'
-                                : 'options'}
-                            </small>
-                          </header>
-                          <div>
-                            {group.options.map(([key, value]) => (
-                              <span
-                                key={`${group.productTypeId}-${key}-${value}`}
-                              >
-                                <small>{key}</small>
-                                <strong>{value}</strong>
-                              </span>
-                            ))}
-                          </div>
-                        </section>
-                      ))
-                    ) : (
-                      <span className="research-asset-preview-empty">
-                        No option values
-                      </span>
-                    )}
-                  </dd>
-                </div>
+                          ))}
+                        </div>
+                      </section>
+                    ))
+                  ) : (
+                    <span className="research-asset-preview-empty">
+                      No option values
+                    </span>
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt>Vehicle zones</dt>
+                <dd>
+                  {previewAsset.vehicleZoneIds.length
+                    ? previewAsset.vehicleZoneIds
+                        .map(
+                          (zoneId) =>
+                            vehicleZones.find((zone) => zone.id === zoneId)
+                              ?.name ?? zoneId,
+                        )
+                        .join(' · ')
+                    : 'Not set'}
+                </dd>
+              </div>
+              {previewAsset.notes && (
                 <div>
-                  <dt>Vehicle zones</dt>
-                  <dd>
-                    {previewAsset.vehicleZoneIds.length
-                      ? previewAsset.vehicleZoneIds
-                          .map(
-                            (zoneId) =>
-                              vehicleZones.find((zone) => zone.id === zoneId)
-                                ?.name ?? zoneId,
-                          )
-                          .join(' · ')
-                      : 'Not set'}
-                  </dd>
+                  <dt>Notes</dt>
+                  <dd>{previewAsset.notes}</dd>
                 </div>
-                {previewAsset.notes && (
-                  <div>
-                    <dt>Notes</dt>
-                    <dd>{previewAsset.notes}</dd>
-                  </div>
-                )}
-              </dl>
-            </DialogBody>
-          )}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setPreviewAsset(null);
-              }}
-            >
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              )}
+            </dl>
+          ) : null
+        }
+        footer={
+          <Button
+            variant="outline"
+            onClick={() => {
+              setPreviewAsset(null);
+            }}
+          >
+            Close
+          </Button>
+        }
+      />
     </section>
   );
 }
