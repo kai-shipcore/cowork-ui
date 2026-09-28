@@ -194,6 +194,7 @@ export function VehicleResearchPage() {
     return researchDisposition(approvalRequests, {
       id: configuration.sourceConfigurationId,
       projectGroupIds: configuration.projectGroupIds,
+      researchStatus: configuration.researchStatus,
     });
   }
 

@@ -51,7 +51,11 @@ function fixture(): WorkbenchState {
     ],
   } as unknown as WorkbenchState;
 }
-const C1 = { id: 'c1', projectGroupIds: [] as readonly string[] };
+const C1 = {
+  id: 'c1',
+  projectGroupIds: [] as readonly string[],
+  researchStatus: 'COMPLETE' as const,
+};
 const route = [
   { type: 'FORWARD' as const, users: ['u2'] },
   {
@@ -124,8 +128,38 @@ await test('a rejection holds the configuration and a cancel leaves it unasked',
 
 await test('a combination that already has a development project reads as pushed', () => {
   assert.equal(
-    researchDisposition([], { id: 'c9', projectGroupIds: ['PG-1'] }),
+    researchDisposition([], {
+      id: 'c9',
+      projectGroupIds: ['PG-1'],
+      researchStatus: 'COMPLETED',
+    }),
     'PUSH',
   );
   assert.equal(researchDisposition([], C1), 'PENDING');
+});
+
+await test('incomplete research never reads as pushed', () => {
+  const approved = fixture();
+  approved.approvalRequests = [
+    {
+      id: 'approved-handoff',
+      approvalTypeId: RESEARCH_APPROVAL_TYPE,
+      entityType: 'VEHICLE_RESEARCH',
+      entityId: 'c2',
+      requestedBy: 'u1',
+      status: 'APPROVED',
+      note: '',
+      submittedData: { snapshot: 'completed configuration' },
+      createdAt: new Date().toISOString(),
+      closedAt: new Date().toISOString(),
+    },
+  ];
+  assert.equal(
+    researchDisposition(approved.approvalRequests, {
+      id: 'c2',
+      projectGroupIds: ['PG-1'],
+      researchStatus: 'IN_PROGRESS',
+    }),
+    'PENDING',
+  );
 });
