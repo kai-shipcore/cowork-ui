@@ -52,7 +52,7 @@ function productName(productTypeId: string): string {
  * The vehicle option dictionary — `vehicle_option_key` and its
  * `vehicle_option_value` rows, scoped per product type.
  *
- * Vehicle Research builds a Configuration from these values, seat cover codes
+ * Research Vehicle builds a Configuration from these values, seat cover codes
  * map onto them, and `unique_vehicle.option_hash` is computed from them, so
  * this is the root dictionary the rest of the R&D flow reads.
  */
@@ -268,7 +268,7 @@ export function VehicleOptionsPage() {
   return (
     <section>
       <PageHeader
-        description="Vehicle option dictionary — Used by Vehicle Research configurations, Seat Cover code mappings, and unique_vehicle.option_hash"
+        description="Vehicle option dictionary — Used by Research Vehicle configurations, Seat Cover code mappings, and unique_vehicle.option_hash"
         tables={
           import.meta.env.DEV
             ? [{ name: 'vehicle_option_key' }, { name: 'vehicle_option_value' }]
@@ -450,7 +450,7 @@ export function VehicleOptionsPage() {
             </label>
             <div className="dialog-note">
               Values must be unique within each key. New values become available
-              immediately in Vehicle Research configuration options.
+              immediately in Research Vehicle configuration options.
             </div>
             {duplicateValue && valueText.trim() && (
               <div className="dialog-error">

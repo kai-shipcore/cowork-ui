@@ -365,7 +365,7 @@ export function ResearchConfigurationDetailPage() {
       <section className="research-detail-missing">
         <h1>Research configuration not found</h1>
         <Button onClick={() => void navigate('/vehicle-research')}>
-          Back to Vehicle Research
+          Back to Research Vehicle
         </Button>
       </section>
     );

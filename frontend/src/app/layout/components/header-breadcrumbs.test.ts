@@ -17,7 +17,7 @@ await test('research configuration breadcrumbs preserve the full clickable hiera
     ),
     [
       { label: 'R & D Team', to: '/dashboard' },
-      { label: 'Vehicle Research', to: '/vehicle-research' },
+      { label: 'Research Vehicle', to: '/vehicle-research' },
       { label: 'Toyota RAV4', to: '/vehicle-research/c01' },
       {
         label: 'Research Configuration',
@@ -32,7 +32,7 @@ await test('vehicle detail breadcrumbs stop at the selected vehicle', () => {
     buildHeaderBreadcrumbs('/vehicle-research/c01', '', [configuration]),
     [
       { label: 'R & D Team', to: '/dashboard' },
-      { label: 'Vehicle Research', to: '/vehicle-research' },
+      { label: 'Research Vehicle', to: '/vehicle-research' },
       { label: 'Toyota RAV4', to: '/vehicle-research/c01' },
     ],
   );

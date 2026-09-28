@@ -14,7 +14,7 @@ export function pageTitle(pathname: string, search: string): string {
     pathname.includes('/configurations/')
   )
     return 'Research Configuration';
-  if (pathname.startsWith('/vehicle-research/')) return 'Vehicle Research';
+  if (pathname.startsWith('/vehicle-research/')) return 'Research Vehicle';
   const team = teamFromLocation(pathname, search);
   if (pathname === ROUTES.profileDefault) return 'Profile';
   if (pathname === ROUTES.dashboard) return 'Team Overview';

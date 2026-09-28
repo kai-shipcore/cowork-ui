@@ -742,7 +742,7 @@ export function VehicleResearchPage() {
             <GroupedDataGrid
               embedded
               className="vehicle-research-grid"
-              label="Vehicle Research"
+              label="Research Vehicle"
               columns={columns}
               groups={groups}
               getRowId={(configuration) => configuration.id}

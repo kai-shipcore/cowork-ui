@@ -37,7 +37,7 @@ Allow 30–45 minutes. Review whether the intended development-to-handoff flow i
 
 | Step | Action                                                                         | Expected result                                                                                               |
 | ---- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| 1    | Find the vehicle, model years, options, product, and zone in Vehicle Research. | Different configurations are not confused.                                                                    |
+| 1    | Find the vehicle, model years, options, product, and zone in Research Vehicle. | Different configurations are not confused.                                                                    |
 | 2    | Open its project in Vehicle Projects and inspect Overview and Next Action.     | Correct project ID and zone.                                                                                  |
 | 3    | Check sourcing in Hunt Board when needed.                                      | Vehicle availability and completed scanning are distinct.                                                     |
 | 4    | Schedule a SCAN visit with vehicle, zones, location, date/time, and staff.     | A SCAN visit appears under upcoming visits.                                                                   |

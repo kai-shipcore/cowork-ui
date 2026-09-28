@@ -166,7 +166,7 @@ export const MENU_SIDEBAR_MAIN: MenuConfig = [
     title: 'R&D Tools',
     children: [
       {
-        title: 'Vehicle Research',
+        title: 'Research Vehicle',
         path: ROUTES.vehicleResearch,
         icon: CarFront,
       },

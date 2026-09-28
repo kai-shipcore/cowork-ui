@@ -35,7 +35,7 @@ export function buildHeaderBreadcrumbs(
       ? vehicleResearchIdentity(configuration.vehicle).makeModel
       : configurationId;
     items.push(
-      { label: 'Vehicle Research', to: ROUTES.vehicleResearch },
+      { label: 'Research Vehicle', to: ROUTES.vehicleResearch },
       {
         label: vehicleName,
         to: `/vehicle-research/${encodeURIComponent(configurationId)}`,
