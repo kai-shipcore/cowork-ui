@@ -43,7 +43,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Coverland-Engineering/coverland-storybook
-          ref: 1ccb8a5328ededa0657bd843a765d1c09b30a42b
+          ref: 35a1eca4b419cd3b2348b4d969f2dbabc5c76b54
           path: Coverland_Storybook
           ssh-key: ${{ secrets.STORYBOOK_READ_KEY }}
           persist-credentials: false
